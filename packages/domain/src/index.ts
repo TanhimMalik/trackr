@@ -8,3 +8,4 @@ export * from "./analytics";
 export * from "./normalize/company";
 export * from "./normalize/title";
 export * from "./normalize/url";
+export * from "./platform";
