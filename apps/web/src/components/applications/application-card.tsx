@@ -1,4 +1,8 @@
-import type { ApplicationStatus, CardSignal } from "@trackr/domain";
+import {
+  APPLICATION_STATUS_LABELS,
+  type ApplicationStatus,
+  type CardSignal,
+} from "@trackr/domain";
 import Link from "next/link";
 import { DateText } from "@/components/date-text";
 import { cn } from "@/lib/utils";
@@ -27,7 +31,7 @@ export function ApplicationCard({
   href,
   className,
 }: {
-  item: BoardItem;
+  item: Omit<BoardItem, "defaults">;
   /** Shown in grouped columns, e.g. "Final round" inside Interview. */
   showStatus: boolean;
   actions?: React.ReactNode;
@@ -74,7 +78,11 @@ export function ApplicationCard({
           <DateText date={saved ? item.createdAt : item.appliedAt!} />
         </p>
         {item.signal && <SignalLine signal={item.signal} />}
-        {showStatus && <StatusBadge status={item.status} />}
+        {/* Skip the status when the signal already says it ("Final round"). */}
+        {showStatus &&
+          item.signal?.label !== APPLICATION_STATUS_LABELS[item.status] && (
+            <StatusBadge status={item.status} />
+          )}
       </div>
     </div>
   );

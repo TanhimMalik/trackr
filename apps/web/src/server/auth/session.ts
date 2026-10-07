@@ -7,8 +7,11 @@ import { createSupabaseServerClient } from "./supabase";
 
 export type SessionUser = {
   id: string;
-  email: string;
+  /** Null for demo accounts, which are anonymous. */
+  email: string | null;
   name: string | null;
+  /** A temporary demo workspace rather than a real account. */
+  isDemo: boolean;
 };
 
 function displayName(metadata: Record<string, unknown> | undefined) {
@@ -18,11 +21,15 @@ function displayName(metadata: Record<string, unknown> | undefined) {
 
 /** The application's record of a Supabase user, as stored in `users`. */
 export function sessionUserFromAuthUser(user: User): SessionUser {
-  if (!user.email) throw new Error("Authenticated user has no email address");
+  const isDemo = user.is_anonymous === true;
+  if (!user.email && !isDemo) {
+    throw new Error("Authenticated user has no email address");
+  }
   return {
     id: user.id,
-    email: user.email,
+    email: user.email || null,
     name: displayName(user.user_metadata),
+    isDemo,
   };
 }
 
@@ -35,10 +42,11 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   const { data, error } = await supabase.auth.getClaims();
   if (error || !data?.claims) return null;
 
-  const { sub, email, user_metadata: metadata } = data.claims;
-  if (!sub || !email) return null;
+  const { sub, email, is_anonymous, user_metadata: metadata } = data.claims;
+  const isDemo = is_anonymous === true;
+  if (!sub || (!email && !isDemo)) return null;
 
-  return { id: sub, email, name: displayName(metadata) };
+  return { id: sub, email: email || null, name: displayName(metadata), isDemo };
 });
 
 /** The signed-in user; redirects to sign-in when there is none. */

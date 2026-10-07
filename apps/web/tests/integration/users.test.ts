@@ -1,7 +1,11 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { users } from "@/server/db/schema";
-import { findUserByEmail, upsertUser } from "@/server/services/users";
+import {
+  findUserByEmail,
+  upsertUser,
+  userExists,
+} from "@/server/services/users";
 import { createTestDatabase, type TestDatabase } from "../helpers/database";
 
 let testDb: TestDatabase;
@@ -56,6 +60,20 @@ describe("upsertUser", () => {
     );
   });
 
+  it("records a demo account without an email address", async () => {
+    const id = crypto.randomUUID();
+    await upsertUser({ id, email: null, name: null, isDemo: true }, testDb.db);
+
+    expect(await findUser(id)).toMatchObject({ email: null, isDemo: true });
+  });
+
+  it("records real accounts as not demos", async () => {
+    const id = crypto.randomUUID();
+    await upsertUser({ id, email: "lin@example.com", name: null }, testDb.db);
+
+    expect((await findUser(id))!.isDemo).toBe(false);
+  });
+
   it("keeps a stored name when a sign-in has none", async () => {
     const id = crypto.randomUUID();
     await upsertUser({ id, email: "kim@example.com", name: "Kim" }, testDb.db);
@@ -80,5 +98,14 @@ describe("findUserByEmail", () => {
       email: "Mixed.Case@Example.com",
     });
     expect(await findUserByEmail("nobody@example.com", testDb.db)).toBeNull();
+  });
+});
+
+describe("userExists", () => {
+  it("knows whether the user has a record", async () => {
+    const id = crypto.randomUUID();
+    expect(await userExists(id, testDb.db)).toBe(false);
+    await upsertUser({ id, email: "max@example.com", name: null }, testDb.db);
+    expect(await userExists(id, testDb.db)).toBe(true);
   });
 });

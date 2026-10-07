@@ -42,13 +42,14 @@ Trackr uses PostgreSQL, hosted on Supabase, accessed through Drizzle ORM from se
 
 One row per account, created on first sign-in.
 
-| Column       | Type        | Notes                            |
-| ------------ | ----------- | -------------------------------- |
-| `id`         | uuid PK     | Equals the Supabase auth user ID |
-| `email`      | text        | Not null                         |
-| `name`       | text        |                                  |
-| `created_at` | timestamptz |                                  |
-| `updated_at` | timestamptz |                                  |
+| Column       | Type        | Notes                                                             |
+| ------------ | ----------- | ----------------------------------------------------------------- |
+| `id`         | uuid PK     | Equals the Supabase auth user ID                                  |
+| `email`      | text        | Null only for demo accounts, which are anonymous                  |
+| `name`       | text        |                                                                   |
+| `is_demo`    | boolean     | A temporary workspace from "Try the demo"; deleted after 48 hours |
+| `created_at` | timestamptz | Partial index on demo accounts, for deleting expired ones         |
+| `updated_at` | timestamptz |                                                                   |
 
 ### `user_settings`
 

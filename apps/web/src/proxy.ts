@@ -21,11 +21,11 @@ export async function proxy(request: NextRequest) {
 
   if (!isAuthenticated && access === "protected") {
     const url = new URL(SIGN_IN_PATH, request.url);
-    if (pathname !== "/") url.searchParams.set("next", `${pathname}${search}`);
+    url.searchParams.set("next", `${pathname}${search}`);
     return redirectWithSession(url, response);
   }
 
-  if (isAuthenticated && access === "auth-page") {
+  if (isAuthenticated && access === "entry") {
     return redirectWithSession(
       new URL(DEFAULT_AUTHENTICATED_PATH, request.url),
       response,

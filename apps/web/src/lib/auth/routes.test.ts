@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { routeAccess, safeRedirectPath } from "./routes";
 
 describe("routeAccess", () => {
-  it("treats sign-in and sign-up as auth pages", () => {
-    expect(routeAccess("/login")).toBe("auth-page");
-    expect(routeAccess("/signup")).toBe("auth-page");
+  it("treats the landing page, the demo and sign-in pages as entry pages", () => {
+    expect(routeAccess("/")).toBe("entry");
+    expect(routeAccess("/demo")).toBe("entry");
+    expect(routeAccess("/login")).toBe("entry");
+    expect(routeAccess("/signup")).toBe("entry");
   });
 
   it("leaves auth callbacks and API routes public", () => {
@@ -13,8 +15,8 @@ describe("routeAccess", () => {
   });
 
   it("protects everything else", () => {
-    expect(routeAccess("/")).toBe("protected");
     expect(routeAccess("/overview")).toBe("protected");
+    expect(routeAccess("/demo/anything")).toBe("protected");
     expect(routeAccess("/applications/123")).toBe("protected");
     expect(routeAccess("/login-help")).toBe("protected");
   });
@@ -41,7 +43,9 @@ describe("safeRedirectPath", () => {
     expect(safeRedirectPath(next)).toBe("/overview");
   });
 
-  it("does not continue to auth pages", () => {
+  it("does not continue to entry pages or auth callbacks", () => {
+    expect(safeRedirectPath("/")).toBe("/overview");
+    expect(safeRedirectPath("/demo")).toBe("/overview");
     expect(safeRedirectPath("/login")).toBe("/overview");
     expect(safeRedirectPath("/auth/callback?code=x")).toBe("/overview");
   });

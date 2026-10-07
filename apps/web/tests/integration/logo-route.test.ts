@@ -9,7 +9,7 @@ const state = vi.hoisted(() => ({
 vi.mock("@/server/auth/session", () => ({
   getCurrentUser: async () =>
     state.signedIn
-      ? { id: "user-1", email: "a@example.com", name: null }
+      ? { id: "user-1", email: "a@example.com", name: null, isDemo: false }
       : null,
 }));
 vi.mock("@/server/integrations/logos", async (importOriginal) => ({
@@ -47,9 +47,14 @@ describe("GET /api/logos/[domain]", () => {
     );
   });
 
-  it("requires a signed-in user", async () => {
+  it("requires a signed-in user for other companies", async () => {
     state.signedIn = false;
-    expect((await get("stripe.com")).status).toBe(401);
+    expect((await get("acme-corp.com")).status).toBe(401);
+  });
+
+  it("serves the demo companies' logos to anyone", async () => {
+    state.signedIn = false;
+    expect((await get("stripe.com")).status).toBe(200);
   });
 
   it("rejects anything that is not a plain domain", async () => {

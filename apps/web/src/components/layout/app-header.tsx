@@ -14,7 +14,9 @@ export function AppHeader({ user }: { user: SessionUser }) {
         <CommandPalette />
       </div>
       <div className="hidden flex-1 md:block" />
-      <UserMenu user={{ name: user.name, email: user.email }} />
+      <UserMenu
+        user={{ name: user.name, email: user.email, isDemo: user.isDemo }}
+      />
     </header>
   );
 }

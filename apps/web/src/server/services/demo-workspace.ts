@@ -1,19 +1,25 @@
 import "server-only";
 import { deriveApplicationState, type StatusEvent } from "@trackr/domain";
-import { eq } from "drizzle-orm";
+import { and, count, eq, lt, sql } from "drizzle-orm";
 import { createApplicationSchema } from "@/lib/applications/input";
 import { getDb } from "@/server/db/client";
-import { applicationEvents, applications } from "@/server/db/schema";
+import { applicationEvents, applications, users } from "@/server/db/schema";
 import type { Database } from "@/server/db/types";
 import {
   DEMO_APPLICATIONS,
   type DemoApplication,
   type DemoEvent,
 } from "@/server/demo/applications";
-import { newApplicationValues } from "./applications";
+import { deleteAllApplications, newApplicationValues } from "./applications";
 import { validateEventInput } from "./events";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+/** How long a demo workspace lasts before it is deleted. */
+export const DEMO_LIFETIME_HOURS = 48;
+/** The most applications a demo workspace may hold. */
+export const DEMO_APPLICATION_LIMIT = 100;
 
 // Gmail-detected events are recorded a few minutes after the email arrived.
 const EMAIL_DETECTION_DELAY_MS = 3 * 60 * 1000;
@@ -138,4 +144,64 @@ export async function seedDemoWorkspace(
 
     return { applications: plans.length, events: events.length };
   });
+}
+
+/** Puts a demo workspace back to its starting sample data. */
+export async function resetDemoWorkspace(
+  userId: string,
+  { now = new Date() }: { now?: Date } = {},
+  db: Database = getDb(),
+): Promise<void> {
+  await deleteAllApplications(userId, db);
+  await seedDemoWorkspace(userId, { now }, db);
+}
+
+// The Supabase auth schema exists in production but not in tests.
+async function hasAuthUsersTable(db: Database): Promise<boolean> {
+  const [row] = await db
+    .select({ tables: count() })
+    .from(sql`information_schema.tables`)
+    .where(sql`table_schema = 'auth' and table_name = 'users'`);
+  return (row?.tables ?? 0) > 0;
+}
+
+/**
+ * Deletes a demo account: its workspace, and its anonymous sign-in so the
+ * session cannot be resumed. Real accounts are never touched.
+ */
+export async function deleteDemoWorkspace(
+  userId: string,
+  db: Database = getDb(),
+): Promise<void> {
+  await db
+    .delete(users)
+    .where(and(eq(users.id, userId), eq(users.isDemo, true)));
+  if (await hasAuthUsersTable(db)) {
+    await db.execute(
+      sql`delete from auth.users where id = ${userId} and is_anonymous`,
+    );
+  }
+}
+
+/**
+ * Deletes demo workspaces, and anonymous sign-ins, older than the demo
+ * lifetime. Runs whenever a new demo starts, so expired demos never pile up.
+ */
+export async function deleteExpiredDemoWorkspaces(
+  { now = new Date() }: { now?: Date } = {},
+  db: Database = getDb(),
+): Promise<{ workspaces: number }> {
+  const cutoff = new Date(now.getTime() - DEMO_LIFETIME_HOURS * HOUR_MS);
+  const deleted = await db
+    .delete(users)
+    .where(and(eq(users.isDemo, true), lt(users.createdAt, cutoff)))
+    .returning({ id: users.id });
+  if (await hasAuthUsersTable(db)) {
+    // An ISO string: the postgres-js driver doesn't serialize raw dates in
+    // hand-written SQL.
+    await db.execute(
+      sql`delete from auth.users where is_anonymous and created_at < ${cutoff.toISOString()}::timestamptz`,
+    );
+  }
+  return { workspaces: deleted.length };
 }

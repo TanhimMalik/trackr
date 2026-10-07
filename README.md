@@ -45,6 +45,7 @@ docs/           Product and engineering documentation
 1. Create a project. Under **Security**, turn off **Enable Data API**, because Trackr reads and writes data only through its own server, and turn on **Enable automatic RLS**.
 2. Under **Authentication → URL Configuration**, set the site URL to `http://localhost:3000` and add `http://localhost:3000/auth/callback**` to the redirect URLs (the wildcard allows the `?next=` destination).
 3. Under **Authentication → Sign In / Providers**, keep email sign-ups enabled. Turning off **Confirm email** is convenient during development.
+4. On the same page, turn on **Allow anonymous sign-ins**. The "Try the demo" button uses them to open a private workspace without an account.
 
 ### Setup
 
@@ -55,7 +56,7 @@ pnpm db:migrate
 pnpm dev
 ```
 
-The app runs at http://localhost:3000. After signing up, you can fill your account with realistic demo data:
+The app runs at http://localhost:3000. The landing page there has **Try the live demo**, and http://localhost:3000/demo opens a demo directly. After signing up, you can also fill your own account with realistic demo data:
 
 ```bash
 pnpm db:seed --email you@example.com

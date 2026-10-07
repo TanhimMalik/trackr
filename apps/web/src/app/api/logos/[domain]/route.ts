@@ -1,22 +1,24 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/server/auth/session";
+import { DEMO_COMPANY_DOMAINS } from "@/server/demo/applications";
 import { fetchCompanyLogo, isLogoDomain } from "@/server/integrations/logos";
 
 const WEEK_SECONDS = 7 * 24 * 60 * 60;
 
 /**
- * Serves a company's logo for signed-in users. Logos are fetched server-side
- * and cached, and only raster images are passed through.
+ * Serves a company's logo for signed-in users, and the demo companies' logos
+ * for anyone. Logos are fetched server-side and cached, and only raster
+ * images are passed through.
  */
 export async function GET(
   _request: NextRequest,
   context: RouteContext<"/api/logos/[domain]">,
 ) {
-  if (!(await getCurrentUser())) {
+  const { domain } = await context.params;
+  if (!DEMO_COMPANY_DOMAINS.has(domain) && !(await getCurrentUser())) {
     return new NextResponse(null, { status: 401 });
   }
 
-  const { domain } = await context.params;
   if (!isLogoDomain(domain)) return new NextResponse(null, { status: 400 });
 
   const logo = await fetchCompanyLogo(domain);

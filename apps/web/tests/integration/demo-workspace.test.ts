@@ -1,12 +1,21 @@
 import { boardColumnForStatus } from "@trackr/domain";
 import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { applicationEvents, applications } from "@/server/db/schema";
-import { listApplications } from "@/server/services/applications";
+import { applicationEvents, applications, users } from "@/server/db/schema";
 import {
+  countApplications,
+  createApplication,
+  listApplications,
+} from "@/server/services/applications";
+import {
+  deleteDemoWorkspace,
+  deleteExpiredDemoWorkspaces,
+  DEMO_LIFETIME_HOURS,
+  resetDemoWorkspace,
   seedDemoWorkspace,
   WorkspaceNotEmptyError,
 } from "@/server/services/demo-workspace";
+import { upsertUser, userExists } from "@/server/services/users";
 import { recomputeApplicationState } from "@/server/services/events";
 import { DEMO_APPLICATIONS } from "@/server/demo/applications";
 import { createTestDatabase, type TestDatabase } from "../helpers/database";
@@ -159,5 +168,109 @@ describe("seedDemoWorkspace", () => {
     const otherUser = await createTestUser(testDb.db);
     await seedDemoWorkspace(userId, { now }, testDb.db);
     expect(await listApplications(otherUser, {}, testDb.db)).toEqual([]);
+  });
+});
+
+const HOUR_MS = 60 * 60 * 1000;
+
+async function createDemoUser(createdAt = now) {
+  const id = crypto.randomUUID();
+  await upsertUser({ id, email: null, name: null, isDemo: true }, testDb.db);
+  await testDb.db.update(users).set({ createdAt }).where(eq(users.id, id));
+  await seedDemoWorkspace(id, { now }, testDb.db);
+  return id;
+}
+
+describe("resetDemoWorkspace", () => {
+  it("replaces the workspace with fresh sample data", async () => {
+    const id = await createDemoUser();
+    await createApplication(
+      id,
+      { companyName: "Acme", jobTitle: "Engineer" },
+      testDb.db,
+    );
+
+    await resetDemoWorkspace(id, { now }, testDb.db);
+
+    const names = (await listApplications(id, {}, testDb.db)).map(
+      (application) => application.companyName,
+    );
+    expect(names).not.toContain("Acme");
+    expect(names).toHaveLength(DEMO_APPLICATIONS.length);
+  });
+});
+
+describe("deleteDemoWorkspace", () => {
+  it("deletes a demo account and everything in it", async () => {
+    const id = await createDemoUser();
+
+    await deleteDemoWorkspace(id, testDb.db);
+
+    expect(await userExists(id, testDb.db)).toBe(false);
+    expect(await countApplications(id, testDb.db)).toBe(0);
+  });
+
+  it("never deletes a real account", async () => {
+    await seedDemoWorkspace(userId, { now }, testDb.db);
+
+    await deleteDemoWorkspace(userId, testDb.db);
+
+    expect(await userExists(userId, testDb.db)).toBe(true);
+    expect(await countApplications(userId, testDb.db)).toBe(
+      DEMO_APPLICATIONS.length,
+    );
+  });
+});
+
+describe("deleteExpiredDemoWorkspaces", () => {
+  it("deletes demos older than their lifetime and nothing else", async () => {
+    const lifetime = DEMO_LIFETIME_HOURS * HOUR_MS;
+    const expired = await createDemoUser(
+      new Date(now.getTime() - lifetime - HOUR_MS),
+    );
+    const current = await createDemoUser(
+      new Date(now.getTime() - lifetime + HOUR_MS),
+    );
+    // A real account older than any demo.
+    await testDb.db
+      .update(users)
+      .set({ createdAt: new Date(now.getTime() - 30 * DAY_MS) })
+      .where(eq(users.id, userId));
+
+    const result = await deleteExpiredDemoWorkspaces({ now }, testDb.db);
+
+    expect(result.workspaces).toBeGreaterThanOrEqual(1);
+    expect(await userExists(expired, testDb.db)).toBe(false);
+    expect(await userExists(current, testDb.db)).toBe(true);
+    expect(await userExists(userId, testDb.db)).toBe(true);
+  });
+
+  it("also deletes expired anonymous sign-ins when the auth schema exists", async () => {
+    // A stand-in for Supabase's auth.users table.
+    await testDb.client.exec(`
+      create schema if not exists auth;
+      create table if not exists auth.users (
+        id uuid primary key,
+        is_anonymous boolean not null default false,
+        created_at timestamptz not null
+      );
+    `);
+    const old = new Date(now.getTime() - (DEMO_LIFETIME_HOURS + 1) * HOUR_MS);
+    const anonymous = crypto.randomUUID();
+    const permanent = crypto.randomUUID();
+    const fresh = crypto.randomUUID();
+    await testDb.client.query(
+      `insert into auth.users (id, is_anonymous, created_at) values
+        ($1, true, $4), ($2, false, $4), ($3, true, $5)`,
+      [anonymous, permanent, fresh, old.toISOString(), now.toISOString()],
+    );
+
+    await deleteExpiredDemoWorkspaces({ now }, testDb.db);
+
+    const { rows } = await testDb.client.query<{ id: string }>(
+      "select id from auth.users order by id",
+    );
+    expect(rows.map((row) => row.id).sort()).toEqual([permanent, fresh].sort());
+    await testDb.client.exec("drop schema auth cascade");
   });
 });

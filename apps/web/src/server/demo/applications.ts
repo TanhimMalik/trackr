@@ -1,6 +1,7 @@
-import type {
-  ApplicationEventType,
-  ClassificationMethod,
+import {
+  domainFromWebsite,
+  type ApplicationEventType,
+  type ClassificationMethod,
 } from "@trackr/domain";
 import type { CreateApplicationInput } from "@/lib/applications/input";
 
@@ -371,3 +372,11 @@ export const DEMO_APPLICATIONS: DemoApplication[] = [
     events: [{ type: "JOB_SAVED", day: 2, hour: 21, via: "manual" }],
   },
 ];
+
+/** The demo companies' domains, whose logos are public (the landing page shows them). */
+export const DEMO_COMPANY_DOMAINS: ReadonlySet<string> = new Set(
+  DEMO_APPLICATIONS.flatMap(({ companyWebsite }) => {
+    const domain = companyWebsite ? domainFromWebsite(companyWebsite) : null;
+    return domain ? [domain] : [];
+  }),
+);

@@ -15,12 +15,14 @@ import { firstErrorPerField } from "@/lib/forms";
 import { requireUser } from "@/server/auth/session";
 import {
   changeApplicationStatus,
+  countApplications,
   createApplication,
   deleteApplication,
   listApplicationSummaries,
   updateApplication,
   type ApplicationSummary,
 } from "@/server/services/applications";
+import { DEMO_APPLICATION_LIMIT } from "@/server/services/demo-workspace";
 import { NotFoundError } from "@/server/services/errors";
 
 export type ApplicationFormState =
@@ -58,6 +60,15 @@ export async function createApplicationAction(
     applicationFormValues(formData),
   );
   if (!parsed.success) return failure(parsed.error, "");
+  if (
+    user.isDemo &&
+    (await countApplications(user.id)) >= DEMO_APPLICATION_LIMIT
+  ) {
+    return {
+      ok: false,
+      error: `Demo workspaces hold up to ${DEMO_APPLICATION_LIMIT} applications.`,
+    };
+  }
   try {
     const application = await createApplication(user.id, parsed.data);
     revalidateApplications();

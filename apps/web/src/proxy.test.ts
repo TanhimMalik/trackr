@@ -61,25 +61,27 @@ describe("proxy", () => {
     );
   });
 
-  it("omits the destination for the root path", async () => {
-    const response = await proxy(request("/"));
-    expect(response.headers.get("location")).toBe(
-      "http://localhost:3000/login",
-    );
-  });
-
-  it("lets signed-out visitors reach auth pages, callbacks and API routes", async () => {
-    for (const path of ["/login", "/signup", "/auth/callback", "/api/health"]) {
+  it("lets signed-out visitors reach entry pages, callbacks and API routes", async () => {
+    for (const path of [
+      "/",
+      "/demo",
+      "/login",
+      "/signup",
+      "/auth/callback",
+      "/api/health",
+    ]) {
       expect(isPassThrough(await proxy(request(path))), path).toBe(true);
     }
   });
 
-  it("sends signed-in users away from auth pages", async () => {
+  it("sends signed-in users from entry pages to the app", async () => {
     session.signedIn = true;
-    const response = await proxy(request("/login"));
-    expect(response.headers.get("location")).toBe(
-      "http://localhost:3000/overview",
-    );
+    for (const path of ["/", "/demo", "/login"]) {
+      const response = await proxy(request(path));
+      expect(response.headers.get("location"), path).toBe(
+        "http://localhost:3000/overview",
+      );
+    }
   });
 
   it("lets signed-in users through to the app", async () => {

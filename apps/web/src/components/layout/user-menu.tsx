@@ -17,16 +17,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { initials } from "@/lib/format";
 import { signOut } from "@/server/auth/actions";
+import { exitDemo } from "@/server/auth/demo";
 import { themeOptions } from "./theme-options";
 
 export function UserMenu({
   user,
 }: {
-  user: { name: string | null; email: string };
+  user: { name: string | null; email: string | null; isDemo: boolean };
 }) {
   const { theme, setTheme } = useTheme();
   const [signingOut, startSignOut] = useTransition();
-  const displayName = user.name ?? user.email;
+  const displayName = user.name ?? user.email ?? "Demo account";
 
   return (
     <DropdownMenu>
@@ -38,7 +39,7 @@ export function UserMenu({
             </AvatarFallback>
           </Avatar>
           <span className="hidden max-w-40 truncate font-medium sm:inline">
-            {user.name ?? user.email}
+            {displayName}
           </span>
           <span className="sr-only">Open account menu</span>
           <ChevronDown className="text-muted-foreground" />
@@ -46,8 +47,19 @@ export function UserMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
         <DropdownMenuLabel className="font-normal">
-          {user.name && <p className="truncate font-medium">{user.name}</p>}
-          <p className="truncate text-muted-foreground">{user.email}</p>
+          {user.isDemo ? (
+            <>
+              <p className="font-medium">Demo workspace</p>
+              <p className="text-muted-foreground">
+                Sample data, private to you
+              </p>
+            </>
+          ) : (
+            <>
+              {user.name && <p className="truncate font-medium">{user.name}</p>}
+              <p className="truncate text-muted-foreground">{user.email}</p>
+            </>
+          )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-xs text-muted-foreground">
@@ -64,10 +76,18 @@ export function UserMenu({
         <DropdownMenuSeparator />
         <DropdownMenuItem
           disabled={signingOut}
-          onSelect={() => startSignOut(() => signOut())}
+          onSelect={() =>
+            startSignOut(() => (user.isDemo ? exitDemo() : signOut()))
+          }
         >
           <LogOut />
-          {signingOut ? "Signing out…" : "Sign out"}
+          {signingOut
+            ? user.isDemo
+              ? "Ending demo…"
+              : "Signing out…"
+            : user.isDemo
+              ? "End demo"
+              : "Sign out"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

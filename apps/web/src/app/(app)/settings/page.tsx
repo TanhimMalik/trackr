@@ -19,7 +19,9 @@ export default async function SettingsPage() {
         <div className="space-y-0.5 border-b p-4">
           <h2 className="font-semibold">Account</h2>
           <p className="text-muted-foreground">
-            The details you signed up with.
+            {user.isDemo
+              ? "You're in a temporary demo workspace. It has no account details and is deleted when the demo ends."
+              : "The details you signed up with."}
           </p>
         </div>
         <dl className="divide-y">
@@ -29,7 +31,7 @@ export default async function SettingsPage() {
           </div>
           <div className="grid gap-1 px-4 py-3 sm:grid-cols-[10rem_1fr]">
             <dt className="text-muted-foreground">Email</dt>
-            <dd>{user.email}</dd>
+            <dd>{user.email ?? "—"}</dd>
           </div>
         </dl>
       </section>

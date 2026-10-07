@@ -271,11 +271,12 @@ LLM confidence is capped below the automatic band unless the rules independently
 
 Email-and-password accounts through Supabase Auth, with the session in cookies managed by `@supabase/ssr`.
 
-- **Proxy (`src/proxy.ts`).** Runs on every page request. It refreshes the session, then redirects optimistically: signed-out visitors go to `/login?next=…`, and signed-in users are sent away from the sign-in and sign-up pages. Refreshed cookies, and the no-store header that must accompany them, are kept on redirects. API routes pass through and authenticate themselves.
+- **Proxy (`src/proxy.ts`).** Runs on every page request. It refreshes the session, then redirects optimistically: signed-out visitors go to `/login?next=…`, and signed-in users are sent away from the entry pages (the landing page, `/demo`, sign-in and sign-up) to the app. Refreshed cookies, and the no-store header that must accompany them, are kept on redirects. API routes pass through and authenticate themselves.
 - **Verification.** The proxy is not the authorization boundary. Layouts, pages and server actions call `requireUser()`, which verifies the session JWT with `supabase.auth.getClaims()` and is cached per request.
 - **Users table.** Sign-in, sign-up and the email-confirmation callback upsert the `users` row. Later sign-ins refresh the email and name.
 - **Forms.** Sign-in, sign-up and sign-out are server actions. Input is validated with zod. Supabase error codes are mapped to plain messages that never reveal whether an account exists.
 - **Redirect safety.** `?next=` only accepts same-origin paths to protected pages, so it cannot be used as an open redirect or cause a redirect loop.
+- **Demo accounts.** "Try the demo" signs in anonymously with Supabase, records the user with `is_demo`, seeds the sample workspace and opens the Overview, in one server action. `/demo` is a shareable link that starts the same action from the browser, so link previews and crawlers never create demos. A demo session has no email; the shell shows a banner to restore the sample data or end the demo, and demo workspaces are capped at 100 applications. Demos are deleted 48 hours after they start: each new demo deletes expired ones (their `users` rows, which cascade, and their anonymous `auth.users` rows), and a session whose workspace is gone is signed out on its next request. Supabase rate-limits anonymous sign-ins per IP address.
 
 ## UI architecture
 

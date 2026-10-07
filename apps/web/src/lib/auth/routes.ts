@@ -1,18 +1,21 @@
 export const DEFAULT_AUTHENTICATED_PATH = "/overview";
 export const SIGN_IN_PATH = "/login";
 
-const AUTH_PAGES = new Set(["/login", "/signup"]);
+export const DEMO_PATH = "/demo";
+
+// The landing page, the demo starter, and sign-in and sign-up.
+const ENTRY_PAGES = new Set(["/", DEMO_PATH, "/login", "/signup"]);
 
 export type RouteAccess =
-  /** Sign-in and sign-up pages: signed-in users are sent to the app. */
-  | "auth-page"
+  /** Ways in for signed-out visitors: signed-in users are sent to the app. */
+  | "entry"
   /** Reachable without a session (auth callbacks; API routes authenticate themselves). */
   | "public"
   /** Requires a signed-in user. */
   | "protected";
 
 export function routeAccess(pathname: string): RouteAccess {
-  if (AUTH_PAGES.has(pathname)) return "auth-page";
+  if (ENTRY_PAGES.has(pathname)) return "entry";
   if (pathname.startsWith("/auth/") || pathname.startsWith("/api/")) {
     return "public";
   }
@@ -22,7 +25,7 @@ export function routeAccess(pathname: string): RouteAccess {
 /**
  * Returns a same-origin path to continue to after signing in, or the default.
  * Rejects absolute and protocol-relative URLs so `?next=` cannot be used as an
- * open redirect, and auth pages so it cannot cause a redirect loop.
+ * open redirect, and entry pages so it cannot cause a redirect loop.
  */
 export function safeRedirectPath(next: unknown): string {
   if (typeof next !== "string") return DEFAULT_AUTHENTICATED_PATH;

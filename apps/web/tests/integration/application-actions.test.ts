@@ -15,6 +15,7 @@ import { createTestUser } from "../helpers/fixtures";
 const context = vi.hoisted(() => ({
   db: undefined as Database | undefined,
   userId: "",
+  isDemo: false,
 }));
 vi.mock("@/server/db/client", () => ({ getDb: () => context.db }));
 vi.mock("@/server/auth/session", () => ({
@@ -22,6 +23,7 @@ vi.mock("@/server/auth/session", () => ({
     id: context.userId,
     email: "test@example.com",
     name: null,
+    isDemo: context.isDemo,
   }),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -38,7 +40,12 @@ const {
   createApplication,
   getApplication,
   listApplications,
+  newApplicationValues,
 } = await import("@/server/services/applications");
+const { DEMO_APPLICATION_LIMIT } =
+  await import("@/server/services/demo-workspace");
+const { applications } = await import("@/server/db/schema");
+const { createApplicationSchema } = await import("@/lib/applications/input");
 
 let testDb: TestDatabase;
 
@@ -53,6 +60,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   context.userId = await createTestUser(testDb.db);
+  context.isDemo = false;
 });
 
 const form = (entries: Record<string, string>) => {
@@ -255,5 +263,45 @@ describe("listApplicationSummariesAction", () => {
       },
       expect.objectContaining({ companyName: "Figma" }),
     ]);
+  });
+});
+
+describe("demo workspace limits", () => {
+  it("stops a demo workspace from growing past its limit", async () => {
+    context.isDemo = true;
+    await testDb.db.insert(applications).values(
+      Array.from({ length: DEMO_APPLICATION_LIMIT }, (_, index) =>
+        newApplicationValues(
+          context.userId,
+          createApplicationSchema.parse({
+            companyName: `Company ${index}`,
+            jobTitle: "Engineer",
+          }),
+        ),
+      ),
+    );
+
+    expect(await createApplicationAction(null, form(validForm))).toEqual({
+      ok: false,
+      error: `Demo workspaces hold up to ${DEMO_APPLICATION_LIMIT} applications.`,
+    });
+  });
+
+  it("doesn't limit real accounts", async () => {
+    await testDb.db.insert(applications).values(
+      Array.from({ length: DEMO_APPLICATION_LIMIT }, (_, index) =>
+        newApplicationValues(
+          context.userId,
+          createApplicationSchema.parse({
+            companyName: `Company ${index}`,
+            jobTitle: "Engineer",
+          }),
+        ),
+      ),
+    );
+
+    expect(await createApplicationAction(null, form(validForm))).toMatchObject({
+      ok: true,
+    });
   });
 });
