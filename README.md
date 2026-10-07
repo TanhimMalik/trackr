@@ -2,7 +2,9 @@
 
 Trackr is an automatic job application tracker. Connect your browser and inbox once, and your job search organizes itself: applications are captured when you submit them, recruiting emails are classified and matched to the right application, and statuses update with a full, explainable history.
 
-> **Status:** early development (Phase 1, Foundation). See the [delivery phases](docs/product-spec.md#17-delivery-phases).
+**Live demo:** [trackr-coral-gamma.vercel.app/demo](https://trackr-coral-gamma.vercel.app/demo) opens a private workspace with sample data. No sign-up needed.
+
+> **Status:** Phase 1 (Foundation) is live. The browser extension and Gmail integration are next. See the [delivery phases](docs/product-spec.md#17-delivery-phases).
 
 ## Documentation
 
