@@ -8,6 +8,7 @@ import {
   EVENT_SOURCE_TYPES,
   INTERVIEW_STATUSES,
   INTERVIEW_TYPES,
+  NOTIFICATION_TYPES,
   SOURCE_PLATFORMS,
 } from "@trackr/domain";
 import { pgEnum } from "drizzle-orm/pg-core";
@@ -52,3 +53,8 @@ export const interviewStatusEnum = pgEnum(
 );
 
 export const contactTypeEnum = pgEnum("contact_type", CONTACT_TYPES);
+
+export const notificationTypeEnum = pgEnum(
+  "notification_type",
+  NOTIFICATION_TYPES,
+);

@@ -11,3 +11,4 @@ export * from "./normalize/title";
 export * from "./normalize/url";
 export * from "./normalize/text";
 export * from "./platform";
+export * from "./notifications";

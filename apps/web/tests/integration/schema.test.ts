@@ -3,8 +3,12 @@ import {
   APPLICATION_SOURCES,
   APPLICATION_STATUSES,
   CLASSIFICATION_METHODS,
+  CONTACT_TYPES,
   EMPLOYMENT_TYPES,
   EVENT_SOURCE_TYPES,
+  INTERVIEW_STATUSES,
+  INTERVIEW_TYPES,
+  NOTIFICATION_TYPES,
   SOURCE_PLATFORMS,
 } from "@trackr/domain";
 import { eq } from "drizzle-orm";
@@ -89,6 +93,7 @@ describe("database schema", () => {
       "applications",
       "contacts",
       "interviews",
+      "notifications",
       "resume_versions",
       "users",
     ]);
@@ -103,6 +108,10 @@ describe("database schema", () => {
     ["application_source", APPLICATION_SOURCES],
     ["employment_type", EMPLOYMENT_TYPES],
     ["classification_method", CLASSIFICATION_METHODS],
+    ["interview_type", INTERVIEW_TYPES],
+    ["interview_status", INTERVIEW_STATUSES],
+    ["contact_type", CONTACT_TYPES],
+    ["notification_type", NOTIFICATION_TYPES],
   ])("mirrors the domain values in the %s enum", async (name, values) => {
     const { rows } = await testDb.client.query<{ label: string }>(
       `select e.enumlabel as label

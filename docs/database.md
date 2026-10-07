@@ -34,7 +34,7 @@ Trackr uses PostgreSQL, hosted on Supabase, accessed through Drizzle ORM from se
 | `review_item_kind`        | POSSIBLE_DUPLICATE, EMAIL_POSSIBLE_MATCH, EMAIL_UNMATCHED, LOW_CONFIDENCE_UPDATE                                                                                                                                                                                                       |
 | `review_item_state`       | OPEN, RESOLVED, DISMISSED                                                                                                                                                                                                                                                              |
 | `review_resolution`       | CONFIRMED, LINKED, CREATED, MERGED, DISMISSED                                                                                                                                                                                                                                          |
-| `notification_type`       | STATUS_CHANGED, ASSESSMENT_RECEIVED, FOLLOW_UP_DUE, REVIEW_NEEDED, INTEGRATION_ERROR                                                                                                                                                                                                   |
+| `notification_type`       | STATUS_CHANGED, ASSESSMENT_RECEIVED, INTERVIEW_SCHEDULED, FOLLOW_UP_DUE, REVIEW_NEEDED, INTEGRATION_ERROR                                                                                                                                                                              |
 
 ## Tables
 
@@ -271,18 +271,18 @@ Constraint: `UNIQUE (user_id, provider)`.
 
 ### `notifications`
 
-| Column           | Type                                   | Notes                                  |
-| ---------------- | -------------------------------------- | -------------------------------------- |
-| `id`             | uuid PK                                |                                        |
-| `user_id`        | uuid → `users` (cascade)               |                                        |
-| `application_id` | uuid → `applications` (cascade)        | Nullable                               |
-| `event_id`       | uuid → `application_events` (set null) |                                        |
-| `type`           | `notification_type`                    |                                        |
-| `title`          | text                                   |                                        |
-| `body`           | text                                   |                                        |
-| `read_at`        | timestamptz                            |                                        |
-| `dedupe_key`     | text                                   | e.g. `stale:<applicationId>:<isoWeek>` |
-| `created_at`     | timestamptz                            |                                        |
+| Column           | Type                                   | Notes                                         |
+| ---------------- | -------------------------------------- | --------------------------------------------- |
+| `id`             | uuid PK                                |                                               |
+| `user_id`        | uuid → `users` (cascade)               |                                               |
+| `application_id` | uuid → `applications` (cascade)        | Nullable                                      |
+| `event_id`       | uuid → `application_events` (set null) |                                               |
+| `type`           | `notification_type`                    |                                               |
+| `title`          | text                                   | Written once, e.g. "Figma moved to Interview" |
+| `body`           | text                                   | The job title                                 |
+| `read_at`        | timestamptz                            |                                               |
+| `dedupe_key`     | text                                   | e.g. `stale:<applicationId>:<isoWeek>`        |
+| `created_at`     | timestamptz                            |                                               |
 
 Constraint: `UNIQUE (user_id, dedupe_key)`, which makes reminder generation idempotent.
 

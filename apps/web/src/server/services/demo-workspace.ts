@@ -1,6 +1,7 @@
 import "server-only";
 import {
   deriveApplicationState,
+  notificationForEvent,
   type InterviewType,
   type StatusEvent,
 } from "@trackr/domain";
@@ -12,6 +13,7 @@ import {
   applications,
   contacts,
   interviews,
+  notifications,
   users,
 } from "@/server/db/schema";
 import type { Database } from "@/server/db/types";
@@ -23,6 +25,7 @@ import {
 } from "@/server/demo/applications";
 import { deleteAllApplications, newApplicationValues } from "./applications";
 import { validateEventInput } from "./events";
+import { eventDedupeKey } from "./notifications";
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -34,6 +37,9 @@ export const DEMO_APPLICATION_LIMIT = 100;
 
 // Gmail-detected events are recorded a few minutes after the email arrived.
 const EMAIL_DETECTION_DELAY_MS = 3 * 60 * 1000;
+// The notification center shows the last month; the latest few are unread.
+const NOTIFICATION_WINDOW_DAYS = 30;
+const UNREAD_WITHIN_DAYS = 10;
 
 export class WorkspaceNotEmptyError extends Error {
   constructor() {
@@ -146,9 +152,41 @@ function planApplication(userId: string, demo: DemoApplication, now: Date) {
   );
   const transitions = new Map(state.transitions.map((t) => [t.eventId, t]));
 
+  // What the notification center would have collected along the way.
+  const notificationRows = events.flatMap(({ id, input, recordedAt }) => {
+    const age = now.getTime() - recordedAt.getTime();
+    if (age > NOTIFICATION_WINDOW_DAYS * DAY_MS) return [];
+    const notification = notificationForEvent(
+      {
+        type: input.type,
+        sourceType: input.sourceType,
+        statusBefore: transitions.get(id)?.before ?? null,
+        statusAfter: transitions.get(id)?.after ?? null,
+      },
+      data.companyName,
+    );
+    if (!notification) return [];
+    return [
+      {
+        ...notification,
+        userId,
+        applicationId,
+        eventId: id,
+        body: data.jobTitle,
+        dedupeKey: eventDedupeKey(id),
+        createdAt: recordedAt,
+        readAt:
+          age > UNREAD_WITHIN_DAYS * DAY_MS
+            ? new Date(recordedAt.getTime() + 2 * HOUR_MS)
+            : null,
+      },
+    ];
+  });
+
   return {
     contacts,
     interviews: interviewRows,
+    notifications: notificationRows,
     application: {
       ...newApplicationValues(userId, data),
       id: applicationId,
@@ -190,6 +228,7 @@ export async function seedDemoWorkspace(
   events: number;
   contacts: number;
   interviews: number;
+  notifications: number;
 }> {
   const plans = DEMO_APPLICATIONS.map((demo) =>
     planApplication(userId, demo, now),
@@ -212,12 +251,17 @@ export async function seedDemoWorkspace(
     if (demoInterviews.length > 0) {
       await tx.insert(interviews).values(demoInterviews);
     }
+    const demoNotifications = plans.flatMap((plan) => plan.notifications);
+    if (demoNotifications.length > 0) {
+      await tx.insert(notifications).values(demoNotifications);
+    }
 
     return {
       applications: plans.length,
       events: events.length,
       contacts: demoContacts.length,
       interviews: demoInterviews.length,
+      notifications: demoNotifications.length,
     };
   });
 }

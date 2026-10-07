@@ -119,3 +119,14 @@ export const CONTACT_TYPES = [
 ] as const;
 export type ContactType = (typeof CONTACT_TYPES)[number];
 export const contactTypeSchema = z.enum(CONTACT_TYPES);
+
+export const NOTIFICATION_TYPES = [
+  "STATUS_CHANGED",
+  "ASSESSMENT_RECEIVED",
+  "INTERVIEW_SCHEDULED",
+  "FOLLOW_UP_DUE",
+  "REVIEW_NEEDED",
+  "INTEGRATION_ERROR",
+] as const;
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+export const notificationTypeSchema = z.enum(NOTIFICATION_TYPES);

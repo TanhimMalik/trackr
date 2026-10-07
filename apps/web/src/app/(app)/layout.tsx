@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 import { DemoBanner } from "@/components/layout/demo-banner";
 import { requireUser } from "@/server/auth/session";
 import { DEMO_LIFETIME_HOURS } from "@/server/services/demo-workspace";
+import { countUnreadNotifications } from "@/server/services/notifications";
 import { userExists } from "@/server/services/users";
 
 export default async function AppLayout({
@@ -19,13 +20,14 @@ export default async function AppLayout({
   if (user.isDemo && !(await userExists(user.id))) {
     redirect("/auth/demo-ended");
   }
+  const unreadNotifications = await countUnreadNotifications(user.id);
 
   return (
     <div className="flex min-h-dvh">
       <AppSidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         {user.isDemo && <DemoBanner lifetimeHours={DEMO_LIFETIME_HOURS} />}
-        <AppHeader user={user} />
+        <AppHeader user={user} unreadNotifications={unreadNotifications} />
         <main className="mx-auto w-full max-w-[96rem] flex-1 px-4 py-6 md:px-6">
           {children}
         </main>

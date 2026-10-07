@@ -15,3 +15,4 @@ export type NewApplicationEvent = typeof schema.applicationEvents.$inferInsert;
 export type ResumeVersion = typeof schema.resumeVersions.$inferSelect;
 export type Contact = typeof schema.contacts.$inferSelect;
 export type Interview = typeof schema.interviews.$inferSelect;
+export type Notification = typeof schema.notifications.$inferSelect;

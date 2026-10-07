@@ -17,6 +17,10 @@ import type { ApplicationEvent, Database } from "@/server/db/types";
 import { LastEventError, NotFoundError } from "./errors";
 import { assertId } from "./ids";
 import { removeInterviewsForEvent, syncInterviewForEvent } from "./interviews";
+import {
+  removeNotificationsForEvent,
+  syncNotificationForEvent,
+} from "./notifications";
 
 const eventInputSchema = z.object({
   userId: z.uuid(),
@@ -55,7 +59,11 @@ export async function processApplicationEvent(
 
   return db.transaction(async (tx) => {
     const [application] = await tx
-      .select({ currentStatus: applications.currentStatus })
+      .select({
+        currentStatus: applications.currentStatus,
+        companyName: applications.companyName,
+        jobTitle: applications.jobTitle,
+      })
       .from(applications)
       .where(
         and(
@@ -86,6 +94,7 @@ export async function processApplicationEvent(
       .from(applicationEvents)
       .where(eq(applicationEvents.id, row.id));
     await syncInterviewForEvent(tx, stored!);
+    await syncNotificationForEvent(tx, stored!, application);
 
     return {
       event: stored!,
@@ -259,6 +268,7 @@ async function setEventReverted(
     const [application] = await tx
       .select({
         companyName: applications.companyName,
+        jobTitle: applications.jobTitle,
         currentStatus: applications.currentStatus,
       })
       .from(applications)
@@ -303,9 +313,14 @@ async function setEventReverted(
       .select()
       .from(applicationEvents)
       .where(eq(applicationEvents.id, eventId));
-    // An interview the event created goes and comes back with it.
-    if (reverted) await removeInterviewsForEvent(tx, eventId);
-    else await syncInterviewForEvent(tx, event!);
+    // What the event created goes and comes back with it.
+    if (reverted) {
+      await removeInterviewsForEvent(tx, eventId);
+      await removeNotificationsForEvent(tx, eventId);
+    } else {
+      await syncInterviewForEvent(tx, event!);
+      await syncNotificationForEvent(tx, event!, application);
+    }
 
     return {
       event: event!,
