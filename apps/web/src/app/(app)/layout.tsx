@@ -5,6 +5,7 @@ import { DemoBanner } from "@/components/layout/demo-banner";
 import { requireUser } from "@/server/auth/session";
 import { DEMO_LIFETIME_HOURS } from "@/server/services/demo-workspace";
 import { countUnreadNotifications } from "@/server/services/notifications";
+import { refreshFollowUpReminders } from "@/server/services/reminders";
 import { userExists } from "@/server/services/users";
 
 export default async function AppLayout({
@@ -20,6 +21,8 @@ export default async function AppLayout({
   if (user.isDemo && !(await userExists(user.id))) {
     redirect("/auth/demo-ended");
   }
+  // No scheduled jobs yet, so due follow-ups are found while the app is in use.
+  await refreshFollowUpReminders(user.id);
   const unreadNotifications = await countUnreadNotifications(user.id);
 
   return (

@@ -175,6 +175,12 @@ Each event type maps to a target status:
 
 Because derivation replays events in the order they happened, an "application received" email processed after an interview invitation sorts before it and cannot regress the status. `applied_at` is derived from the earliest submission or confirmation event, and `last_activity_at` from the latest active event.
 
+### Follow-up reminders
+
+`followUpReminders` in the domain package decides which applications deserve a nudge: an applied application with no activity for the user's interval (14 days by default), or an interview with no news five days after it took place. Reminders that came due more than 30 days ago are skipped. Each becomes a `FOLLOW_UP_DUE` notification whose dedupe key names the quiet stretch, so it is raised once, and any new activity starts a new stretch.
+
+Until scheduled jobs arrive (Phase 9), the app layout calls `refreshFollowUpReminders`, which checks at most once an hour per user. It claims the check with a conditional upsert of `user_settings.reminders_checked_at`, so simultaneous page loads don't repeat the work. Saving the settings clears that timestamp, so a new interval takes effect on the next page load.
+
 ### Undo
 
 Undo sets `reverted_at` on the event and re-runs derivation inside the same transactional processor (`revertEvent`). Restore clears it again (`restoreEvent`). Both lock the application row and are safe to repeat. An application always keeps at least one active event, so its first event can't be undone while it is the only one. Reverted events stay visible, struck through, in the timeline with a Restore button. Undoing an event also removes the interview and notification it created, and restoring it brings them back. Status changes made from the board, the card menu or the detail view, and activity logged by hand, return their event, so their confirmation toast offers Undo.

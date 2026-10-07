@@ -95,6 +95,7 @@ describe("database schema", () => {
       "interviews",
       "notifications",
       "resume_versions",
+      "user_settings",
       "users",
     ]);
     expect(rows.filter((row) => !row.relrowsecurity)).toEqual([]);

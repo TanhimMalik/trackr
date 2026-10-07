@@ -140,7 +140,9 @@ describe("demo notifications", () => {
 
     const items = await listNotifications(seedUser, {}, testDb.db);
     expect(items).toHaveLength(result.notifications);
-    expect(items[0]!.title).toBe("Stripe sent you an offer");
+    expect(items.map((item) => item.title)).toContain(
+      "Stripe sent you an offer",
+    );
     // The latest few are unread.
     const unreadCount = await countUnreadNotifications(seedUser, testDb.db);
     expect(unreadCount).toBeGreaterThan(0);

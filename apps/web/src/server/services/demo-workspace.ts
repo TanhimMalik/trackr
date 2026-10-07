@@ -1,5 +1,6 @@
 import "server-only";
 import {
+  DEFAULT_FOLLOW_UP_AFTER_DAYS,
   deriveApplicationState,
   notificationForEvent,
   type InterviewType,
@@ -26,6 +27,7 @@ import {
 import { deleteAllApplications, newApplicationValues } from "./applications";
 import { validateEventInput } from "./events";
 import { eventDedupeKey } from "./notifications";
+import { generateFollowUpReminders } from "./reminders";
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -255,13 +257,22 @@ export async function seedDemoWorkspace(
     if (demoNotifications.length > 0) {
       await tx.insert(notifications).values(demoNotifications);
     }
+    const reminders = await generateFollowUpReminders(
+      userId,
+      {
+        now,
+        afterDays: DEFAULT_FOLLOW_UP_AFTER_DAYS,
+        readBefore: new Date(now.getTime() - UNREAD_WITHIN_DAYS * DAY_MS),
+      },
+      tx,
+    );
 
     return {
       applications: plans.length,
       events: events.length,
       contacts: demoContacts.length,
       interviews: demoInterviews.length,
-      notifications: demoNotifications.length,
+      notifications: demoNotifications.length + reminders,
     };
   });
 }

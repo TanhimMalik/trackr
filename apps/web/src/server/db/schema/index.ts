@@ -6,3 +6,4 @@ export * from "./application-events";
 export * from "./contacts";
 export * from "./interviews";
 export * from "./notifications";
+export * from "./user-settings";

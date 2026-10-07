@@ -53,23 +53,15 @@ One row per account, created on first sign-in.
 
 ### `user_settings`
 
-Automation preferences and thresholds. One row per user.
+Preferences, one row per user, created the first time one is saved or needed. Columns are added with the phase that uses them: automation thresholds (`auto_apply_min_confidence`, `match_auto_min_score` and so on) arrive with the email pipeline.
 
-| Column                         | Type                        | Default |
-| ------------------------------ | --------------------------- | ------- |
-| `user_id`                      | uuid PK → `users` (cascade) |         |
-| `auto_apply_min_confidence`    | real                        | 0.95    |
-| `flagged_apply_min_confidence` | real                        | 0.75    |
-| `review_min_confidence`        | real                        | 0.50    |
-| `match_auto_min_score`         | integer                     | 80      |
-| `match_review_min_score`       | integer                     | 50      |
-| `auto_update_enabled`          | boolean                     | true    |
-| `ask_before_medium_confidence` | boolean                     | false   |
-| `follow_up_reminders_enabled`  | boolean                     | true    |
-| `follow_up_after_days`         | integer                     | 14      |
-| `store_job_descriptions`       | boolean                     | true    |
-| `auto_track_supported_sites`   | boolean                     | true    |
-| `updated_at`                   | timestamptz                 |         |
+| Column                        | Type                        | Default | Notes                                           |
+| ----------------------------- | --------------------------- | ------- | ----------------------------------------------- |
+| `user_id`                     | uuid PK → `users` (cascade) |         |                                                 |
+| `follow_up_reminders_enabled` | boolean                     | true    |                                                 |
+| `follow_up_after_days`        | integer                     | 14      | Check: 1–90; the UI offers 7, 10, 14, 21 or 30  |
+| `reminders_checked_at`        | timestamptz                 |         | Last reminder check; cleared when settings save |
+| `updated_at`                  | timestamptz                 |         |                                                 |
 
 ### `applications`
 
@@ -271,18 +263,18 @@ Constraint: `UNIQUE (user_id, provider)`.
 
 ### `notifications`
 
-| Column           | Type                                   | Notes                                         |
-| ---------------- | -------------------------------------- | --------------------------------------------- |
-| `id`             | uuid PK                                |                                               |
-| `user_id`        | uuid → `users` (cascade)               |                                               |
-| `application_id` | uuid → `applications` (cascade)        | Nullable                                      |
-| `event_id`       | uuid → `application_events` (set null) |                                               |
-| `type`           | `notification_type`                    |                                               |
-| `title`          | text                                   | Written once, e.g. "Figma moved to Interview" |
-| `body`           | text                                   | The job title                                 |
-| `read_at`        | timestamptz                            |                                               |
-| `dedupe_key`     | text                                   | e.g. `stale:<applicationId>:<isoWeek>`        |
-| `created_at`     | timestamptz                            |                                               |
+| Column           | Type                                   | Notes                                                                                                  |
+| ---------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `id`             | uuid PK                                |                                                                                                        |
+| `user_id`        | uuid → `users` (cascade)               |                                                                                                        |
+| `application_id` | uuid → `applications` (cascade)        | Nullable                                                                                               |
+| `event_id`       | uuid → `application_events` (set null) |                                                                                                        |
+| `type`           | `notification_type`                    |                                                                                                        |
+| `title`          | text                                   | Written once, e.g. "Figma moved to Interview"                                                          |
+| `body`           | text                                   | The job title                                                                                          |
+| `read_at`        | timestamptz                            |                                                                                                        |
+| `dedupe_key`     | text                                   | `event:<eventId>`, `stale:<applicationId>:<lastActivityAt>` or `interview:<interviewId>:<scheduledAt>` |
+| `created_at`     | timestamptz                            |                                                                                                        |
 
 Constraint: `UNIQUE (user_id, dedupe_key)`, which makes reminder generation idempotent.
 
