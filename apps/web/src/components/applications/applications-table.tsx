@@ -10,26 +10,9 @@ import {
 } from "@/components/ui/table";
 import type { Application } from "@/server/db/types";
 import { ApplicationRowActions } from "./application-row-actions";
-import type { ApplicationFormDefaults } from "./application-form";
 import { CompanyAvatar } from "./company-avatar";
+import { formDefaultsFor } from "./form-defaults";
 import { StatusBadge } from "./status-badge";
-
-function formDefaults(application: Application): ApplicationFormDefaults {
-  return {
-    companyName: application.companyName,
-    companyDomain: application.companyDomain,
-    jobTitle: application.jobTitle,
-    jobUrl: application.jobUrl,
-    location: application.location,
-    employmentType: application.employmentType,
-    salaryMin: application.salaryMin,
-    salaryMax: application.salaryMax,
-    salaryCurrency: application.salaryCurrency,
-    source: application.source,
-    sourcePlatform: application.sourcePlatform,
-    notes: application.notes,
-  };
-}
 
 const muted = <span className="text-muted-foreground">—</span>;
 
@@ -102,7 +85,8 @@ export function ApplicationsTable({
               <TableCell className="pr-3 text-right">
                 <ApplicationRowActions
                   applicationId={application.id}
-                  defaults={formDefaults(application)}
+                  status={application.currentStatus}
+                  defaults={formDefaultsFor(application)}
                 />
               </TableCell>
             </TableRow>

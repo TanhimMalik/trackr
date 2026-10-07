@@ -1,5 +1,7 @@
 import "server-only";
 import {
+  CARD_SIGNAL_EVENT_TYPES,
+  cardSignal,
   RESPONSE_EVENT_TYPES,
   RESPONSE_STATUSES,
   detectSourcePlatform,
@@ -8,6 +10,8 @@ import {
   normalizeCompanyName,
   normalizeJobTitle,
   type ApplicationStatus,
+  type CardSignal,
+  type CardSignalEventType,
 } from "@trackr/domain";
 import {
   and,
@@ -446,4 +450,87 @@ export async function countApplications(
     .from(applications)
     .where(eq(applications.userId, userId));
   return row?.total ?? 0;
+}
+
+export type BoardApplication = Application & {
+  /** The one-line summary shown on the card. */
+  signal: CardSignal | null;
+};
+
+/**
+ * Applications for the board: the filtered list, each with its card summary
+ * (the latest informative event, how it was captured, or where it was found).
+ */
+export async function listBoardApplications(
+  userId: string,
+  filters: Partial<ApplicationFilters> = {},
+  db: Database = getDb(),
+  now: Date = new Date(),
+): Promise<BoardApplication[]> {
+  const rows = await listApplications(userId, filters, db, now);
+  if (rows.length === 0) return [];
+
+  const activeEvents = and(
+    eq(applicationEvents.userId, userId),
+    inArray(
+      applicationEvents.applicationId,
+      rows.map((row) => row.id),
+    ),
+    isNull(applicationEvents.revertedAt),
+  );
+
+  const [latestSignals, origins] = await Promise.all([
+    db
+      .selectDistinctOn([applicationEvents.applicationId], {
+        applicationId: applicationEvents.applicationId,
+        type: applicationEvents.eventType,
+        metadata: applicationEvents.metadata,
+      })
+      .from(applicationEvents)
+      .where(
+        and(
+          activeEvents,
+          inArray(applicationEvents.eventType, CARD_SIGNAL_EVENT_TYPES),
+        ),
+      )
+      .orderBy(
+        applicationEvents.applicationId,
+        desc(applicationEvents.eventTimestamp),
+        desc(applicationEvents.createdAt),
+      ),
+    db
+      .selectDistinctOn([applicationEvents.applicationId], {
+        applicationId: applicationEvents.applicationId,
+        sourceType: applicationEvents.sourceType,
+      })
+      .from(applicationEvents)
+      .where(activeEvents)
+      .orderBy(
+        applicationEvents.applicationId,
+        asc(applicationEvents.eventTimestamp),
+        asc(applicationEvents.createdAt),
+      ),
+  ]);
+
+  const latestById = new Map(
+    latestSignals.map((row) => [row.applicationId, row]),
+  );
+  const originById = new Map(origins.map((row) => [row.applicationId, row]));
+
+  return rows.map((row) => {
+    const latest = latestById.get(row.id);
+    return {
+      ...row,
+      signal: cardSignal({
+        latestSignalEvent: latest
+          ? {
+              type: latest.type as CardSignalEventType,
+              metadata: { isFinalRound: latest.metadata.isFinalRound === true },
+            }
+          : null,
+        originEvent: originById.get(row.id) ?? null,
+        source: row.source,
+      }),
+    };
+  });
 }

@@ -27,6 +27,7 @@ vi.mock("@/server/auth/session", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 const {
+  changeApplicationStatusAction,
   createApplicationAction,
   deleteApplicationAction,
   updateApplicationAction,
@@ -172,6 +173,42 @@ describe("deleteApplicationAction", () => {
     expect(await deleteApplicationAction(created!.id)).toEqual({
       ok: false,
       error: "This application was already deleted.",
+    });
+  });
+});
+
+describe("changeApplicationStatusAction", () => {
+  it("moves the application and reports where it went", async () => {
+    await createApplicationAction(null, form(validForm));
+    const [created] = await listApplications(context.userId, {}, testDb.db);
+
+    expect(
+      await changeApplicationStatusAction(created!.id, "INTERVIEW"),
+    ).toEqual({ ok: true, message: "Moved to Interview." });
+    expect(
+      await changeApplicationStatusAction(created!.id, "INTERVIEW"),
+    ).toEqual({ ok: true, message: "Already in Interview." });
+
+    const { application, events } = await getApplication(
+      context.userId,
+      created!.id,
+      testDb.db,
+    );
+    expect(application.currentStatus).toBe("INTERVIEW");
+    expect(events.at(-1)).toMatchObject({
+      eventType: "STATUS_OVERRIDDEN",
+      sourceType: "MANUAL",
+    });
+  });
+
+  it("does not move another user's application", async () => {
+    await createApplicationAction(null, form(validForm));
+    const [mine] = await listApplications(context.userId, {}, testDb.db);
+
+    context.userId = await createTestUser(testDb.db);
+    expect(await changeApplicationStatusAction(mine!.id, "REJECTED")).toEqual({
+      ok: false,
+      error: "This application no longer exists.",
     });
   });
 });

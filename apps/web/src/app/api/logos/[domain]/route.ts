@@ -21,8 +21,10 @@ export async function GET(
 
   const logo = await fetchCompanyLogo(domain);
   if (!logo) {
+    // "No logo" is an expected answer, not an error: an empty response makes
+    // the image fall back to initials without a failed request in the console.
     return new NextResponse(null, {
-      status: 404,
+      status: 204,
       headers: { "cache-control": "private, max-age=86400" },
     });
   }

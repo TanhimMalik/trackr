@@ -57,9 +57,12 @@ describe("GET /api/logos/[domain]", () => {
     expect((await get("169.254.169.254")).status).toBe(400);
   });
 
-  it("reports a missing logo so the initials show instead", async () => {
+  it("answers a missing logo with no content so the initials show instead", async () => {
     state.logo = null;
     const response = await get("unknown-company.com");
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(204);
+    expect(response.headers.get("cache-control")).toBe(
+      "private, max-age=86400",
+    );
   });
 });

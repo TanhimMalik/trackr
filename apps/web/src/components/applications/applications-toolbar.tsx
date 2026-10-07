@@ -6,7 +6,7 @@ import {
   APPLICATION_STATUS_LABELS,
 } from "@trackr/domain";
 import { ArrowUpDown, ChevronDown, Search, X } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -92,6 +92,7 @@ export function ApplicationsToolbar({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
 
   // Keep the search box in step when the URL changes (back/forward, clear).
@@ -104,6 +105,9 @@ export function ApplicationsToolbar({
 
   function apply(next: Partial<ApplicationFilters>) {
     const params = filtersToSearchParams({ ...filters, query, ...next });
+    // Filters change, the chosen view stays.
+    const view = searchParams.get("view");
+    if (view) params.set("view", view);
     const search = params.toString();
     startTransition(() => {
       router.replace(search ? `${pathname}?${search}` : pathname, {

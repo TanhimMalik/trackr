@@ -1,5 +1,9 @@
 "use server";
 
+import {
+  APPLICATION_STATUS_LABELS,
+  type ApplicationStatus,
+} from "@trackr/domain";
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import { applicationFormValues } from "@/lib/applications/form-data";
@@ -10,6 +14,7 @@ import {
 import { firstErrorPerField } from "@/lib/forms";
 import { requireUser } from "@/server/auth/session";
 import {
+  changeApplicationStatus,
   createApplication,
   deleteApplication,
   updateApplication,
@@ -94,5 +99,29 @@ export async function deleteApplicationAction(
     return { ok: true, message: "Application deleted." };
   } catch (error) {
     return failure(error, "This application was already deleted.");
+  }
+}
+
+/** Records a manual status change, for example from dragging a board card. */
+export async function changeApplicationStatusAction(
+  applicationId: string,
+  status: ApplicationStatus,
+): Promise<ApplicationFormState> {
+  const user = await requireUser();
+  try {
+    const result = await changeApplicationStatus(
+      user.id,
+      applicationId,
+      status,
+    );
+    revalidateApplications();
+    return {
+      ok: true,
+      message: result
+        ? `Moved to ${APPLICATION_STATUS_LABELS[result.status]}.`
+        : `Already in ${APPLICATION_STATUS_LABELS[status]}.`,
+    };
+  } catch (error) {
+    return failure(error, "This application no longer exists.");
   }
 }
