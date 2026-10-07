@@ -1,0 +1,29 @@
+# dependencies
+node_modules/
+
+# build output
+.next/
+out/
+build/
+dist/
+
+# testing
+coverage/
+
+# environment
+.env*
+!.env.example
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# deployment
+.vercel/
+
+# logs
+*.log
+
+# misc
+.DS_Store
+*.pem
