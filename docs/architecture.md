@@ -177,7 +177,7 @@ Because derivation replays events in the order they happened, an "application re
 
 ### Undo
 
-Undo sets `reverted_at` on the event and re-runs derivation inside the same transactional processor. Reverted events stay visible, struck through, in the timeline.
+Undo sets `reverted_at` on the event and re-runs derivation inside the same transactional processor (`revertEvent`). Restore clears it again (`restoreEvent`). Both lock the application row and are safe to repeat. An application always keeps at least one active event, so its first event can't be undone while it is the only one. Reverted events stay visible, struck through, in the timeline with a Restore button. Status changes made from the board, the card menu or the detail view return their event, so their confirmation toast offers Undo.
 
 ## Classification pipeline
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeEvent, type TimelineEvent } from "./timeline";
+import { describeEvent, eventActionFor, type TimelineEvent } from "./timeline";
 
 const event = (overrides: Partial<TimelineEvent>): TimelineEvent => ({
   eventType: "APPLICATION_SUBMITTED",
@@ -116,5 +116,16 @@ describe("describeEvent", () => {
       }),
     );
     expect(entry.detail).toBeNull();
+  });
+});
+
+describe("eventActionFor", () => {
+  it("offers undo while other events remain", () => {
+    expect(eventActionFor({ revertedAt: null }, 3)).toBe("undo");
+    expect(eventActionFor({ revertedAt: null }, 1)).toBeNull();
+  });
+
+  it("offers restore for undone events", () => {
+    expect(eventActionFor({ revertedAt: new Date() }, 1)).toBe("restore");
   });
 });

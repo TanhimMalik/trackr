@@ -8,3 +8,11 @@ export class NotFoundError extends Error {
     this.name = "NotFoundError";
   }
 }
+
+/** Undoing this event would leave its application with no history at all. */
+export class LastEventError extends Error {
+  constructor() {
+    super("An application must keep at least one event");
+    this.name = "LastEventError";
+  }
+}

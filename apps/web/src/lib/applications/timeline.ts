@@ -93,3 +93,16 @@ export function describeEvent(event: TimelineEvent): TimelineEntry {
     reverted: event.revertedAt !== null,
   };
 }
+
+/**
+ * What the timeline offers for an event: undo while it counts, restore once
+ * undone. The last active event can't be undone, so an application always
+ * keeps some history.
+ */
+export function eventActionFor(
+  event: Pick<TimelineEvent, "revertedAt">,
+  activeEvents: number,
+): "undo" | "restore" | null {
+  if (event.revertedAt) return "restore";
+  return activeEvents > 1 ? "undo" : null;
+}

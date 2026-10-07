@@ -195,7 +195,7 @@ Automatic behavior must always be visible and reversible:
 
 - **Every automatic change states its source:** "Status updated automatically from Gmail" or "Detected by the browser extension".
 - **Auto-classified updates carry a small "Auto" badge with the confidence** ("Auto · 82%"). LLM-classified updates are labelled as such in the detail view.
-- **Undo** is offered in the confirmation toast and in the timeline for every automatic change.
+- **Undo** is offered in the confirmation toast of every status change and on every timeline entry (it appears on hover or focus with a mouse, and stays visible on touch screens). Undone entries stay in the timeline, struck through, with Restore. Undo toasts stay up for 8 seconds.
 - **Review items** use the warning color and a clear call to action ("Review"), never a silent change.
 - **Iconography** uses source icons (mail, puzzle piece, pencil) rather than "AI" symbolism.
 

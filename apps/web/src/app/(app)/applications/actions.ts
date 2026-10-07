@@ -23,10 +23,20 @@ import {
   type ApplicationSummary,
 } from "@/server/services/applications";
 import { DEMO_APPLICATION_LIMIT } from "@/server/services/demo-workspace";
-import { NotFoundError } from "@/server/services/errors";
+import { LastEventError, NotFoundError } from "@/server/services/errors";
+import {
+  restoreEvent,
+  revertEvent,
+  type EventChange,
+} from "@/server/services/events";
 
 export type ApplicationFormState =
-  | { ok: true; message: string }
+  | {
+      ok: true;
+      message: string;
+      /** The event a status change recorded, so it can be undone. */
+      eventId?: string;
+    }
   | { ok: false; error?: string; fieldErrors?: Record<string, string> }
   | null;
 
@@ -133,6 +143,7 @@ export async function changeApplicationStatusAction(
       message: result
         ? `Moved to ${APPLICATION_STATUS_LABELS[result.status]}.`
         : `Already in ${APPLICATION_STATUS_LABELS[status]}.`,
+      eventId: result?.event.id,
     };
   } catch (error) {
     return failure(error, "This application no longer exists.");
@@ -145,4 +156,59 @@ export async function listApplicationSummariesAction(): Promise<
 > {
   const user = await requireUser();
   return listApplicationSummaries(user.id);
+}
+
+export type EventChangeState =
+  { ok: true; message: string } | { ok: false; error: string };
+
+const statusLabel = (change: EventChange) =>
+  APPLICATION_STATUS_LABELS[change.status];
+
+async function changeEvent(
+  eventId: string,
+  change: (userId: string, eventId: string) => Promise<EventChange>,
+  describe: (change: EventChange) => string,
+): Promise<EventChangeState> {
+  const user = await requireUser();
+  try {
+    const result = await change(user.id, eventId);
+    revalidateApplications();
+    return { ok: true, message: describe(result) };
+  } catch (error) {
+    if (error instanceof LastEventError) {
+      return {
+        ok: false,
+        error: "This is the application's only event, so it can't be undone.",
+      };
+    }
+    if (error instanceof NotFoundError) {
+      return { ok: false, error: "This event no longer exists." };
+    }
+    console.error("event_change_failed", {
+      error: error instanceof Error ? error.name : "unknown",
+    });
+    return { ok: false, error: "Something went wrong. Try again." };
+  }
+}
+
+/** Undoes an event, such as a status change made by mistake. */
+export async function undoEventAction(
+  eventId: string,
+): Promise<EventChangeState> {
+  return changeEvent(eventId, revertEvent, (change) =>
+    change.status === change.previousStatus
+      ? `Undone. ${change.companyName} stays in ${statusLabel(change)}.`
+      : `Undone. ${change.companyName} is back in ${statusLabel(change)}.`,
+  );
+}
+
+/** Brings back an event that was undone. */
+export async function restoreEventAction(
+  eventId: string,
+): Promise<EventChangeState> {
+  return changeEvent(
+    eventId,
+    restoreEvent,
+    (change) => `Restored. ${change.companyName} is in ${statusLabel(change)}.`,
+  );
 }

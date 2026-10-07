@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { ApplicationCard, type BoardItem } from "./application-card";
 import { ApplicationRowActions } from "./application-row-actions";
 import { StatusDot } from "./status-badge";
+import { withUndo } from "./undo-event";
 
 const columnLabel = (id: unknown) =>
   BOARD_COLUMNS.find((column) => column.id === id)?.label ?? "a column";
@@ -223,6 +224,7 @@ export function ApplicationsBoard({
       if (result?.ok) {
         toast.success(
           `${item.companyName} moved to ${APPLICATION_STATUS_LABELS[status]}.`,
+          withUndo(result.eventId),
         );
       } else {
         toast.error(result?.error ?? `Couldn't move ${item.companyName}.`);

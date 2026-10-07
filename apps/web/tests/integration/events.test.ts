@@ -4,9 +4,11 @@ import {
   createApplication,
   getApplication,
 } from "@/server/services/applications";
-import { NotFoundError } from "@/server/services/errors";
+import { LastEventError, NotFoundError } from "@/server/services/errors";
 import {
   processApplicationEvent,
+  restoreEvent,
+  revertEvent,
   type ApplicationEventInput,
 } from "@/server/services/events";
 import { createTestDatabase, type TestDatabase } from "../helpers/database";
@@ -241,5 +243,111 @@ describe("processApplicationEvent", () => {
       "INTERVIEW",
       "FINAL_ROUND",
     ]);
+  });
+});
+
+describe("revertEvent and restoreEvent", () => {
+  it("undoes an event and re-derives the status", async () => {
+    await processApplicationEvent(
+      emailEvent("ASSESSMENT_RECEIVED", daysAgo(15), "m1"),
+      testDb.db,
+    );
+    const { event: interview } = await processApplicationEvent(
+      emailEvent("INTERVIEW_REQUESTED", daysAgo(5), "m2"),
+      testDb.db,
+    );
+    expect((await statusOf()).currentStatus).toBe("INTERVIEW");
+
+    const change = await revertEvent(userId, interview.id, testDb.db);
+
+    expect(change).toMatchObject({
+      companyName: "Datadog",
+      previousStatus: "INTERVIEW",
+      status: "ASSESSMENT",
+    });
+    expect(change.event.revertedAt).toBeInstanceOf(Date);
+    expect(change.event.statusAfter).toBeNull();
+    expect((await statusOf()).currentStatus).toBe("ASSESSMENT");
+  });
+
+  it("brings an undone event back", async () => {
+    const { event } = await processApplicationEvent(
+      emailEvent("REJECTION_RECEIVED", daysAgo(3), "m3"),
+      testDb.db,
+    );
+    await revertEvent(userId, event.id, testDb.db);
+    expect((await statusOf()).currentStatus).toBe("APPLIED");
+
+    const change = await restoreEvent(userId, event.id, testDb.db);
+
+    expect(change.status).toBe("REJECTED");
+    expect(change.event).toMatchObject({
+      revertedAt: null,
+      statusBefore: "APPLIED",
+      statusAfter: "REJECTED",
+    });
+  });
+
+  it("is harmless to repeat", async () => {
+    const { event } = await processApplicationEvent(
+      emailEvent("ASSESSMENT_RECEIVED", daysAgo(4), "m4"),
+      testDb.db,
+    );
+    const first = await revertEvent(userId, event.id, testDb.db);
+    const second = await revertEvent(userId, event.id, testDb.db);
+
+    expect(second.event.revertedAt).toEqual(first.event.revertedAt);
+    expect(second.status).toBe("APPLIED");
+    expect((await restoreEvent(userId, event.id, testDb.db)).status).toBe(
+      "ASSESSMENT",
+    );
+    expect((await restoreEvent(userId, event.id, testDb.db)).status).toBe(
+      "ASSESSMENT",
+    );
+  });
+
+  it("keeps at least one active event", async () => {
+    const { events } = await getApplication(userId, applicationId, testDb.db);
+    expect(events).toHaveLength(1);
+
+    await expect(
+      revertEvent(userId, events[0]!.id, testDb.db),
+    ).rejects.toBeInstanceOf(LastEventError);
+    expect((await statusOf()).currentStatus).toBe("APPLIED");
+  });
+
+  it("only touches the user's own events", async () => {
+    const { event } = await processApplicationEvent(
+      emailEvent("ASSESSMENT_RECEIVED", daysAgo(4), "m5"),
+      testDb.db,
+    );
+    const intruder = await createTestUser(testDb.db);
+
+    await expect(revertEvent(intruder, event.id, testDb.db)).rejects.toThrow(
+      NotFoundError,
+    );
+    await expect(revertEvent(userId, "not-an-id", testDb.db)).rejects.toThrow(
+      NotFoundError,
+    );
+    expect((await statusOf()).currentStatus).toBe("ASSESSMENT");
+  });
+
+  it("restores a manual move that was undone", async () => {
+    const { event } = await processApplicationEvent(
+      {
+        userId,
+        applicationId,
+        type: "STATUS_OVERRIDDEN",
+        occurredAt: new Date(),
+        sourceType: "MANUAL",
+        metadata: { toStatus: "OFFER" },
+        dedupeKey: "manual:offer",
+      },
+      testDb.db,
+    );
+    await revertEvent(userId, event.id, testDb.db);
+    expect((await statusOf()).currentStatus).toBe("APPLIED");
+    await restoreEvent(userId, event.id, testDb.db);
+    expect((await statusOf()).currentStatus).toBe("OFFER");
   });
 });

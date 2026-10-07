@@ -33,6 +33,8 @@ const {
   createApplicationAction,
   deleteApplicationAction,
   listApplicationSummariesAction,
+  restoreEventAction,
+  undoEventAction,
   updateApplicationAction,
 } = await import("@/app/(app)/applications/actions");
 const {
@@ -197,7 +199,11 @@ describe("changeApplicationStatusAction", () => {
 
     expect(
       await changeApplicationStatusAction(created!.id, "INTERVIEW"),
-    ).toEqual({ ok: true, message: "Moved to Interview." });
+    ).toEqual({
+      ok: true,
+      message: "Moved to Interview.",
+      eventId: expect.any(String),
+    });
     expect(
       await changeApplicationStatusAction(created!.id, "INTERVIEW"),
     ).toEqual({ ok: true, message: "Already in Interview." });
@@ -302,6 +308,48 @@ describe("demo workspace limits", () => {
 
     expect(await createApplicationAction(null, form(validForm))).toMatchObject({
       ok: true,
+    });
+  });
+});
+
+describe("undoEventAction and restoreEventAction", () => {
+  it("undoes a status change and brings it back", async () => {
+    await createApplicationAction(null, form(validForm));
+    const [created] = await listApplications(context.userId, {}, testDb.db);
+    const moved = await changeApplicationStatusAction(created!.id, "OFFER");
+    const eventId = moved!.ok ? moved!.eventId! : "";
+
+    expect(await undoEventAction(eventId)).toEqual({
+      ok: true,
+      message: "Undone. Figma is back in Assessment.",
+    });
+    expect(await restoreEventAction(eventId)).toEqual({
+      ok: true,
+      message: "Restored. Figma is in Offer.",
+    });
+  });
+
+  it("explains when an event can't be undone", async () => {
+    // Applied directly: a single starting event.
+    const created = await createApplication(
+      context.userId,
+      { companyName: "Ramp", jobTitle: "Engineer" },
+      testDb.db,
+    );
+    const { events } = await getApplication(
+      context.userId,
+      created.id,
+      testDb.db,
+    );
+    expect(events).toHaveLength(1);
+
+    expect(await undoEventAction(events[0]!.id)).toEqual({
+      ok: false,
+      error: "This is the application's only event, so it can't be undone.",
+    });
+    expect(await undoEventAction(crypto.randomUUID())).toEqual({
+      ok: false,
+      error: "This event no longer exists.",
     });
   });
 });

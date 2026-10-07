@@ -9,12 +9,12 @@ import {
   type ApplicationStatus,
   type StatusEvent,
 } from "@trackr/domain";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, count, eq, isNull, ne } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/server/db/client";
 import { applicationEvents, applications } from "@/server/db/schema";
 import type { ApplicationEvent, Database } from "@/server/db/types";
-import { NotFoundError } from "./errors";
+import { LastEventError, NotFoundError } from "./errors";
 
 const eventInputSchema = z.object({
   userId: z.uuid(),
@@ -215,4 +215,117 @@ export async function recomputeApplicationState(
   }
 
   return state.status;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export type EventChange = {
+  event: ApplicationEvent;
+  companyName: string;
+  previousStatus: ApplicationStatus;
+  status: ApplicationStatus;
+};
+
+/**
+ * Marks an event as undone or brings it back, then re-derives the
+ * application's status from the events that remain. Repeating either is
+ * harmless. An application always keeps at least one active event.
+ */
+async function setEventReverted(
+  userId: string,
+  eventId: string,
+  reverted: boolean,
+  db: Database,
+): Promise<EventChange> {
+  if (!UUID.test(eventId)) throw new NotFoundError("Event");
+
+  return db.transaction(async (tx) => {
+    const [target] = await tx
+      .select({
+        applicationId: applicationEvents.applicationId,
+        revertedAt: applicationEvents.revertedAt,
+      })
+      .from(applicationEvents)
+      .where(
+        and(
+          eq(applicationEvents.id, eventId),
+          eq(applicationEvents.userId, userId),
+        ),
+      );
+    if (!target) throw new NotFoundError("Event");
+
+    // Serialize with any other change to the same application.
+    const [application] = await tx
+      .select({
+        companyName: applications.companyName,
+        currentStatus: applications.currentStatus,
+      })
+      .from(applications)
+      .where(
+        and(
+          eq(applications.id, target.applicationId),
+          eq(applications.userId, userId),
+        ),
+      )
+      .for("update");
+    if (!application) throw new NotFoundError("Event");
+
+    const alreadyDone = reverted
+      ? target.revertedAt !== null
+      : target.revertedAt === null;
+    if (!alreadyDone) {
+      if (reverted) {
+        const [others] = await tx
+          .select({ active: count() })
+          .from(applicationEvents)
+          .where(
+            and(
+              eq(applicationEvents.applicationId, target.applicationId),
+              isNull(applicationEvents.revertedAt),
+              ne(applicationEvents.id, eventId),
+            ),
+          );
+        if ((others?.active ?? 0) === 0) throw new LastEventError();
+      }
+      await tx
+        .update(applicationEvents)
+        .set({ revertedAt: reverted ? new Date() : null })
+        .where(eq(applicationEvents.id, eventId));
+    }
+
+    const status = await recomputeApplicationState(
+      tx,
+      userId,
+      target.applicationId,
+    );
+    const [event] = await tx
+      .select()
+      .from(applicationEvents)
+      .where(eq(applicationEvents.id, eventId));
+
+    return {
+      event: event!,
+      companyName: application.companyName,
+      previousStatus: application.currentStatus,
+      status,
+    };
+  });
+}
+
+/** Undoes an event: it stays in the timeline, struck through, and stops counting. */
+export function revertEvent(
+  userId: string,
+  eventId: string,
+  db: Database = getDb(),
+): Promise<EventChange> {
+  return setEventReverted(userId, eventId, true, db);
+}
+
+/** Brings back an event that was undone. */
+export function restoreEvent(
+  userId: string,
+  eventId: string,
+  db: Database = getDb(),
+): Promise<EventChange> {
+  return setEventReverted(userId, eventId, false, db);
 }

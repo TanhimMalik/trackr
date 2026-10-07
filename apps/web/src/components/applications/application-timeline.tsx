@@ -19,9 +19,14 @@ import {
 } from "lucide-react";
 import { StatusDot } from "@/components/applications/status-badge";
 import { DateText } from "@/components/date-text";
-import { describeEvent, type TimelineEvent } from "@/lib/applications/timeline";
+import {
+  describeEvent,
+  eventActionFor,
+  type TimelineEvent,
+} from "@/lib/applications/timeline";
 import { cn } from "@/lib/utils";
 import { APPLICATION_STATUS_LABELS } from "@trackr/domain";
+import { TimelineEventAction } from "./timeline-event-action";
 
 const iconProps = { className: "size-3.5", "aria-hidden": true };
 
@@ -87,12 +92,15 @@ export function ApplicationTimeline({ events }: { events: TimelineItem[] }) {
     return <p className="text-muted-foreground">No activity yet.</p>;
   }
 
+  const activeEvents = events.filter((event) => !event.revertedAt).length;
+
   return (
     <ol className="relative space-y-4 before:absolute before:top-3 before:bottom-3 before:left-3 before:w-px before:bg-border">
       {events.map((event) => {
         const entry = describeEvent(event);
+        const action = eventActionFor(event, activeEvents);
         return (
-          <li key={event.id} className="relative flex gap-3">
+          <li key={event.id} className="group/event relative flex gap-3">
             <span className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground">
               <EventIcon type={event.eventType} />
             </span>
@@ -144,6 +152,23 @@ export function ApplicationTimeline({ events }: { events: TimelineItem[] }) {
                   </span>
                 )}
                 {entry.reverted && <span className={chip}>Undone</span>}
+                {action && (
+                  <div
+                    className={cn(
+                      "ml-auto",
+                      // With a mouse, Undo appears on hover or focus; on touch
+                      // screens it stays visible. Restore always shows.
+                      action === "undo" &&
+                        "pointer-fine:opacity-0 pointer-fine:group-focus-within/event:opacity-100 pointer-fine:group-hover/event:opacity-100",
+                    )}
+                  >
+                    <TimelineEventAction
+                      eventId={event.id}
+                      action={action}
+                      label={entry.title}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </li>
