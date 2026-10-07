@@ -69,6 +69,27 @@ pnpm db:seed --email you@example.com
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Project Settings → API keys (publishable key)                               |
 | `DATABASE_URL`                         | Project Settings → Database → Connection string (session pooler, port 5432) |
 
+## Deploying to Vercel
+
+The web app deploys to Vercel's free plan from this repository; no custom domain is needed.
+
+1. **Import the repository** in Vercel (Add New → Project) and set **Root Directory** to `apps/web`. Vercel detects Next.js and the pnpm workspace.
+2. **Environment variables** (Production and Preview):
+
+   | Variable                               | Value                                                                                             |
+   | -------------------------------------- | ------------------------------------------------------------------------------------------------- |
+   | `NEXT_PUBLIC_APP_URL`                  | The deployment's address, e.g. `https://trackr-yourname.vercel.app`                               |
+   | `NEXT_PUBLIC_SUPABASE_URL`             | As in development                                                                                 |
+   | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | As in development                                                                                 |
+   | `DATABASE_URL`                         | Supabase's **transaction pooler** connection string (port 6543), which suits serverless functions |
+   | `ENABLE_EXPERIMENTAL_COREPACK`         | `1`, so Vercel installs the pnpm version pinned in `package.json`                                 |
+
+3. **Supabase**, under Authentication → URL Configuration: set the site URL to the deployment's address and add `https://<deployment>/auth/callback**` to the redirect URLs, keeping the `localhost` entry for development. Keep anonymous sign-ins on for the demo.
+4. **Migrations** run from your machine against the same database: `pnpm db:migrate`.
+5. Optionally, under Settings → Functions, pick the region closest to your Supabase project.
+
+Share `https://<deployment>/demo` to open a demo workspace in one click.
+
 ## Scripts
 
 | Command                                  | Description                                                            |

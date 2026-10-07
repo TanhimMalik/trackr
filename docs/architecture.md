@@ -265,6 +265,7 @@ LLM confidence is capped below the automatic band unless the rules independently
 - **Rate limiting.** Ingestion and sync endpoints use fixed-window counters stored in Postgres.
 - **Input handling.** Every boundary validates with zod. Captured job descriptions are converted to sanitized plain text, and user or email content is never rendered as raw HTML.
 - **LLM output.** Email is treated as untrusted input. The model has no tools, its output is schema-validated, and its confidence is capped.
+- **Response headers.** Every response carries a content security policy that blocks framing, plugins, foreign base URLs and cross-site form targets, plus `X-Content-Type-Options`, a strict referrer policy and a permissions policy. A full script policy would need per-request nonces and is not in place yet.
 - **Secrets.** Secrets are environment variables, validated on first use (`src/lib/env.ts` for public values, `src/server/env.ts` for server secrets) and documented in `.env.example`. Validation errors name the missing variables but never print values.
 
 ## Authentication
@@ -343,7 +344,7 @@ PGlite runs Postgres in-process via WebAssembly, so integration tests need no Do
 ## Environments
 
 - **Local:** Next.js dev server against a hosted Supabase development project. Tests use PGlite.
-- **Production:** Vercel and Supabase. Migrations are generated with drizzle-kit, reviewed as SQL, and applied as a deploy step.
+- **Production:** Vercel (free plan, `*.vercel.app` address) and Supabase, with the database reached through Supabase's transaction pooler. Migrations are generated with drizzle-kit, reviewed as SQL, and applied before deploying code that needs them. Only the landing page is open to crawlers (`robots.txt`), and shared links get a generated preview image. Setup steps are in the README.
 - **Scheduled work (Phase 9):** Vercel Cron for periodic Gmail sync and reminder generation. Until then, sync is user-triggered.
 
 ## Key decisions

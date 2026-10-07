@@ -14,8 +14,17 @@ export type RouteAccess =
   /** Requires a signed-in user. */
   | "protected";
 
+// Files crawlers and link previews fetch without a session.
+const PUBLIC_FILES = new Set([
+  "/robots.txt",
+  "/opengraph-image",
+  "/icon.svg",
+  "/favicon.ico",
+]);
+
 export function routeAccess(pathname: string): RouteAccess {
   if (ENTRY_PAGES.has(pathname)) return "entry";
+  if (PUBLIC_FILES.has(pathname)) return "public";
   if (pathname.startsWith("/auth/") || pathname.startsWith("/api/")) {
     return "public";
   }

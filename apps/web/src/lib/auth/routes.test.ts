@@ -9,9 +9,11 @@ describe("routeAccess", () => {
     expect(routeAccess("/signup")).toBe("entry");
   });
 
-  it("leaves auth callbacks and API routes public", () => {
+  it("leaves auth callbacks, API routes and metadata files public", () => {
     expect(routeAccess("/auth/callback")).toBe("public");
     expect(routeAccess("/api/extension/applications")).toBe("public");
+    expect(routeAccess("/robots.txt")).toBe("public");
+    expect(routeAccess("/opengraph-image")).toBe("public");
   });
 
   it("protects everything else", () => {

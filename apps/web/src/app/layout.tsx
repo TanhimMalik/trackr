@@ -7,13 +7,26 @@ import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
+const description =
+  "Automatic job application tracking from your browser and inbox.";
+
 export const metadata: Metadata = {
+  // Absolute URLs for link previews; falls back for builds without the env.
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  ),
   title: {
     default: "Trackr",
     template: "%s · Trackr",
   },
-  description:
-    "Automatic job application tracking from your browser and inbox.",
+  description,
+  openGraph: {
+    type: "website",
+    siteName: "Trackr",
+    title: "Trackr · Your job search, tracked for you",
+    description,
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
