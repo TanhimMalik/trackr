@@ -102,3 +102,22 @@ export function domainFromEmail(email: string): string | null {
   if (at === -1) return null;
   return registrableDomain(email.slice(at + 1));
 }
+
+/**
+ * The domain of a company website as people type it: "stripe.com",
+ * "www.stripe.com" or "https://stripe.com/about" all give "stripe.com".
+ */
+export function domainFromWebsite(input: string): string | null {
+  const value = input.trim();
+  if (!value) return null;
+  const withProtocol = /^[a-z][a-z\d+.-]*:\/\//i.test(value)
+    ? value
+    : `https://${value}`;
+  try {
+    const url = new URL(withProtocol);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    return registrableDomain(url.hostname);
+  } catch {
+    return null;
+  }
+}

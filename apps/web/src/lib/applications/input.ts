@@ -1,6 +1,7 @@
 import {
   applicationSourceSchema,
   APPLICATION_STATUSES,
+  domainFromWebsite,
   employmentTypeSchema,
   sourcePlatformSchema,
   type ApplicationStatus,
@@ -31,6 +32,18 @@ const jobUrl = z
   )
   .nullish();
 
+/** The company's website, used for its logo; "stripe.com" or a full URL. */
+const companyWebsite = z
+  .string()
+  .trim()
+  .max(255)
+  .transform((value) => value || null)
+  .refine(
+    (value) => value === null || domainFromWebsite(value) !== null,
+    "Enter a website like stripe.com.",
+  )
+  .nullish();
+
 const salary = z
   .number()
   .int("Use a whole number.")
@@ -50,6 +63,7 @@ const applicationFields = z.object({
     .trim()
     .min(1, "Enter the company.")
     .max(200, "Use at most 200 characters."),
+  companyWebsite,
   jobTitle: z
     .string()
     .trim()

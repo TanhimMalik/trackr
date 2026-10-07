@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { users } from "@/server/db/schema";
-import { upsertUser } from "@/server/services/users";
+import { findUserByEmail, upsertUser } from "@/server/services/users";
 import { createTestDatabase, type TestDatabase } from "../helpers/database";
 
 let testDb: TestDatabase;
@@ -62,5 +62,23 @@ describe("upsertUser", () => {
     await upsertUser({ id, email: "kim@example.com", name: null }, testDb.db);
 
     expect((await findUser(id))!.name).toBe("Kim");
+  });
+});
+
+describe("findUserByEmail", () => {
+  it("finds a user regardless of letter case and spacing", async () => {
+    const id = crypto.randomUUID();
+    await upsertUser(
+      { id, email: "Mixed.Case@Example.com", name: null },
+      testDb.db,
+    );
+
+    expect(
+      await findUserByEmail("  mixed.case@example.COM ", testDb.db),
+    ).toEqual({
+      id,
+      email: "Mixed.Case@Example.com",
+    });
+    expect(await findUserByEmail("nobody@example.com", testDb.db)).toBeNull();
   });
 });

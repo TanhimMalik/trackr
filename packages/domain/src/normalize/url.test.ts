@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  domainFromWebsite,
   domainFromEmail,
   domainFromUrl,
   normalizeJobUrl,
@@ -65,4 +66,22 @@ describe("domain helpers", () => {
     );
     expect(domainFromEmail("not-an-email")).toBeNull();
   });
+});
+
+describe("domainFromWebsite", () => {
+  it.each([
+    ["stripe.com", "stripe.com"],
+    ["www.stripe.com", "stripe.com"],
+    ["  https://stripe.com/about  ", "stripe.com"],
+    ["http://careers.datadoghq.com/", "datadoghq.com"],
+  ])("%s → %s", (input, expected) => {
+    expect(domainFromWebsite(input)).toBe(expected);
+  });
+
+  it.each([[""], ["stripe"], ["javascript:alert(1)"], ["ftp://stripe.com"]])(
+    "rejects %s",
+    (input) => {
+      expect(domainFromWebsite(input)).toBeNull();
+    },
+  );
 });

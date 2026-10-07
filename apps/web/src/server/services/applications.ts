@@ -1,12 +1,14 @@
 import "server-only";
 import {
   detectSourcePlatform,
+  domainFromWebsite,
   employerDomainFromJobUrl,
   normalizeCompanyName,
   normalizeJobTitle,
   type ApplicationStatus,
 } from "@trackr/domain";
 import { and, asc, desc, eq } from "drizzle-orm";
+import type { z } from "zod";
 import {
   createApplicationSchema,
   selectableStatusSchema,
@@ -105,6 +107,47 @@ function initialEvents(
 }
 
 /** Adds an application by hand, with the events that explain its status. */
+/** The company's domain: the website given, else the employer's own job site. */
+function companyDomainFor(
+  companyWebsite: string | null | undefined,
+  jobUrl: string | null | undefined,
+): string | null {
+  return (
+    (companyWebsite ? domainFromWebsite(companyWebsite) : null) ??
+    employerDomainFromJobUrl(jobUrl)
+  );
+}
+
+/**
+ * Row values for a new application from validated input, with derived fields
+ * (normalized names, company domain, platform). Status fields are left at
+ * their defaults for the event processor to set.
+ */
+export function newApplicationValues(
+  userId: string,
+  data: z.output<typeof createApplicationSchema>,
+): typeof applications.$inferInsert {
+  return {
+    userId,
+    companyName: data.companyName,
+    companyNameNorm: normalizeCompanyName(data.companyName),
+    companyDomain: companyDomainFor(data.companyWebsite, data.jobUrl),
+    jobTitle: data.jobTitle,
+    jobTitleNorm: normalizeJobTitle(data.jobTitle),
+    jobUrl: data.jobUrl ?? null,
+    jobDescription: data.jobDescription ?? null,
+    location: data.location ?? null,
+    employmentType: data.employmentType ?? null,
+    salaryMin: data.salaryMin ?? null,
+    salaryMax: data.salaryMax ?? null,
+    salaryCurrency: data.salaryCurrency ?? null,
+    source: data.source ?? null,
+    sourcePlatform: data.sourcePlatform ?? detectSourcePlatform(data.jobUrl),
+    resumeVersionId: data.resumeVersionId ?? null,
+    notes: data.notes ?? null,
+  };
+}
+
 export async function createApplication(
   userId: string,
   input: CreateApplicationInput,
@@ -117,27 +160,7 @@ export async function createApplication(
   return db.transaction(async (tx) => {
     const [application] = await tx
       .insert(applications)
-      .values({
-        userId,
-        companyName: data.companyName,
-        companyNameNorm: normalizeCompanyName(data.companyName),
-        companyDomain: employerDomainFromJobUrl(data.jobUrl),
-        jobTitle: data.jobTitle,
-        jobTitleNorm: normalizeJobTitle(data.jobTitle),
-        jobUrl: data.jobUrl ?? null,
-        jobDescription: data.jobDescription ?? null,
-        location: data.location ?? null,
-        employmentType: data.employmentType ?? null,
-        salaryMin: data.salaryMin ?? null,
-        salaryMax: data.salaryMax ?? null,
-        salaryCurrency: data.salaryCurrency ?? null,
-        source: data.source ?? null,
-        sourcePlatform:
-          data.sourcePlatform ?? detectSourcePlatform(data.jobUrl),
-        resumeVersionId: data.resumeVersionId ?? null,
-        notes: data.notes ?? null,
-        lastActivityAt: now,
-      })
+      .values({ ...newApplicationValues(userId, data), lastActivityAt: now })
       .returning();
 
     for (const event of initialEvents(
@@ -187,7 +210,7 @@ export async function updateApplication(
   });
   await assertResumeOwnership(db, userId, patch.resumeVersionId);
 
-  const { sourcePlatform, ...fields } = patch;
+  const { sourcePlatform, companyWebsite, ...fields } = patch;
   const values: Partial<typeof applications.$inferInsert> = { ...fields };
   if (patch.companyName !== undefined) {
     values.companyNameNorm = normalizeCompanyName(patch.companyName);
@@ -195,8 +218,17 @@ export async function updateApplication(
   if (patch.jobTitle !== undefined) {
     values.jobTitleNorm = normalizeJobTitle(patch.jobTitle);
   }
-  if (patch.jobUrl !== undefined) {
-    values.companyDomain = employerDomainFromJobUrl(patch.jobUrl);
+  if (companyWebsite !== undefined) {
+    // Clearing the website falls back to the employer's own job site, if any.
+    values.companyDomain = companyDomainFor(
+      companyWebsite,
+      patch.jobUrl !== undefined ? patch.jobUrl : existing.jobUrl,
+    );
+  } else if (patch.jobUrl !== undefined) {
+    // A new link to the employer's own site updates the domain; a job-board
+    // link says nothing about the company, so the stored domain is kept.
+    values.companyDomain =
+      employerDomainFromJobUrl(patch.jobUrl) ?? existing.companyDomain;
   }
   // Clearing the platform falls back to detecting it from the job URL.
   if (sourcePlatform !== undefined) {
@@ -258,6 +290,18 @@ export async function deleteApplication(
     .where(ownedApplication(userId, applicationId))
     .returning({ id: applications.id });
   if (deleted.length === 0) throw new NotFoundError("Application");
+}
+
+/** Deletes every application the user has, with their history. Returns how many. */
+export async function deleteAllApplications(
+  userId: string,
+  db: Database = getDb(),
+): Promise<number> {
+  const deleted = await db
+    .delete(applications)
+    .where(eq(applications.userId, userId))
+    .returning({ id: applications.id });
+  return deleted.length;
 }
 
 export type ApplicationWithEvents = {

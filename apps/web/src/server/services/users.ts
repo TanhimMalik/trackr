@@ -1,4 +1,5 @@
 import "server-only";
+import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/server/db/client";
 import { users } from "@/server/db/schema";
 import type { Database } from "@/server/db/types";
@@ -26,4 +27,16 @@ export async function upsertUser(
         updatedAt: new Date(),
       },
     });
+}
+
+/** The user with this email address, if they have signed in at least once. */
+export async function findUserByEmail(
+  email: string,
+  db: Database = getDb(),
+): Promise<{ id: string; email: string } | null> {
+  const [user] = await db
+    .select({ id: users.id, email: users.email })
+    .from(users)
+    .where(eq(sql`lower(${users.email})`, email.trim().toLowerCase()));
+  return user ?? null;
 }

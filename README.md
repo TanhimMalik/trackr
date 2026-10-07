@@ -55,7 +55,11 @@ pnpm db:migrate
 pnpm dev
 ```
 
-The app runs at http://localhost:3000.
+The app runs at http://localhost:3000. After signing up, you can fill your account with realistic demo data:
+
+```bash
+pnpm db:seed --email you@example.com
+```
 
 | Variable                               | Where to find it                                                            |
 | -------------------------------------- | --------------------------------------------------------------------------- |
@@ -66,12 +70,14 @@ The app runs at http://localhost:3000.
 
 ## Scripts
 
-| Command          | Description                                     |
-| ---------------- | ----------------------------------------------- |
-| `pnpm dev`       | Start the web app in development mode           |
-| `pnpm build`     | Build all workspace packages                    |
-| `pnpm lint`      | Lint all workspace packages                     |
-| `pnpm typecheck` | Type-check all workspace packages               |
-| `pnpm test`      | Run all test suites                             |
-| `pnpm format`    | Format the repository with Prettier             |
-| `pnpm check`     | Run formatting check, lint, typecheck and tests |
+| Command                                  | Description                                                            |
+| ---------------------------------------- | ---------------------------------------------------------------------- |
+| `pnpm dev`                               | Start the web app in development mode                                  |
+| `pnpm build`                             | Build all workspace packages                                           |
+| `pnpm lint`                              | Lint all workspace packages                                            |
+| `pnpm typecheck`                         | Type-check all workspace packages                                      |
+| `pnpm test`                              | Run all test suites                                                    |
+| `pnpm db:migrate`                        | Apply database migrations to `DATABASE_URL`                            |
+| `pnpm db:seed --email <email> [--reset]` | Add demo applications to an account (`--reset` replaces existing ones) |
+| `pnpm format`                            | Format the repository with Prettier                                    |
+| `pnpm check`                             | Run formatting check, lint, typecheck and tests                        |

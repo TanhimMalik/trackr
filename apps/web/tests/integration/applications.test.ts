@@ -5,6 +5,7 @@ import { applicationEvents, resumeVersions } from "@/server/db/schema";
 import {
   changeApplicationStatus,
   createApplication,
+  deleteAllApplications,
   deleteApplication,
   getApplication,
   listApplications,
@@ -86,6 +87,27 @@ describe("createApplication", () => {
       sourcePlatform: "COMPANY_SITE",
       companyDomain: "stripe.com",
     });
+  });
+
+  it("uses the company website for the domain", async () => {
+    const application = await createApplication(
+      userId,
+      {
+        ...datadog,
+        companyWebsite: "https://www.datadoghq.com/about",
+        jobUrl: "https://boards.greenhouse.io/datadog/jobs/1",
+      },
+      testDb.db,
+    );
+    expect(application.companyDomain).toBe("datadoghq.com");
+
+    await expect(
+      createApplication(
+        userId,
+        { ...datadog, companyWebsite: "not a website" },
+        testDb.db,
+      ),
+    ).rejects.toThrow(ZodError);
   });
 
   it("saves a job without applying", async () => {
@@ -208,6 +230,29 @@ describe("updateApplication", () => {
     });
   });
 
+  it("keeps a known company domain when the link moves to a job board", async () => {
+    const created = await createApplication(
+      userId,
+      { ...datadog, companyWebsite: "datadoghq.com" },
+      testDb.db,
+    );
+    const moved = await updateApplication(
+      userId,
+      created.id,
+      { jobUrl: "https://boards.greenhouse.io/datadog/jobs/9" },
+      testDb.db,
+    );
+    expect(moved.companyDomain).toBe("datadoghq.com");
+
+    const cleared = await updateApplication(
+      userId,
+      created.id,
+      { companyWebsite: null },
+      testDb.db,
+    );
+    expect(cleared.companyDomain).toBeNull();
+  });
+
   it("checks the salary range against stored values", async () => {
     const created = await createApplication(
       userId,
@@ -316,6 +361,19 @@ describe("deleteApplication", () => {
         .from(applicationEvents)
         .where(eq(applicationEvents.applicationId, created.id)),
     ).toEqual([]);
+  });
+});
+
+describe("deleteAllApplications", () => {
+  it("deletes only the user's own applications", async () => {
+    const otherUser = await createTestUser(testDb.db);
+    await createApplication(userId, datadog, testDb.db);
+    await createApplication(userId, { ...datadog, status: "OFFER" }, testDb.db);
+    await createApplication(otherUser, datadog, testDb.db);
+
+    expect(await deleteAllApplications(userId, testDb.db)).toBe(2);
+    expect(await listApplications(userId, testDb.db)).toEqual([]);
+    expect(await listApplications(otherUser, testDb.db)).toHaveLength(1);
   });
 });
 
