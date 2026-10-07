@@ -502,6 +502,37 @@ export async function listApplications(
 }
 
 /** How many applications the user has in total, ignoring any filters. */
+export type ApplicationSummary = Pick<
+  Application,
+  | "id"
+  | "companyName"
+  | "companyDomain"
+  | "jobTitle"
+  | "location"
+  | "currentStatus"
+>;
+
+/** Every application in brief, most recently active first, for search. */
+export async function listApplicationSummaries(
+  userId: string,
+  limit = 1000,
+  db: Database = getDb(),
+): Promise<ApplicationSummary[]> {
+  return db
+    .select({
+      id: applications.id,
+      companyName: applications.companyName,
+      companyDomain: applications.companyDomain,
+      jobTitle: applications.jobTitle,
+      location: applications.location,
+      currentStatus: applications.currentStatus,
+    })
+    .from(applications)
+    .where(eq(applications.userId, userId))
+    .orderBy(desc(applications.lastActivityAt), desc(applications.createdAt))
+    .limit(limit);
+}
+
 export async function countApplications(
   userId: string,
   db: Database = getDb(),

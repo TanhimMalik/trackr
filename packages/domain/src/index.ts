@@ -9,4 +9,5 @@ export * from "./overview";
 export * from "./normalize/company";
 export * from "./normalize/title";
 export * from "./normalize/url";
+export * from "./normalize/text";
 export * from "./platform";

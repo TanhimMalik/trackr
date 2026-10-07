@@ -35,21 +35,19 @@ import {
 const dialogContentClass =
   "flex max-h-[min(90dvh,48rem)] flex-col gap-0 p-0 sm:max-w-2xl";
 
-export function AddApplicationButton({
-  size = "default",
+/** The "Add application" form in a dialog; `children` becomes its trigger. */
+export function AddApplicationDialog({
+  open,
+  onOpenChange,
+  children,
 }: {
-  size?: "default" | "sm";
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children?: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size={size}>
-          <Plus />
-          Add application
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {children && <DialogTrigger asChild>{children}</DialogTrigger>}
       <DialogContent className={dialogContentClass}>
         <DialogHeader className="border-b px-5 py-4">
           <DialogTitle>Add application</DialogTitle>
@@ -60,11 +58,28 @@ export function AddApplicationButton({
         <ApplicationForm
           mode="create"
           action={createApplicationAction}
-          onDone={() => setOpen(false)}
-          onCancel={() => setOpen(false)}
+          onDone={() => onOpenChange(false)}
+          onCancel={() => onOpenChange(false)}
         />
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function AddApplicationButton({
+  size = "default",
+}: {
+  size?: "default" | "sm";
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <AddApplicationDialog open={open} onOpenChange={setOpen}>
+      <Button size={size}>
+        <Plus />
+        Add application
+      </Button>
+    </AddApplicationDialog>
   );
 }
 

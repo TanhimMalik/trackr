@@ -298,6 +298,7 @@ Email-and-password accounts through Supabase Auth, with the session in cookies m
 - **Streaming.** Each Overview section is an independent async component inside `<Suspense>` with a skeleton, so one slow query never blocks the page. The summary metrics and the funnel share one `getOverviewAnalytics` read: the page starts it and passes the promise to both sections. The metric math lives in the domain package (`computeOverviewMetrics`, `funnelForPeriod`).
 - **URL as state.** View, filters, sort and search live in search params, so every view is linkable. Filtering and sorting run in SQL; the search box matches company, role and location, and the response filter uses the same definition of a response as the analytics.
 - **Navigation.** Navigation items appear in the phase that implements them, so there are no dead links.
+- **Command palette.** Lives in the app header. Opening it loads a compact list of the user's applications through a server action and filters it in the browser, so results appear as you type; the previous list shows immediately on later opens while a fresh one loads.
 
 ## Error handling
 

@@ -30,10 +30,15 @@ const {
   changeApplicationStatusAction,
   createApplicationAction,
   deleteApplicationAction,
+  listApplicationSummariesAction,
   updateApplicationAction,
 } = await import("@/app/(app)/applications/actions");
-const { getApplication, listApplications } =
-  await import("@/server/services/applications");
+const {
+  changeApplicationStatus,
+  createApplication,
+  getApplication,
+  listApplications,
+} = await import("@/server/services/applications");
 
 let testDb: TestDatabase;
 
@@ -210,5 +215,45 @@ describe("changeApplicationStatusAction", () => {
       ok: false,
       error: "This application no longer exists.",
     });
+  });
+});
+
+describe("listApplicationSummariesAction", () => {
+  it("lists the user's applications in brief, most recently active first", async () => {
+    const ramp = await createApplication(
+      context.userId,
+      { companyName: "Ramp", jobTitle: "Engineer", location: "New York, NY" },
+      testDb.db,
+    );
+    await createApplication(
+      context.userId,
+      { companyName: "Figma", jobTitle: "Designer" },
+      testDb.db,
+    );
+    await changeApplicationStatus(
+      context.userId,
+      ramp.id,
+      "INTERVIEW",
+      testDb.db,
+    );
+    await createApplication(
+      await createTestUser(testDb.db),
+      { companyName: "Stripe", jobTitle: "Engineer" },
+      testDb.db,
+    );
+
+    const summaries = await listApplicationSummariesAction();
+
+    expect(summaries).toEqual([
+      {
+        id: ramp.id,
+        companyName: "Ramp",
+        companyDomain: null,
+        jobTitle: "Engineer",
+        location: "New York, NY",
+        currentStatus: "INTERVIEW",
+      },
+      expect.objectContaining({ companyName: "Figma" }),
+    ]);
   });
 });

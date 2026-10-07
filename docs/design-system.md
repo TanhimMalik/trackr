@@ -185,6 +185,10 @@ Four vertical bars for applications, responses, interviews and offers. Bars use 
 
 A provider mark, the name, a status dot and label (Connected, Active, Reconnect needed, Not connected), a one-line description, and a chevron that opens Integrations.
 
+### Command palette
+
+Opened with ⌘K (Ctrl K on Windows and Linux) or the search field in the header, which shrinks to an icon on phones. With nothing typed it shows the five most recently active applications, the pages and the actions. Typing searches applications by company, role, location and status: each typed word has to start a word ("eng" finds "Engineer") or, from three letters, appear inside one ("dog" finds "Datadog"), and matches on the company rank first. Groups reorder so the best match is always on top. Choosing an application opens its drawer over the current page.
+
 ## Automation transparency
 
 Automatic behavior must always be visible and reversible:

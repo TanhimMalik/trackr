@@ -17,7 +17,9 @@ import {
   changeApplicationStatus,
   createApplication,
   deleteApplication,
+  listApplicationSummaries,
   updateApplication,
+  type ApplicationSummary,
 } from "@/server/services/applications";
 import { NotFoundError } from "@/server/services/errors";
 
@@ -124,4 +126,12 @@ export async function changeApplicationStatusAction(
   } catch (error) {
     return failure(error, "This application no longer exists.");
   }
+}
+
+/** The signed-in user's applications in brief, for the command palette. */
+export async function listApplicationSummariesAction(): Promise<
+  ApplicationSummary[]
+> {
+  const user = await requireUser();
+  return listApplicationSummaries(user.id);
 }
