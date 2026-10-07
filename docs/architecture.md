@@ -132,18 +132,19 @@ It returns the stored event, the previous status, the new status and whether the
 
 ### Status derivation
 
-Status is a pure fold over the application's active (non-reverted) events, ordered by `(event_timestamp, created_at)`:
+Status is a pure fold over the application's active (non-reverted) events, ordered by `(event_timestamp, created_at, id)`. It lives in `packages/domain/src/status.ts`:
 
 ```ts
-function deriveStatus(events: StatusEvent[]): DerivedState {
+function deriveApplicationState(events: readonly StatusEvent[]) {
+  const active = events.filter((e) => !e.revertedAt).sort(compareStatusEvents);
   let status: ApplicationStatus = "UNKNOWN";
-  const transitions = [];
-  for (const event of sortByOccurrence(events.filter(isActive))) {
+  const transitions: StatusTransition[] = [];
+  for (const event of active) {
     const before = status;
     status = transition(status, event);
     transitions.push({ eventId: event.id, before, after: status });
   }
-  return { status, transitions };
+  return { status, appliedAt, lastActivityAt, transitions };
 }
 ```
 
