@@ -45,7 +45,7 @@ const companyWebsite = z
   .nullish();
 
 const salary = z
-  .number()
+  .number({ error: "Enter an amount, like 120000 or 120k." })
   .int("Use a whole number.")
   .min(0, "Salary can't be negative.")
   .max(100_000_000)

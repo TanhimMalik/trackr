@@ -11,3 +11,46 @@ export function initials(nameOrEmail: string): string {
       : [words[0]![0], words.at(-1)![0]];
   return letters.join("").toUpperCase();
 }
+
+const MINUTE = 60 * 1000;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+
+function yearIn(date: Date, timeZone?: string): string {
+  return new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone }).format(
+    date,
+  );
+}
+
+/** "Apr 22" within the current year, "Apr 22, 2025" otherwise. */
+export function formatShortDate(
+  date: Date,
+  { now = new Date(), timeZone }: { now?: Date; timeZone?: string } = {},
+): string {
+  const sameYear = yearIn(date, timeZone) === yearIn(now, timeZone);
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+    timeZone,
+  }).format(date);
+}
+
+/** "just now", "14 min ago", "3 hours ago", "yesterday", "4 days ago", then a date. */
+export function formatRelativeTime(
+  date: Date,
+  { now = new Date(), timeZone }: { now?: Date; timeZone?: string } = {},
+): string {
+  const elapsed = now.getTime() - date.getTime();
+  if (elapsed < -MINUTE) return formatShortDate(date, { now, timeZone });
+  if (elapsed < MINUTE) return "just now";
+  if (elapsed < HOUR) return `${Math.floor(elapsed / MINUTE)} min ago`;
+  if (elapsed < DAY) {
+    const hours = Math.floor(elapsed / HOUR);
+    return hours === 1 ? "1 hour ago" : `${hours} hours ago`;
+  }
+  const days = Math.floor(elapsed / DAY);
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days} days ago`;
+  return formatShortDate(date, { now, timeZone });
+}

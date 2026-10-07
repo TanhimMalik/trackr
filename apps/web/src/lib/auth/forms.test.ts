@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  authErrorMessage,
-  fieldErrors,
-  signInSchema,
-  signUpSchema,
-} from "./forms";
+import { firstErrorPerField } from "../forms";
+import { authErrorMessage, signInSchema, signUpSchema } from "./forms";
 
 describe("signUpSchema", () => {
   it("normalizes input", () => {
@@ -38,7 +34,7 @@ describe("signUpSchema", () => {
       password: "short",
     });
     expect(result.success).toBe(false);
-    expect(fieldErrors(result.error!)).toEqual({
+    expect(firstErrorPerField(result.error!)).toEqual({
       email: "Enter a valid email address.",
       password: "Use at least 8 characters.",
     });

@@ -3,13 +3,13 @@
 import { redirect } from "next/navigation";
 import {
   authErrorMessage,
-  fieldErrors,
   signInSchema,
   signUpSchema,
   type AuthFormState,
 } from "@/lib/auth/forms";
 import { SIGN_IN_PATH, safeRedirectPath } from "@/lib/auth/routes";
 import { publicEnv } from "@/lib/env";
+import { firstErrorPerField } from "@/lib/forms";
 import { upsertUser } from "@/server/services/users";
 import { sessionUserFromAuthUser } from "./session";
 import { createSupabaseServerClient } from "./supabase";
@@ -27,7 +27,7 @@ export async function signIn(
     password: text(formData, "password"),
   });
   if (!parsed.success) {
-    return { fieldErrors: fieldErrors(parsed.error), values };
+    return { fieldErrors: firstErrorPerField(parsed.error), values };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -53,7 +53,7 @@ export async function signUp(
     password: text(formData, "password"),
   });
   if (!parsed.success) {
-    return { fieldErrors: fieldErrors(parsed.error), values };
+    return { fieldErrors: firstErrorPerField(parsed.error), values };
   }
 
   const { name, email, password } = parsed.data;

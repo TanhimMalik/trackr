@@ -39,18 +39,6 @@ export type AuthFormState =
     }
   | undefined;
 
-/** The first message for each invalid field. */
-export function fieldErrors(
-  error: z.ZodError,
-): NonNullable<AuthFormState>["fieldErrors"] {
-  const result: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const field = String(issue.path[0]);
-    result[field] ??= issue.message;
-  }
-  return result;
-}
-
 /**
  * User-facing wording for Supabase Auth error codes. Unknown codes get a
  * generic message; sign-in failures never reveal whether an account exists.
