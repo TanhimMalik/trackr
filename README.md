@@ -2,7 +2,18 @@
 
 Trackr is an automatic job application tracker. Connect your browser and inbox once, and your job search organizes itself: applications are captured when you submit them, recruiting emails are classified and matched to the right application, and statuses update with a full, explainable history.
 
-> **Status:** early development. See the roadmap in `docs/` as it lands.
+> **Status:** early development (Phase 1, Foundation). See the [delivery phases](docs/product-spec.md#17-delivery-phases).
+
+## Documentation
+
+| Document                                       | Contents                                                                 |
+| ---------------------------------------------- | ------------------------------------------------------------------------ |
+| [Product specification](docs/product-spec.md)  | What Trackr does and why: flows, statuses, surfaces, acceptance criteria |
+| [Architecture](docs/architecture.md)           | System design, layering, event processing, matching, security, testing   |
+| [Database](docs/database.md)                   | Schema, enums, constraints, migrations and retention                     |
+| [Email pipeline](docs/email-pipeline.md)       | Gmail sync, relevance filtering, classification and automation decisions |
+| [Browser extension](docs/browser-extension.md) | Extension architecture, platform detectors, authentication and API       |
+| [Design system](docs/design-system.md)         | Visual language, layout, components and accessibility                    |
 
 ## Tech stack
 
