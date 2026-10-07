@@ -92,26 +92,32 @@ Trackr should feel like polished productivity software: compact, calm and inform
 ## Spacing, shape and elevation
 
 - **Spacing:** a 4 px base scale. Cards use 12 px inner padding (16 px for section containers), and gaps are 8, 12 or 16 px.
-- **Radius:** 6 px for controls, inputs and badges. 8 px for cards, panels, popovers and the drawer. Nothing is pill-shaped except status dots and count badges.
+- **Radius:** the base `--radius` is 6 px, used by controls, inputs and badges (`rounded-lg`). Cards, panels and the drawer use `rounded-xl` (about 8 px). Nothing is pill-shaped except status dots, avatars and count badges.
 - **Borders:** 1 px borders carry the structure. Surfaces are separated by borders, not shadows.
 - **Shadows:** only on overlays (drawer, popovers, menus, the dragged card), and kept subtle.
 - **Density:** table rows are 36–40 px. Board columns are at least 272 px wide.
 
 ## Color
 
-### Neutral tokens
+### Tokens
 
-| Token                                 | Purpose                                                         |
-| ------------------------------------- | --------------------------------------------------------------- |
-| `--background`                        | App background                                                  |
-| `--surface`                           | Cards, panels, board columns                                    |
-| `--surface-muted`                     | Column backgrounds, table header, icon tiles                    |
-| `--border`                            | Default borders                                                 |
-| `--foreground` / `--muted-foreground` | Primary and secondary text                                      |
-| `--accent` / `--accent-foreground`    | Active navigation, primary actions, focus ring, selected toggle |
-| `--success`, `--warning`, `--danger`  | Positive deltas, review items, destructive actions              |
+Token names follow the shadcn/ui conventions, so generated components pick them up, and are exposed to Tailwind as color utilities (`bg-card`, `text-primary-text`, …).
 
-The accent is a single blue. Everything else is neutral gray (zinc family). Color is used for meaning, not decoration.
+| Token                                     | Purpose                                                         |
+| ----------------------------------------- | --------------------------------------------------------------- |
+| `--background`                            | App background                                                  |
+| `--card`, `--popover`                     | Cards and panels; menus and overlays                            |
+| `--muted`                                 | Board columns, table header, icon tiles                         |
+| `--accent`                                | Neutral hover and focus backgrounds (menus, ghost buttons)      |
+| `--border`, `--input`                     | Default borders; form control borders                           |
+| `--foreground`, `--muted-foreground`      | Primary and secondary text                                      |
+| `--primary`, `--primary-foreground`       | Blue fill for primary buttons and the logo mark                 |
+| `--primary-soft`                          | Blue-tinted background: active navigation, selected toggles     |
+| `--primary-text`                          | Blue text and icons on any surface (tuned separately per theme) |
+| `--ring`                                  | Focus rings                                                     |
+| `--success`, `--warning`, `--destructive` | Positive deltas, review items, destructive actions              |
+
+The brand color is a single blue. Everything else is neutral gray (zinc family). Color is used for meaning, not decoration. Blue fills and blue text use separate tokens because no single blue gives readable text and accessible white-on-blue buttons in both themes. All text pairs meet WCAG AA (4.5:1) in both themes.
 
 ### Status palette
 
@@ -138,7 +144,7 @@ An icon tile (32 px, muted surface), a label (13 px, muted) and a value (24–28
 
 ### Board column
 
-A neutral `--surface-muted` background, never tinted by status. The header shows a status dot, the column name and a count badge. Cards stack with 8 px gaps. A grouped column (Interview contains Recruiter screen, Interview and Final round; Closed contains Rejected and Withdrawn) shows each card's specific status as a small badge.
+A neutral `--muted` background, never tinted by status. The header shows a status dot, the column name and a count badge. Cards stack with 8 px gaps. A grouped column (Interview contains Recruiter screen, Interview and Final round; Closed contains Rejected and Withdrawn) shows each card's specific status as a small badge.
 
 ### Application card
 
