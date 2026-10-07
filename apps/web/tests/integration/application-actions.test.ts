@@ -77,7 +77,7 @@ describe("createApplicationAction", () => {
     const result = await createApplicationAction(null, form(validForm));
     expect(result).toEqual({ ok: true, message: "Added Figma." });
 
-    const [application] = await listApplications(context.userId, testDb.db);
+    const [application] = await listApplications(context.userId, {}, testDb.db);
     expect(application).toMatchObject({
       companyName: "Figma",
       companyDomain: "figma.com",
@@ -109,14 +109,14 @@ describe("createApplicationAction", () => {
         salaryMin: "Enter an amount, like 120000 or 120k.",
       },
     });
-    expect(await listApplications(context.userId, testDb.db)).toEqual([]);
+    expect(await listApplications(context.userId, {}, testDb.db)).toEqual([]);
   });
 });
 
 describe("updateApplicationAction", () => {
   it("saves edits without changing the status", async () => {
     await createApplicationAction(null, form(validForm));
-    const [created] = await listApplications(context.userId, testDb.db);
+    const [created] = await listApplications(context.userId, {}, testDb.db);
 
     const result = await updateApplicationAction(
       created!.id,
@@ -144,7 +144,7 @@ describe("updateApplicationAction", () => {
 
   it("does not edit another user's application", async () => {
     await createApplicationAction(null, form(validForm));
-    const [mine] = await listApplications(context.userId, testDb.db);
+    const [mine] = await listApplications(context.userId, {}, testDb.db);
 
     context.userId = await createTestUser(testDb.db);
     const result = await updateApplicationAction(
@@ -162,13 +162,13 @@ describe("updateApplicationAction", () => {
 describe("deleteApplicationAction", () => {
   it("deletes the application", async () => {
     await createApplicationAction(null, form(validForm));
-    const [created] = await listApplications(context.userId, testDb.db);
+    const [created] = await listApplications(context.userId, {}, testDb.db);
 
     expect(await deleteApplicationAction(created!.id)).toEqual({
       ok: true,
       message: "Application deleted.",
     });
-    expect(await listApplications(context.userId, testDb.db)).toEqual([]);
+    expect(await listApplications(context.userId, {}, testDb.db)).toEqual([]);
     expect(await deleteApplicationAction(created!.id)).toEqual({
       ok: false,
       error: "This application was already deleted.",

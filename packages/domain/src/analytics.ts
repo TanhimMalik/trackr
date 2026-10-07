@@ -22,14 +22,18 @@ const RESPONSE_EVENTS: ReadonlySet<ApplicationEventType> = new Set(
 );
 
 /** Statuses that can only be reached after the company responded. */
-const RESPONSE_STATUSES: ReadonlySet<ApplicationStatus> = new Set([
+export const RESPONSE_STATUSES = [
   "ASSESSMENT",
   "RECRUITER_SCREEN",
   "INTERVIEW",
   "FINAL_ROUND",
   "OFFER",
   "REJECTED",
-]);
+] as const satisfies readonly ApplicationStatus[];
+
+const RESPONSE_STATUS_SET: ReadonlySet<ApplicationStatus> = new Set(
+  RESPONSE_STATUSES,
+);
 
 // Later stages imply earlier ones, so the funnel stays nested.
 const INTERVIEW_STAGES: ReadonlySet<ApplicationStatus> = new Set([
@@ -66,7 +70,7 @@ function isResponse(event: ProgressEvent): boolean {
   return (
     event.type === "STATUS_OVERRIDDEN" &&
     event.statusAfter !== null &&
-    RESPONSE_STATUSES.has(event.statusAfter)
+    RESPONSE_STATUS_SET.has(event.statusAfter)
   );
 }
 

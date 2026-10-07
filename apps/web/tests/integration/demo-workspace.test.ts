@@ -42,7 +42,7 @@ describe("seedDemoWorkspace", () => {
 
     expect(result.applications).toBe(DEMO_APPLICATIONS.length);
     expect(result.applications).toBeGreaterThanOrEqual(18);
-    const rows = await listApplications(userId, testDb.db);
+    const rows = await listApplications(userId, {}, testDb.db);
     expect(rows).toHaveLength(result.applications);
     const events = await testDb.db
       .select()
@@ -53,7 +53,7 @@ describe("seedDemoWorkspace", () => {
 
   it("fills every board column", async () => {
     await seedDemoWorkspace(userId, { now }, testDb.db);
-    const rows = await listApplications(userId, testDb.db);
+    const rows = await listApplications(userId, {}, testDb.db);
     const columns = new Set(
       rows.map((row) => boardColumnForStatus(row.currentStatus)),
     );
@@ -71,7 +71,7 @@ describe("seedDemoWorkspace", () => {
 
   it("stores exactly the state the event processor derives", async () => {
     await seedDemoWorkspace(userId, { now }, testDb.db);
-    const seeded = await listApplications(userId, testDb.db);
+    const seeded = await listApplications(userId, {}, testDb.db);
 
     for (const application of seeded) {
       const before = await eventsOf(application.id);
@@ -107,7 +107,7 @@ describe("seedDemoWorkspace", () => {
       );
     }
 
-    const discord = (await listApplications(userId, testDb.db)).find(
+    const discord = (await listApplications(userId, {}, testDb.db)).find(
       (row) => row.companyName === "Discord",
     );
     expect(discord!.appliedAt).toEqual(new Date("2026-10-05T15:00:00Z"));
@@ -115,7 +115,7 @@ describe("seedDemoWorkspace", () => {
 
   it("gives every company a domain for its logo", async () => {
     await seedDemoWorkspace(userId, { now }, testDb.db);
-    const rows = await listApplications(userId, testDb.db);
+    const rows = await listApplications(userId, {}, testDb.db);
     expect(rows.filter((row) => !row.companyDomain)).toEqual([]);
     expect(rows.find((row) => row.companyName === "Datadog")).toMatchObject({
       companyDomain: "datadoghq.com",
@@ -150,7 +150,7 @@ describe("seedDemoWorkspace", () => {
     await expect(seedDemoWorkspace(userId, { now }, testDb.db)).rejects.toThrow(
       WorkspaceNotEmptyError,
     );
-    expect(await listApplications(userId, testDb.db)).toHaveLength(
+    expect(await listApplications(userId, {}, testDb.db)).toHaveLength(
       DEMO_APPLICATIONS.length,
     );
   });
@@ -158,6 +158,6 @@ describe("seedDemoWorkspace", () => {
   it("leaves other users untouched", async () => {
     const otherUser = await createTestUser(testDb.db);
     await seedDemoWorkspace(userId, { now }, testDb.db);
-    expect(await listApplications(otherUser, testDb.db)).toEqual([]);
+    expect(await listApplications(otherUser, {}, testDb.db)).toEqual([]);
   });
 });

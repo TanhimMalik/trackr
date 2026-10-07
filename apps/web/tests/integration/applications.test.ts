@@ -177,7 +177,7 @@ describe("createApplication", () => {
         testDb.db,
       ),
     ).rejects.toThrow(ZodError);
-    expect(await listApplications(userId, testDb.db)).toEqual([]);
+    expect(await listApplications(userId, {}, testDb.db)).toEqual([]);
   });
 
   it("only accepts the user's own resumes", async () => {
@@ -372,8 +372,8 @@ describe("deleteAllApplications", () => {
     await createApplication(otherUser, datadog, testDb.db);
 
     expect(await deleteAllApplications(userId, testDb.db)).toBe(2);
-    expect(await listApplications(userId, testDb.db)).toEqual([]);
-    expect(await listApplications(otherUser, testDb.db)).toHaveLength(1);
+    expect(await listApplications(userId, {}, testDb.db)).toEqual([]);
+    expect(await listApplications(otherUser, {}, testDb.db)).toHaveLength(1);
   });
 });
 
@@ -390,7 +390,7 @@ describe("listApplications", () => {
       testDb.db,
     );
     expect(
-      (await listApplications(userId, testDb.db)).map((a) => a.id),
+      (await listApplications(userId, {}, testDb.db)).map((a) => a.id),
     ).toEqual([newer.id, older.id]);
   });
 });
@@ -400,7 +400,7 @@ describe("isolation between users", () => {
     const intruder = await createTestUser(testDb.db);
     const mine = await createApplication(userId, datadog, testDb.db);
 
-    expect(await listApplications(intruder, testDb.db)).toEqual([]);
+    expect(await listApplications(intruder, {}, testDb.db)).toEqual([]);
     await expect(getApplication(intruder, mine.id, testDb.db)).rejects.toThrow(
       NotFoundError,
     );

@@ -157,7 +157,7 @@ A neutral `--muted` background, never tinted by status. The header shows a statu
 └──────────────────────────────────┘
 ```
 
-- **Avatar:** 32 px company avatar with 6 px radius. A monogram on a neutral tint is the default; a company logo is used when one is available.
+- **Avatar:** 32 px company avatar with 6 px radius. The company's logo on a white tile (in both themes, so dark marks stay visible), loaded through Trackr's logo route. Initials on a neutral tint are the fallback when there is no domain or no logo.
 - **Text:** company (14 px, 600), role (13 px), applied date (12 px, muted).
 - **Signal line:** the single most informative recent signal, with a 14 px icon. Examples: "Gmail detected", "Assessment received", "Interview scheduled", "Offer received", or the job source.
 - **Actions:** the overflow menu appears on hover and focus. The card itself is a link that opens the detail drawer.

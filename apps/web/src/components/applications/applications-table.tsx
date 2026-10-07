@@ -64,7 +64,10 @@ export function ApplicationsTable({
               {/* max-w-0 lets this column shrink so long names truncate on small screens. */}
               <TableCell className="w-full max-w-0 py-2 pl-4">
                 <div className="flex min-w-0 items-center gap-3">
-                  <CompanyAvatar name={application.companyName} />
+                  <CompanyAvatar
+                    name={application.companyName}
+                    domain={application.companyDomain}
+                  />
                   <div className="min-w-0">
                     <p className="truncate font-medium">
                       {application.companyName}

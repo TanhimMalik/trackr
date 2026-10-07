@@ -242,6 +242,7 @@ LLM confidence is capped below the automatic band unless the rules independently
 - **Store less.** Trackr stores message and thread IDs, sender, subject, timestamp, Gmail's short snippet and the parsed result. Messages judged irrelevant keep only their IDs, so they are never reprocessed.
 - **Send less.** The LLM receives the sender, subject and a truncated plain-text body with quoted history removed, and never the user's other data.
 - **Explain everything.** Each automatic update links back to the email metadata and detection result that caused it.
+- **Logos without leaks.** Company logos load through Trackr's own `/api/logos/[domain]` route, which requires a session, fetches each icon server-side, passes through raster images only and caches them. Logo providers see Trackr's server, not which companies a person applied to.
 - **User control.** Disconnecting Gmail revokes the token at Google and deletes the stored tokens. Imported email metadata, applications and the account can each be deleted, and data can be exported.
 
 ## Security
@@ -294,7 +295,7 @@ Email-and-password accounts through Supabase Auth, with the session in cookies m
 - **Detail drawer.** Clicking a card or row is intercepted and renders the detail view in a right-side drawer, keeping the board's scroll position and filters. A direct URL or a refresh renders the full page. Both render the same `ApplicationDetailView`.
 - **Data flow.** Server components read through services. Mutations go through server actions followed by revalidation. Board drags use optimistic updates.
 - **Streaming.** Each Overview section is an independent async component inside `<Suspense>` with a skeleton, so one slow query never blocks the page.
-- **URL as state.** View, filters, sort and search live in search params, so every view is linkable.
+- **URL as state.** View, filters, sort and search live in search params, so every view is linkable. Filtering and sorting run in SQL; the search box matches company, role and location, and the response filter uses the same definition of a response as the analytics.
 - **Navigation.** Navigation items appear in the phase that implements them, so there are no dead links.
 
 ## Error handling

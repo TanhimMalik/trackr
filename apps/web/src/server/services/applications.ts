@@ -1,5 +1,7 @@
 import "server-only";
 import {
+  RESPONSE_EVENT_TYPES,
+  RESPONSE_STATUSES,
   detectSourcePlatform,
   domainFromWebsite,
   employerDomainFromJobUrl,
@@ -7,7 +9,21 @@ import {
   normalizeJobTitle,
   type ApplicationStatus,
 } from "@trackr/domain";
-import { and, asc, desc, eq } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  exists,
+  gte,
+  ilike,
+  inArray,
+  isNull,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import type { z } from "zod";
 import {
   createApplicationSchema,
@@ -16,6 +32,11 @@ import {
   type CreateApplicationInput,
   type UpdateApplicationInput,
 } from "@/lib/applications/input";
+import {
+  EMPTY_FILTERS,
+  type ApplicationFilters,
+  type ApplicationSort,
+} from "@/lib/applications/filters";
 import { getDb } from "@/server/db/client";
 import {
   applicationEvents,
@@ -338,14 +359,91 @@ export async function getApplication(
   return { application, events };
 }
 
-/** The user's applications, most recently active first. */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Escapes LIKE wildcards so a search for "100%" matches literally. */
+const likePattern = (query: string) =>
+  `%${query.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+
+/** Whether the company has responded: the same definition the analytics use. */
+const hasResponded = exists(
+  sql`(select 1 from ${applicationEvents} where ${and(
+    eq(applicationEvents.applicationId, applications.id),
+    isNull(applicationEvents.revertedAt),
+    or(
+      inArray(applicationEvents.eventType, RESPONSE_EVENT_TYPES),
+      and(
+        eq(applicationEvents.eventType, "STATUS_OVERRIDDEN"),
+        inArray(applicationEvents.statusAfter, RESPONSE_STATUSES),
+      ),
+    ),
+  )})`,
+);
+
+// Active stages first, most advanced at the top, then closed applications.
+const STATUS_ORDER = sql`case ${applications.currentStatus}
+  when 'OFFER' then 0 when 'FINAL_ROUND' then 1 when 'INTERVIEW' then 2
+  when 'RECRUITER_SCREEN' then 3 when 'ASSESSMENT' then 4 when 'APPLIED' then 5
+  when 'SAVED' then 6 when 'UNKNOWN' then 7 when 'WITHDRAWN' then 8
+  else 9 end`;
+
+const ORDER_BY: Record<ApplicationSort, SQL[]> = {
+  updated: [desc(applications.lastActivityAt)],
+  newest: [sql`${applications.appliedAt} desc nulls last`],
+  oldest: [sql`${applications.appliedAt} asc nulls last`],
+  company: [asc(applications.companyNameNorm), asc(applications.jobTitleNorm)],
+  status: [STATUS_ORDER, desc(applications.lastActivityAt)],
+};
+
+/** The user's applications matching the filters, in the requested order. */
 export async function listApplications(
   userId: string,
+  filters: Partial<ApplicationFilters> = {},
   db: Database = getDb(),
+  now: Date = new Date(),
 ): Promise<Application[]> {
+  const { query, statuses, sources, appliedWithin, response, sort } = {
+    ...EMPTY_FILTERS,
+    ...filters,
+  };
+
+  const conditions: (SQL | undefined)[] = [eq(applications.userId, userId)];
+  if (query) {
+    const pattern = likePattern(query);
+    conditions.push(
+      or(
+        ilike(applications.companyName, pattern),
+        ilike(applications.jobTitle, pattern),
+        ilike(applications.location, pattern),
+      ),
+    );
+  }
+  if (statuses.length) {
+    conditions.push(inArray(applications.currentStatus, statuses));
+  }
+  if (sources.length) conditions.push(inArray(applications.source, sources));
+  if (appliedWithin) {
+    const cutoff = new Date(now.getTime() - Number(appliedWithin) * DAY_MS);
+    conditions.push(gte(applications.appliedAt, cutoff));
+  }
+  if (response === "responded") conditions.push(hasResponded);
+  if (response === "waiting") conditions.push(sql`not ${hasResponded}`);
+
   return db
     .select()
     .from(applications)
-    .where(eq(applications.userId, userId))
-    .orderBy(desc(applications.lastActivityAt));
+    .where(and(...conditions))
+    .orderBy(...ORDER_BY[sort], desc(applications.createdAt));
+}
+
+/** How many applications the user has in total, ignoring any filters. */
+export async function countApplications(
+  userId: string,
+  db: Database = getDb(),
+): Promise<number> {
+  const [row] = await db
+    .select({ total: count() })
+    .from(applications)
+    .where(eq(applications.userId, userId));
+  return row?.total ?? 0;
 }
