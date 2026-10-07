@@ -1,0 +1,39 @@
+export const DEFAULT_AUTHENTICATED_PATH = "/overview";
+export const SIGN_IN_PATH = "/login";
+
+const AUTH_PAGES = new Set(["/login", "/signup"]);
+
+export type RouteAccess =
+  /** Sign-in and sign-up pages: signed-in users are sent to the app. */
+  | "auth-page"
+  /** Reachable without a session (auth callbacks; API routes authenticate themselves). */
+  | "public"
+  /** Requires a signed-in user. */
+  | "protected";
+
+export function routeAccess(pathname: string): RouteAccess {
+  if (AUTH_PAGES.has(pathname)) return "auth-page";
+  if (pathname.startsWith("/auth/") || pathname.startsWith("/api/")) {
+    return "public";
+  }
+  return "protected";
+}
+
+/**
+ * Returns a same-origin path to continue to after signing in, or the default.
+ * Rejects absolute and protocol-relative URLs so `?next=` cannot be used as an
+ * open redirect, and auth pages so it cannot cause a redirect loop.
+ */
+export function safeRedirectPath(next: unknown): string {
+  if (typeof next !== "string") return DEFAULT_AUTHENTICATED_PATH;
+  if (!next.startsWith("/") || next.startsWith("//") || next.includes("\\")) {
+    return DEFAULT_AUTHENTICATED_PATH;
+  }
+
+  const url = new URL(next, "http://trackr.invalid");
+  if (url.origin !== "http://trackr.invalid") return DEFAULT_AUTHENTICATED_PATH;
+  if (routeAccess(url.pathname) !== "protected") {
+    return DEFAULT_AUTHENTICATED_PATH;
+  }
+  return `${url.pathname}${url.search}`;
+}

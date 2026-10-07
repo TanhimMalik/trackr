@@ -38,16 +38,31 @@ docs/           Product and engineering documentation
 
 - Node.js 24 (see `.nvmrc`)
 - pnpm, via Corepack: `corepack enable pnpm`
+- A [Supabase](https://supabase.com) project (the free tier is enough) for Postgres and authentication
+
+### Supabase
+
+1. Create a project. Under **Security**, turn off **Enable Data API**, because Trackr reads and writes data only through its own server, and turn on **Enable automatic RLS**.
+2. Under **Authentication → URL Configuration**, set the site URL to `http://localhost:3000` and add `http://localhost:3000/auth/callback**` to the redirect URLs (the wildcard allows the `?next=` destination).
+3. Under **Authentication → Sign In / Providers**, keep email sign-ups enabled. Turning off **Confirm email** is convenient during development.
 
 ### Setup
 
 ```bash
 pnpm install
-cp apps/web/.env.example apps/web/.env.local
+cp apps/web/.env.example apps/web/.env.local   # then fill in the values
+pnpm db:migrate
 pnpm dev
 ```
 
 The app runs at http://localhost:3000.
+
+| Variable                               | Where to find it                                                            |
+| -------------------------------------- | --------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_APP_URL`                  | `http://localhost:3000` locally                                             |
+| `NEXT_PUBLIC_SUPABASE_URL`             | Project Settings → API                                                      |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Project Settings → API keys (publishable key)                               |
+| `DATABASE_URL`                         | Project Settings → Database → Connection string (session pooler, port 5432) |
 
 ## Scripts
 

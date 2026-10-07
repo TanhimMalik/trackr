@@ -252,7 +252,7 @@ LLM confidence is capped below the automatic band unless the rules independently
 
   Connecting Gmail is independent of how the user signs in.
 
-- **Authorization.** All data access goes through server-side Drizzle queries scoped by `user_id`. Row-level security is enabled with no policies on every table, which blocks Supabase's auto-generated Data API from exposing tables through the public key.
+- **Authorization.** All data access goes through server-side Drizzle queries scoped by `user_id`. Supabase's auto-generated Data API is turned off for the project, since nothing uses it. As a second layer, row-level security is enabled with no policies on every table, so even with the Data API on, the public key could not read them.
 - **Token encryption.** Gmail tokens are encrypted with AES-256-GCM using a key from the environment, in a versioned format (`v1.<iv>.<ciphertext>.<tag>`) that allows key rotation. Tokens never reach the browser.
 - **Extension tokens.**
   - Only hashes are stored.
@@ -263,7 +263,17 @@ LLM confidence is capped below the automatic band unless the rules independently
 - **Rate limiting.** Ingestion and sync endpoints use fixed-window counters stored in Postgres.
 - **Input handling.** Every boundary validates with zod. Captured job descriptions are converted to sanitized plain text, and user or email content is never rendered as raw HTML.
 - **LLM output.** Email is treated as untrusted input. The model has no tools, its output is schema-validated, and its confidence is capped.
-- **Secrets.** Secrets are environment variables validated at startup in `env.ts` and documented in `.env.example`.
+- **Secrets.** Secrets are environment variables, validated on first use (`src/lib/env.ts` for public values, `src/server/env.ts` for server secrets) and documented in `.env.example`. Validation errors name the missing variables but never print values.
+
+## Authentication
+
+Email-and-password accounts through Supabase Auth, with the session in cookies managed by `@supabase/ssr`.
+
+- **Proxy (`src/proxy.ts`).** Runs on every page request. It refreshes the session, then redirects optimistically: signed-out visitors go to `/login?next=…`, and signed-in users are sent away from the sign-in and sign-up pages. Refreshed cookies, and the no-store header that must accompany them, are kept on redirects. API routes pass through and authenticate themselves.
+- **Verification.** The proxy is not the authorization boundary. Layouts, pages and server actions call `requireUser()`, which verifies the session JWT with `supabase.auth.getClaims()` and is cached per request.
+- **Users table.** Sign-in, sign-up and the email-confirmation callback upsert the `users` row. Later sign-ins refresh the email and name.
+- **Forms.** Sign-in, sign-up and sign-out are server actions. Input is validated with zod. Supabase error codes are mapped to plain messages that never reveal whether an account exists.
+- **Redirect safety.** `?next=` only accepts same-origin paths to protected pages, so it cannot be used as an open redirect or cause a redirect loop.
 
 ## UI architecture
 
