@@ -239,7 +239,9 @@ Trackr never sends email on the user's behalf.
 - **Rejection rate** = rejected applications ÷ total applications.
 - **Average time to response** = mean time from applying to the first response.
 - "Reached an interview stage" is based on event history, so an application rejected after interviewing still counts.
-- Period metrics are cohort-based: they describe applications submitted within the selected period, so the summary metrics and the funnel always agree.
+- A manual status change that the person later takes back (moving the card back a stage, or reopening a closed application) is treated as a correction and doesn't count as a response or a stage reached. Company responses detected from email always count.
+- Funnel periods are cohort-based: they describe applications submitted within the selected period. The funnel's "All time" view matches the summary metrics.
+- **Summary metrics** on the Overview show all-time totals. Beside each one, the change compares the last 30 days with the 30 days before: applications sent, applications that first reached an interview stage, and offers received, in percent; the response rate now against 30 days ago, in percentage points. Trend lines show the last 12 weeks: weekly counts, or the response rate at the end of each week.
 
 ## 12. Privacy and security requirements
 

@@ -114,6 +114,108 @@ describe("summarizeProgress", () => {
     expect(progress.rejected).toBe(true);
   });
 
+  it("records when it first reached an interview stage and an offer", () => {
+    const progress = progressFor("OFFER", [
+      submitted,
+      {
+        type: "RECRUITER_CONTACT",
+        occurredAt: day(4),
+        statusAfter: "RECRUITER_SCREEN",
+      },
+      {
+        type: "INTERVIEW_SCHEDULED",
+        occurredAt: day(9),
+        statusAfter: "INTERVIEW",
+      },
+      { type: "NEXT_ROUND", occurredAt: day(14), statusAfter: "FINAL_ROUND" },
+      { type: "OFFER_RECEIVED", occurredAt: day(21), statusAfter: "OFFER" },
+    ]);
+    expect(progress.interviewAt).toEqual(day(9));
+    expect(progress.offerAt).toEqual(day(21));
+  });
+
+  it("has no stage dates before reaching those stages", () => {
+    const progress = progressFor("ASSESSMENT", [
+      submitted,
+      {
+        type: "ASSESSMENT_RECEIVED",
+        occurredAt: day(3),
+        statusAfter: "ASSESSMENT",
+      },
+    ]);
+    expect(progress.interviewAt).toBeNull();
+    expect(progress.offerAt).toBeNull();
+  });
+
+  it("ignores a manual move that was taken back", () => {
+    const progress = progressFor("APPLIED", [
+      submitted,
+      {
+        type: "STATUS_OVERRIDDEN",
+        occurredAt: day(6),
+        statusAfter: "INTERVIEW",
+      },
+      {
+        type: "STATUS_OVERRIDDEN",
+        occurredAt: day(6),
+        statusAfter: "APPLIED",
+      },
+    ]);
+    expect(progress.firstResponseAt).toBeNull();
+    expect(progress.reachedInterview).toBe(false);
+    expect(progress.interviewAt).toBeNull();
+  });
+
+  it("ignores a closing that was reopened", () => {
+    const progress = progressFor("APPLIED", [
+      submitted,
+      {
+        type: "STATUS_OVERRIDDEN",
+        occurredAt: day(4),
+        statusAfter: "REJECTED",
+      },
+      { type: "STATUS_OVERRIDDEN", occurredAt: day(5), statusAfter: "APPLIED" },
+    ]);
+    expect(progress.firstResponseAt).toBeNull();
+  });
+
+  it("keeps manual moves forward and closings that stand", () => {
+    const progress = progressFor("REJECTED", [
+      submitted,
+      {
+        type: "STATUS_OVERRIDDEN",
+        occurredAt: day(5),
+        statusAfter: "ASSESSMENT",
+      },
+      {
+        type: "STATUS_OVERRIDDEN",
+        occurredAt: day(9),
+        statusAfter: "INTERVIEW",
+      },
+      {
+        type: "STATUS_OVERRIDDEN",
+        occurredAt: day(14),
+        statusAfter: "REJECTED",
+      },
+    ]);
+    expect(progress.firstResponseAt).toEqual(day(5));
+    expect(progress.interviewAt).toEqual(day(9));
+    expect(progress.rejected).toBe(true);
+  });
+
+  it("keeps company responses even when the person moves the card back", () => {
+    const progress = progressFor("APPLIED", [
+      submitted,
+      {
+        type: "ASSESSMENT_RECEIVED",
+        occurredAt: day(3),
+        statusAfter: "ASSESSMENT",
+      },
+      { type: "STATUS_OVERRIDDEN", occurredAt: day(4), statusAfter: "APPLIED" },
+    ]);
+    expect(progress.firstResponseAt).toEqual(day(3));
+  });
+
   it("treats an offer as having passed the earlier stages", () => {
     const progress = progressFor("OFFER", [
       submitted,

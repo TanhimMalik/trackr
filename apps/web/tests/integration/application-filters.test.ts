@@ -5,6 +5,7 @@ import {
   createApplication,
   listApplications,
 } from "@/server/services/applications";
+import { loadApplicationProgress } from "@/server/services/analytics";
 import { processApplicationEvent } from "@/server/services/events";
 import type { ApplicationFilters } from "@/lib/applications/filters";
 import { createTestDatabase, type TestDatabase } from "../helpers/database";
@@ -127,6 +128,60 @@ describe("listApplications filters", () => {
     expect(
       await companies({ sources: ["LINKEDIN"], response: "waiting" }),
     ).toEqual(["Acme 100% Co"]);
+  });
+});
+
+describe("the responded filter and taken-back manual moves", () => {
+  it("matches the analytics definition of a response", async () => {
+    const owner = await createTestUser(testDb.db);
+    const add = (companyName: string) =>
+      createApplication(
+        owner,
+        { companyName, jobTitle: "Engineer", appliedAt: daysAgo(10, now) },
+        testDb.db,
+      );
+    const move = (
+      id: string,
+      status: Parameters<typeof changeApplicationStatus>[2],
+    ) => changeApplicationStatus(owner, id, status, testDb.db);
+
+    // Dragged to Assessment by mistake and straight back.
+    const coinbase = await add("Coinbase");
+    await move(coinbase.id, "ASSESSMENT");
+    await move(coinbase.id, "APPLIED");
+
+    // Closed by mistake, then reopened.
+    const ramp = await add("Ramp");
+    await move(ramp.id, "REJECTED");
+    await move(ramp.id, "APPLIED");
+
+    // Moved back from Interview, but Assessment is still a response.
+    const figma = await add("Figma");
+    await move(figma.id, "INTERVIEW");
+    await move(figma.id, "ASSESSMENT");
+
+    // The company responded by email; moving the card back doesn't undo that.
+    const vercel = await add("Vercel");
+    await processApplicationEvent(
+      {
+        userId: owner,
+        applicationId: vercel.id,
+        type: "ASSESSMENT_RECEIVED",
+        occurredAt: daysAgo(5, now),
+        sourceType: "EMAIL",
+        dedupeKey: "email:vercel-assessment",
+      },
+      testDb.db,
+    );
+    await move(vercel.id, "APPLIED");
+
+    const responded = (
+      await listApplications(owner, { response: "responded" }, testDb.db, now)
+    ).map((application) => application.companyName);
+    expect(responded.sort()).toEqual(["Figma", "Vercel"]);
+
+    const progress = await loadApplicationProgress(owner, testDb.db);
+    expect(progress.filter((p) => p.firstResponseAt !== null)).toHaveLength(2);
   });
 });
 

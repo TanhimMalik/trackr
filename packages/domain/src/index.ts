@@ -5,6 +5,7 @@ export * from "./status";
 export * from "./board";
 export * from "./card-signal";
 export * from "./analytics";
+export * from "./overview";
 export * from "./normalize/company";
 export * from "./normalize/title";
 export * from "./normalize/url";

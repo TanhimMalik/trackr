@@ -4,6 +4,7 @@ import {
   cardSignal,
   RESPONSE_EVENT_TYPES,
   RESPONSE_STATUSES,
+  STATUS_PROGRESS_RANK,
   detectSourcePlatform,
   domainFromWebsite,
   employerDomainFromJobUrl,
@@ -24,10 +25,12 @@ import {
   ilike,
   inArray,
   isNull,
+  not,
   or,
   sql,
   type SQL,
 } from "drizzle-orm";
+import { alias, type AnyPgColumn } from "drizzle-orm/pg-core";
 import type { z } from "zod";
 import {
   createApplicationSchema,
@@ -395,6 +398,38 @@ const likePattern = (query: string) =>
   `%${query.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
 
 /** Whether the company has responded: the same definition the analytics use. */
+const progressRank = (status: SQL | AnyPgColumn) =>
+  sql`(case ${status} ${sql.join(
+    Object.entries(STATUS_PROGRESS_RANK).map(
+      ([name, rank]) => sql`when ${name} then ${sql.raw(String(rank))}`,
+    ),
+    sql` `,
+  )} end)`;
+
+const laterEvent = alias(applicationEvents, "later_event");
+
+// A later manual move back a stage (or reopening) takes a manual move back,
+// matching the analytics in the domain package.
+const takenBack = exists(
+  sql`(select 1 from ${applicationEvents} ${laterEvent} where ${and(
+    eq(laterEvent.applicationId, applicationEvents.applicationId),
+    isNull(laterEvent.revertedAt),
+    eq(laterEvent.eventType, "STATUS_OVERRIDDEN"),
+    or(
+      sql`${laterEvent.eventTimestamp} > ${applicationEvents.eventTimestamp}`,
+      and(
+        eq(laterEvent.eventTimestamp, applicationEvents.eventTimestamp),
+        sql`${laterEvent.createdAt} > ${applicationEvents.createdAt}`,
+      ),
+    ),
+    sql`${progressRank(laterEvent.statusAfter)} is not null`,
+    or(
+      sql`${progressRank(applicationEvents.statusAfter)} is null`,
+      sql`${progressRank(laterEvent.statusAfter)} < ${progressRank(applicationEvents.statusAfter)}`,
+    ),
+  )})`,
+);
+
 const hasResponded = exists(
   sql`(select 1 from ${applicationEvents} where ${and(
     eq(applicationEvents.applicationId, applications.id),
@@ -404,6 +439,7 @@ const hasResponded = exists(
       and(
         eq(applicationEvents.eventType, "STATUS_OVERRIDDEN"),
         inArray(applicationEvents.statusAfter, RESPONSE_STATUSES),
+        not(takenBack),
       ),
     ),
   )})`,

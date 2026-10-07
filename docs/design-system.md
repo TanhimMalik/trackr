@@ -64,8 +64,8 @@ Trackr should feel like polished productivity software: compact, calm and inform
 ```
 
 - **Metrics row:** four cards in one row on wide screens, two on medium and one on small.
-- **Applications section:** shows the active stages. The full board, with the Closed and Saved columns, lives on the Applications page.
-- **Bottom row:** three columns on wide screens (`1.25fr 1.25fr 1fr`), stacked on smaller ones.
+- **Applications section:** shows the active stages, as a board or a table. The full board, with the Closed and Saved columns, lives on the Applications page.
+- **Bottom row:** three columns on wide screens (`1.25fr 1.25fr 1fr`), two on large screens and stacked on smaller ones. Recent automation lists only updates Trackr made on its own; each item opens the application's drawer. Integrations read "Coming soon" until Gmail and the extension ship.
 - **Loading:** each section loads independently with its own skeleton.
 
 ### Applications

@@ -60,6 +60,10 @@ export type ApplicationProgress = {
   reachedInterview: boolean;
   reachedFinalRound: boolean;
   reachedOffer: boolean;
+  /** When an event first moved it into an interview stage. */
+  interviewAt: Date | null;
+  /** When an event first moved it to Offer. */
+  offerAt: Date | null;
   rejected: boolean;
 };
 
@@ -75,35 +79,93 @@ function isResponse(event: ProgressEvent): boolean {
 }
 
 /** Summarizes how far one application progressed, based on its event history. */
+/**
+ * How far along each open status is, for spotting manual corrections. Closed
+ * statuses have no place in the order: closing an application is not a step
+ * back. Shared with the SQL behind the "Responded" filter.
+ */
+export const STATUS_PROGRESS_RANK: Partial<Record<ApplicationStatus, number>> =
+  {
+    SAVED: 0,
+    APPLIED: 1,
+    ASSESSMENT: 2,
+    RECRUITER_SCREEN: 2,
+    INTERVIEW: 3,
+    FINAL_ROUND: 4,
+    OFFER: 5,
+  };
+
+/**
+ * Leaves out manual status changes the person later took back: a move that a
+ * later manual move undoes by going back a stage, or a closing that is later
+ * reopened. A card dragged to Interview by mistake and straight back is not
+ * an interview.
+ */
+function withoutCorrections(events: readonly ProgressEvent[]): ProgressEvent[] {
+  const manual = events
+    .map((event, index) => ({ event, index }))
+    .filter(
+      ({ event }) =>
+        event.type === "STATUS_OVERRIDDEN" && event.statusAfter !== null,
+    )
+    .sort(
+      (a, b) =>
+        a.event.occurredAt.getTime() - b.event.occurredAt.getTime() ||
+        a.index - b.index,
+    );
+
+  const corrected = new Set<ProgressEvent>();
+  manual.forEach(({ event }, position) => {
+    const rank = STATUS_PROGRESS_RANK[event.statusAfter!];
+    const undone = manual.slice(position + 1).some(({ event: later }) => {
+      const laterRank = STATUS_PROGRESS_RANK[later.statusAfter!];
+      if (laterRank === undefined) return false;
+      return rank === undefined || laterRank < rank;
+    });
+    if (undone) corrected.add(event);
+  });
+
+  return events.filter((event) => !corrected.has(event));
+}
+
 export function summarizeProgress({
   appliedAt,
   currentStatus,
-  events,
+  events: allEvents,
 }: {
   appliedAt: Date | null;
   currentStatus: ApplicationStatus;
   events: readonly ProgressEvent[];
 }): ApplicationProgress {
-  const reached = (stages: ReadonlySet<ApplicationStatus>) =>
-    stages.has(currentStatus) ||
-    events.some(
+  const events = withoutCorrections(allEvents);
+  const earliest = (matches: (event: ProgressEvent) => boolean) => {
+    let at: Date | null = null;
+    for (const event of events) {
+      if (matches(event) && (at === null || event.occurredAt < at)) {
+        at = event.occurredAt;
+      }
+    }
+    return at;
+  };
+  const firstReached = (stages: ReadonlySet<ApplicationStatus>) =>
+    earliest(
       (event) => event.statusAfter !== null && stages.has(event.statusAfter),
     );
 
-  let firstResponseAt: Date | null = null;
-  for (const event of events) {
-    if (!isResponse(event)) continue;
-    if (firstResponseAt === null || event.occurredAt < firstResponseAt) {
-      firstResponseAt = event.occurredAt;
-    }
-  }
+  const interviewAt = firstReached(INTERVIEW_STAGES);
+  const offerAt = firstReached(OFFER_STAGES);
 
   return {
     appliedAt,
-    firstResponseAt,
-    reachedInterview: reached(INTERVIEW_STAGES),
-    reachedFinalRound: reached(FINAL_ROUND_STAGES),
-    reachedOffer: reached(OFFER_STAGES),
+    firstResponseAt: earliest(isResponse),
+    reachedInterview:
+      INTERVIEW_STAGES.has(currentStatus) || interviewAt !== null,
+    reachedFinalRound:
+      FINAL_ROUND_STAGES.has(currentStatus) ||
+      firstReached(FINAL_ROUND_STAGES) !== null,
+    reachedOffer: OFFER_STAGES.has(currentStatus) || offerAt !== null,
+    interviewAt,
+    offerAt,
     rejected: currentStatus === "REJECTED",
   };
 }

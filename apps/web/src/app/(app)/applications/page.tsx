@@ -2,12 +2,11 @@ import { BOARD_COLUMNS } from "@trackr/domain";
 import { FileText, SearchX } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { BoardItem } from "@/components/applications/application-card";
 import { AddApplicationButton } from "@/components/applications/application-dialogs";
 import { ApplicationsBoard } from "@/components/applications/applications-board";
 import { ApplicationsTable } from "@/components/applications/applications-table";
 import { ApplicationsToolbar } from "@/components/applications/applications-toolbar";
-import { formDefaultsFor } from "@/components/applications/form-defaults";
+import { toBoardItem } from "@/components/applications/board-items";
 import {
   ViewToggle,
   type ApplicationsView,
@@ -27,20 +26,6 @@ import {
 export const metadata: Metadata = { title: "Applications" };
 
 const ALL_COLUMNS = BOARD_COLUMNS.map((column) => column.id);
-
-function toBoardItem(application: BoardApplication): BoardItem {
-  return {
-    id: application.id,
-    companyName: application.companyName,
-    companyDomain: application.companyDomain,
-    jobTitle: application.jobTitle,
-    status: application.currentStatus,
-    appliedAt: application.appliedAt,
-    createdAt: application.createdAt,
-    signal: application.signal,
-    defaults: formDefaultsFor(application),
-  };
-}
 
 export default async function ApplicationsPage({
   searchParams,
