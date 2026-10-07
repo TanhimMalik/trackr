@@ -105,6 +105,8 @@ Indexes and constraints:
 - `(user_id, last_activity_at DESC)`, which serves recently updated lists and stale detection
 - `(user_id, company_name_norm)`, which serves matching candidate lookup
 - `UNIQUE (user_id, source_platform, ats_job_id) WHERE ats_job_id IS NOT NULL`, a race-proof backstop against duplicate submissions
+- `UNIQUE (id, user_id)`, the target of child tables' ownership foreign keys
+- Checks: salaries are non-negative, `salary_min <= salary_max`, and `salary_currency` is three uppercase letters
 
 ### `application_events`
 
@@ -131,9 +133,11 @@ Append-only history. Rows are never updated except for derived transition column
 
 Indexes and constraints:
 
+- `FOREIGN KEY (application_id, user_id) → applications (id, user_id)` (cascade), so an event can only belong to an application owned by the same user
 - `UNIQUE (user_id, dedupe_key)`, which makes ingestion idempotent
 - `(application_id, event_timestamp)`, which serves timelines and replay
 - `(user_id, created_at DESC)`, which serves the activity feed
+- Check: `confidence` is null or between 0 and 1
 
 ### `emails`
 
@@ -337,9 +341,15 @@ users ─┬─< applications ─┬─< application_events >─ emails
 ## Migrations
 
 - The schema is defined in TypeScript under `apps/web/src/server/db/schema/`.
-- `drizzle-kit generate` produces SQL migrations under `apps/web/src/server/db/migrations/`. Generated SQL is reviewed and committed with the schema change that caused it.
-- Migrations are applied with the Drizzle migrator in development, in tests (against PGlite) and as a deploy step in production.
+- `pnpm db:generate` produces SQL migrations under `apps/web/src/server/db/migrations/`. Generated SQL is reviewed and committed with the schema change that caused it. Running it again with no schema changes reports nothing to migrate, which is how drift is checked.
+- `pnpm db:migrate` applies migrations to the database in `DATABASE_URL`, read from `apps/web/.env.local`. Integration tests apply the same migrations to a fresh PGlite database for every test file.
 - Enum values are only ever added. Removing or renaming a value requires an explicit migration plan.
+
+## Access
+
+- The app connects with postgres-js through `getDb()` in `apps/web/src/server/db/client.ts`. Prepared statements are disabled because Supabase's transaction pooler does not support them.
+- Services accept the shared `Database` type, so the same code runs against postgres-js in the app and PGlite in tests.
+- ESLint allows imports of the client and schema only from `src/server/services` and `src/server/db`.
 
 ## Deletion and retention
 
