@@ -167,20 +167,23 @@ async function hasAuthUsersTable(db: Database): Promise<boolean> {
 
 /**
  * Deletes a demo account: its workspace, and its anonymous sign-in so the
- * session cannot be resumed. Real accounts are never touched.
+ * session cannot be resumed. Real accounts are never touched. Returns whether
+ * there was a demo workspace to delete.
  */
 export async function deleteDemoWorkspace(
   userId: string,
   db: Database = getDb(),
-): Promise<void> {
-  await db
+): Promise<boolean> {
+  const deleted = await db
     .delete(users)
-    .where(and(eq(users.id, userId), eq(users.isDemo, true)));
+    .where(and(eq(users.id, userId), eq(users.isDemo, true)))
+    .returning({ id: users.id });
   if (await hasAuthUsersTable(db)) {
     await db.execute(
       sql`delete from auth.users where id = ${userId} and is_anonymous`,
     );
   }
+  return deleted.length > 0;
 }
 
 /**

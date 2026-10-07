@@ -12,7 +12,7 @@ import {
 } from "@/server/services/demo-workspace";
 import { upsertUser } from "@/server/services/users";
 import { requireUser, sessionUserFromAuthUser } from "./session";
-import { createSupabaseServerClient } from "./supabase";
+import { createSupabaseServerClient, endSupabaseSession } from "./supabase";
 
 export type StartDemoState = { error: string } | null;
 
@@ -87,11 +87,15 @@ export async function resetDemo(): Promise<{ ok: boolean }> {
   return { ok: true };
 }
 
-/** Ends the demo: signs out and deletes the workspace straight away. */
+/**
+ * Ends the demo: deletes the workspace and its anonymous sign-in, which also
+ * ends the session on Supabase's side, then clears the session here.
+ */
 export async function exitDemo(): Promise<void> {
   const user = await requireDemoUser();
-  const supabase = await createSupabaseServerClient();
-  await supabase.auth.signOut();
-  await deleteDemoWorkspace(user.id);
+  if (!(await deleteDemoWorkspace(user.id))) {
+    console.error("demo_exit_found_nothing_to_delete");
+  }
+  await endSupabaseSession();
   redirect("/");
 }

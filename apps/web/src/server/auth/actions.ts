@@ -12,7 +12,7 @@ import { publicEnv } from "@/lib/env";
 import { firstErrorPerField } from "@/lib/forms";
 import { upsertUser } from "@/server/services/users";
 import { sessionUserFromAuthUser } from "./session";
-import { createSupabaseServerClient } from "./supabase";
+import { createSupabaseServerClient, endSupabaseSession } from "./supabase";
 
 const text = (formData: FormData, name: string) =>
   String(formData.get(name) ?? "");
@@ -90,7 +90,6 @@ export async function signUp(
 }
 
 export async function signOut(): Promise<void> {
-  const supabase = await createSupabaseServerClient();
-  await supabase.auth.signOut();
+  await endSupabaseSession();
   redirect(SIGN_IN_PATH);
 }

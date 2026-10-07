@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/server/auth/session";
-import { createSupabaseServerClient } from "@/server/auth/supabase";
+import { endSupabaseSession } from "@/server/auth/supabase";
 
 /**
  * Where a demo session goes once its workspace has expired: signs the demo
@@ -8,10 +8,7 @@ import { createSupabaseServerClient } from "@/server/auth/supabase";
  */
 export async function GET() {
   const user = await getCurrentUser();
-  if (user?.isDemo) {
-    const supabase = await createSupabaseServerClient();
-    await supabase.auth.signOut();
-  }
+  if (user?.isDemo) await endSupabaseSession();
   // A relative redirect keeps the host the visitor used.
   redirect("/?demo=ended");
 }

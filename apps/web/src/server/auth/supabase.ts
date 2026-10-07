@@ -31,3 +31,20 @@ export async function createSupabaseServerClient() {
     },
   );
 }
+
+/**
+ * Signs the current session out and removes its cookies even if Supabase
+ * couldn't confirm it, so a session that has already ended on the server can
+ * never keep a visitor half signed in. For server actions and route handlers.
+ */
+export async function endSupabaseSession(): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    console.error("sign_out_failed", { code: error.code ?? error.name });
+  }
+  const cookieStore = await cookies();
+  for (const { name } of cookieStore.getAll()) {
+    if (name.startsWith("sb-")) cookieStore.delete(name);
+  }
+}

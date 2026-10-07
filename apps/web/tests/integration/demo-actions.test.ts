@@ -42,6 +42,7 @@ vi.mock("@/server/auth/supabase", () => ({
       signOut: context.signOut,
     },
   }),
+  endSupabaseSession: context.signOut,
 }));
 vi.mock("@/server/auth/session", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/server/auth/session")>()),
@@ -137,7 +138,7 @@ describe("resetDemo", () => {
 });
 
 describe("exitDemo", () => {
-  it("signs out and deletes the workspace", async () => {
+  it("deletes the workspace and ends the session", async () => {
     await startDemo().catch(() => {});
     context.current = { id: context.anonymousId, isDemo: true };
 
