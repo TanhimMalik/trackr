@@ -197,6 +197,33 @@ describe("createApplication", () => {
   });
 });
 
+describe("getApplication", () => {
+  it("includes the resume that was submitted", async () => {
+    const [resume] = await testDb.db
+      .insert(resumeVersions)
+      .values({ userId, name: "Backend — Fall 2026" })
+      .returning();
+    const created = await createApplication(
+      userId,
+      { ...datadog, resumeVersionId: resume!.id },
+      testDb.db,
+    );
+
+    const detail = await getApplication(userId, created.id, testDb.db);
+    expect(detail.resume).toEqual({
+      id: resume!.id,
+      name: "Backend — Fall 2026",
+    });
+  });
+
+  it("has no resume when none was recorded", async () => {
+    const created = await createApplication(userId, datadog, testDb.db);
+    expect(
+      (await getApplication(userId, created.id, testDb.db)).resume,
+    ).toBeNull();
+  });
+});
+
 describe("updateApplication", () => {
   it("updates details and their normalized forms without touching status", async () => {
     const created = await createApplication(
@@ -392,6 +419,20 @@ describe("listApplications", () => {
     expect(
       (await listApplications(userId, {}, testDb.db)).map((a) => a.id),
     ).toEqual([newer.id, older.id]);
+  });
+});
+
+describe("malformed ids", () => {
+  it("treats an id that is not a UUID as not found", async () => {
+    await expect(getApplication(userId, "abc", testDb.db)).rejects.toThrow(
+      NotFoundError,
+    );
+    await expect(
+      changeApplicationStatus(userId, "1 or 1=1", "OFFER", testDb.db),
+    ).rejects.toThrow(NotFoundError);
+    await expect(
+      deleteApplication(userId, "../../etc", testDb.db),
+    ).rejects.toThrow(NotFoundError);
   });
 });
 

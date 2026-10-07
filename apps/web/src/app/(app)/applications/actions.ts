@@ -26,9 +26,9 @@ export type ApplicationFormState =
   | { ok: false; error?: string; fieldErrors?: Record<string, string> }
   | null;
 
+// Applications appear across the app (list, board, detail, overview).
 function revalidateApplications() {
-  revalidatePath("/applications");
-  revalidatePath("/overview");
+  revalidatePath("/", "layout");
 }
 
 function failure(

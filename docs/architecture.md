@@ -292,7 +292,8 @@ Email-and-password accounts through Supabase Auth, with the session in cookies m
   └── settings/{account,automation,privacy,data}/
   ```
 
-- **Detail drawer.** Clicking a card or row is intercepted and renders the detail view in a right-side drawer, keeping the board's scroll position and filters. A direct URL or a refresh renders the full page. Both render the same `ApplicationDetailView`.
+- **Detail drawer.** Clicking a card or row is intercepted and renders the detail view in a right-side drawer, keeping the board's scroll position and filters. Closing the drawer goes back in history. A direct URL or a refresh renders the full page. Both render the same `ApplicationDetail` server component; a catch-all `@drawer` route clears the slot on any other navigation.
+- **Timeline.** The detail view's activity list is built from the application's events. `describeEvent` turns each event into a title, its source (with confidence for automatic events) and the status transition it caused.
 - **Data flow.** Server components read through services. Mutations go through server actions followed by revalidation. Board drags use optimistic updates.
 - **Streaming.** Each Overview section is an independent async component inside `<Suspense>` with a skeleton, so one slow query never blocks the page.
 - **URL as state.** View, filters, sort and search live in search params, so every view is linkable. Filtering and sorting run in SQL; the search box matches company, role and location, and the response filter uses the same definition of a response as the analytics.

@@ -105,11 +105,14 @@ export function DeleteApplicationDialog({
   label,
   open,
   onOpenChange,
+  onDeleted,
 }: {
   applicationId: string;
   label: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Runs after a successful delete, e.g. to leave the detail view. */
+  onDeleted?: () => void;
 }) {
   const [deleting, startDelete] = useTransition();
 
@@ -118,9 +121,13 @@ export function DeleteApplicationDialog({
     event.preventDefault();
     startDelete(async () => {
       const result = await deleteApplicationAction(applicationId);
-      if (result?.ok) toast.success(result.message);
-      else toast.error(result?.error ?? "Couldn't delete the application.");
       onOpenChange(false);
+      if (result?.ok) {
+        toast.success(result.message);
+        onDeleted?.();
+      } else {
+        toast.error(result?.error ?? "Couldn't delete the application.");
+      }
     });
   }
 

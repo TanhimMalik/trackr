@@ -64,6 +64,13 @@ import {
 
 const manualDedupeKey = () => `manual:${crypto.randomUUID()}`;
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Ids come from URLs and forms; a malformed one is simply not found. */
+function assertApplicationId(applicationId: string) {
+  if (!UUID.test(applicationId)) throw new NotFoundError("Application");
+}
+
 function ownedApplication(userId: string, applicationId: string) {
   return and(
     eq(applications.id, applicationId),
@@ -219,6 +226,7 @@ export async function updateApplication(
   input: UpdateApplicationInput,
   db: Database = getDb(),
 ): Promise<Application> {
+  assertApplicationId(applicationId);
   const patch = updateApplicationSchema.parse(input);
   const [existing] = await db
     .select()
@@ -282,6 +290,7 @@ export async function changeApplicationStatus(
   toStatus: ApplicationStatus,
   db: Database = getDb(),
 ): Promise<ProcessedEvent | null> {
+  assertApplicationId(applicationId);
   const status = selectableStatusSchema.parse(toStatus);
   const [existing] = await db
     .select({ currentStatus: applications.currentStatus })
@@ -310,6 +319,7 @@ export async function deleteApplication(
   applicationId: string,
   db: Database = getDb(),
 ): Promise<void> {
+  assertApplicationId(applicationId);
   const deleted = await db
     .delete(applications)
     .where(ownedApplication(userId, applicationId))
@@ -333,6 +343,8 @@ export type ApplicationWithEvents = {
   application: Application;
   /** In the order they happened. */
   events: ApplicationEvent[];
+  /** The resume submitted with the application, if recorded. */
+  resume: { id: string; name: string } | null;
 };
 
 export async function getApplication(
@@ -340,6 +352,7 @@ export async function getApplication(
   applicationId: string,
   db: Database = getDb(),
 ): Promise<ApplicationWithEvents> {
+  assertApplicationId(applicationId);
   const [application] = await db
     .select()
     .from(applications)
@@ -360,7 +373,19 @@ export async function getApplication(
       asc(applicationEvents.createdAt),
     );
 
-  return { application, events };
+  const [resume] = application.resumeVersionId
+    ? await db
+        .select({ id: resumeVersions.id, name: resumeVersions.name })
+        .from(resumeVersions)
+        .where(
+          and(
+            eq(resumeVersions.id, application.resumeVersionId),
+            eq(resumeVersions.userId, userId),
+          ),
+        )
+    : [];
+
+  return { application, events, resume: resume ?? null };
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;

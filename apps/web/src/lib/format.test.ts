@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatRelativeTime, formatShortDate, initials } from "./format";
+import {
+  formatRelativeTime,
+  formatSalary,
+  formatShortDate,
+  initials,
+} from "./format";
 
 describe("initials", () => {
   it.each([
@@ -69,5 +74,21 @@ describe("formatRelativeTime", () => {
         timeZone: "UTC",
       }),
     ).toBe("Oct 10");
+  });
+});
+
+describe("formatSalary", () => {
+  it.each([
+    [150_000, 185_000, "USD", "$150K – $185K"],
+    [152_500, null, "USD", "From $152.5K"],
+    [null, 90_000, "CAD", "Up to CA$90K"],
+    [120_000, 120_000, "EUR", "€120K"],
+    [null, null, "USD", null],
+  ] as const)("%s–%s %s → %s", (min, max, currency, expected) => {
+    expect(formatSalary(min, max, currency)).toBe(expected);
+  });
+
+  it("assumes US dollars when no currency is stored", () => {
+    expect(formatSalary(100_000, null, null)).toBe("From $100K");
   });
 });

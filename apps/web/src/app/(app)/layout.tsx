@@ -4,8 +4,11 @@ import { requireUser } from "@/server/auth/session";
 
 export default async function AppLayout({
   children,
+  drawer,
 }: {
   children: React.ReactNode;
+  /** Application details opened from a list, shown over the page. */
+  drawer: React.ReactNode;
 }) {
   const user = await requireUser();
 
@@ -18,6 +21,7 @@ export default async function AppLayout({
           {children}
         </main>
       </div>
+      {drawer}
     </div>
   );
 }

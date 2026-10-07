@@ -1,4 +1,5 @@
 import { APPLICATION_SOURCE_LABELS } from "@trackr/domain";
+import Link from "next/link";
 import { DateText } from "@/components/date-text";
 import {
   Table,
@@ -53,7 +54,12 @@ export function ApplicationsTable({
                   />
                   <div className="min-w-0">
                     <p className="truncate font-medium">
-                      {application.companyName}
+                      <Link
+                        href={`/applications/${application.id}`}
+                        className="underline-offset-4 hover:underline"
+                      >
+                        {application.companyName}
+                      </Link>
                     </p>
                     <p className="truncate text-muted-foreground">
                       {application.jobTitle}

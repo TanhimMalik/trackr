@@ -72,7 +72,7 @@ Trackr should feel like polished productivity software: compact, calm and inform
 
 - **Board/Table toggle and filters** sit in a toolbar under the page header, and their state is kept in the URL.
 - **The board scrolls horizontally** when the columns don't fit, with column snapping on touch devices.
-- **The detail view** opens in a right-side drawer (about 760 px, full width on small screens) over the current view, with a link to the full page.
+- **The detail view** opens in a right-side drawer (46 rem, about 740 px, full width on small screens) over the current view, with a link to the full page.
 
 ## Typography
 

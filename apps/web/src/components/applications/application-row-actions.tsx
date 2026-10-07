@@ -5,9 +5,7 @@ import {
   type ApplicationStatus,
 } from "@trackr/domain";
 import { ArrowRightLeft, Ellipsis, Pencil, Trash2 } from "lucide-react";
-import { useState, useTransition } from "react";
-import { toast } from "sonner";
-import { changeApplicationStatusAction } from "@/app/(app)/applications/actions";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,6 +27,7 @@ import {
 } from "./application-dialogs";
 import type { ApplicationFormDefaults } from "./application-form";
 import { StatusDot } from "./status-badge";
+import { useChangeStatus } from "./use-change-status";
 
 export function ApplicationRowActions({
   applicationId,
@@ -42,21 +41,12 @@ export function ApplicationRowActions({
   className?: string;
 }) {
   const [dialog, setDialog] = useState<"edit" | "delete" | null>(null);
-  const [, startTransition] = useTransition();
   const label = `${defaults.companyName} · ${defaults.jobTitle}`;
-
-  function changeStatus(next: string) {
-    if (next === status) return;
-    startTransition(async () => {
-      const result = await changeApplicationStatusAction(
-        applicationId,
-        next as ApplicationStatus,
-      );
-      if (result?.ok)
-        toast.success(`${defaults.companyName}: ${result.message}`);
-      else toast.error(result?.error ?? "Couldn't change the status.");
-    });
-  }
+  const { changeStatus } = useChangeStatus(
+    applicationId,
+    defaults.companyName,
+    status,
+  );
 
   return (
     <>
@@ -84,7 +74,9 @@ export function ApplicationRowActions({
             <DropdownMenuSubContent className="w-44">
               <DropdownMenuRadioGroup
                 value={status}
-                onValueChange={changeStatus}
+                onValueChange={(value) =>
+                  changeStatus(value as ApplicationStatus)
+                }
               >
                 {SELECTABLE_STATUSES.map((option) => (
                   <DropdownMenuRadioItem key={option} value={option}>

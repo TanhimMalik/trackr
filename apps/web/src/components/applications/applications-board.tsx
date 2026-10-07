@@ -97,6 +97,7 @@ function DraggableCard({
     >
       <ApplicationCard
         item={item}
+        href={`/applications/${item.id}`}
         showStatus={item.status !== column.dropStatus}
         className="hover:border-foreground/20"
         actions={

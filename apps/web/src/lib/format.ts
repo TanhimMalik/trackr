@@ -54,3 +54,34 @@ export function formatRelativeTime(
   if (days < 7) return `${days} days ago`;
   return formatShortDate(date, { now, timeZone });
 }
+
+function compactMoney(amount: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(amount);
+  } catch {
+    // Unknown currency codes fall back to a plain number.
+    return `${currency} ${amount.toLocaleString("en-US")}`;
+  }
+}
+
+/** "$150K – $185K", "From $150K", "Up to $185K", or null when unknown. */
+export function formatSalary(
+  min: number | null,
+  max: number | null,
+  currency: string | null,
+): string | null {
+  const code = currency ?? "USD";
+  if (min !== null && max !== null) {
+    return min === max
+      ? compactMoney(min, code)
+      : `${compactMoney(min, code)} – ${compactMoney(max, code)}`;
+  }
+  if (min !== null) return `From ${compactMoney(min, code)}`;
+  if (max !== null) return `Up to ${compactMoney(max, code)}`;
+  return null;
+}
