@@ -15,6 +15,13 @@
       "when": 1791392896823,
       "tag": "0001_demo_users",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791397401227,
+      "tag": "0002_contacts_and_interviews",
+      "breakpoints": true
     }
   ]
 }

@@ -87,6 +87,8 @@ describe("database schema", () => {
     expect(rows.map((row) => row.relname)).toEqual([
       "application_events",
       "applications",
+      "contacts",
+      "interviews",
       "resume_versions",
       "users",
     ]);

@@ -5,6 +5,7 @@ import { applicationEvents, applications, users } from "@/server/db/schema";
 import {
   countApplications,
   createApplication,
+  getApplication,
   listApplications,
 } from "@/server/services/applications";
 import {
@@ -180,6 +181,44 @@ async function createDemoUser(createdAt = now) {
   await seedDemoWorkspace(id, { now }, testDb.db);
   return id;
 }
+
+describe("seedDemoWorkspace contacts and interviews", () => {
+  it("adds contacts and the interviews scheduled events set up", async () => {
+    const result = await seedDemoWorkspace(userId, { now }, testDb.db);
+    expect(result.contacts).toBeGreaterThan(0);
+    expect(result.interviews).toBeGreaterThan(0);
+
+    const [ramp] = await listApplications(userId, { query: "Ramp" }, testDb.db);
+    const { interviews, contacts } = await getApplication(
+      userId,
+      ramp!.id,
+      testDb.db,
+    );
+    const [interview] = interviews;
+    // Upcoming, linked to the event and to the person running it.
+    expect(interview!.status).toBe("SCHEDULED");
+    expect(interview!.scheduledAt!.getTime()).toBeGreaterThan(now.getTime());
+    expect(interview!.sourceEventId).not.toBeNull();
+    expect(contacts.find((c) => c.id === interview!.contactId)?.name).toBe(
+      "Priya Raman",
+    );
+    // Demo people have no email addresses.
+    expect(contacts.every((contact) => contact.email === null)).toBe(true);
+  });
+
+  it("marks interviews in the past as completed", async () => {
+    await seedDemoWorkspace(userId, { now }, testDb.db);
+    const [stripe] = await listApplications(
+      userId,
+      { query: "Stripe" },
+      testDb.db,
+    );
+    const { interviews } = await getApplication(userId, stripe!.id, testDb.db);
+    expect(interviews.map((interview) => interview.status)).toEqual([
+      "COMPLETED",
+    ]);
+  });
+});
 
 describe("resetDemoWorkspace", () => {
   it("replaces the workspace with fresh sample data", async () => {

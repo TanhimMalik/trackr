@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Ellipsis,
   ExternalLink,
+  ListPlus,
   Maximize2,
   Pencil,
   Trash2,
@@ -29,6 +30,7 @@ import {
   EditApplicationDialog,
 } from "./application-dialogs";
 import type { ApplicationFormDefaults } from "./application-form";
+import { LogActivityDialog } from "./log-activity-dialog";
 import { StatusDot } from "./status-badge";
 import { useChangeStatus } from "./use-change-status";
 
@@ -45,7 +47,7 @@ export function ApplicationDetailActions({
   variant: "drawer" | "page";
 }) {
   const router = useRouter();
-  const [dialog, setDialog] = useState<"edit" | "delete" | null>(null);
+  const [dialog, setDialog] = useState<"edit" | "log" | "delete" | null>(null);
   const { changeStatus, pending } = useChangeStatus(
     applicationId,
     defaults.companyName,
@@ -80,6 +82,11 @@ export function ApplicationDetailActions({
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <Button variant="outline" size="sm" onClick={() => setDialog("log")}>
+        <ListPlus />
+        Log activity
+      </Button>
 
       <Button variant="outline" size="sm" onClick={() => setDialog("edit")}>
         <Pencil />
@@ -126,6 +133,12 @@ export function ApplicationDetailActions({
         defaults={defaults}
         open={dialog === "edit"}
         onOpenChange={(open) => setDialog(open ? "edit" : null)}
+      />
+      <LogActivityDialog
+        applicationId={applicationId}
+        companyName={defaults.companyName}
+        open={dialog === "log"}
+        onOpenChange={(open) => setDialog(open ? "log" : null)}
       />
       <DeleteApplicationDialog
         applicationId={applicationId}

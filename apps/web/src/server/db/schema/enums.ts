@@ -3,8 +3,11 @@ import {
   APPLICATION_SOURCES,
   APPLICATION_STATUSES,
   CLASSIFICATION_METHODS,
+  CONTACT_TYPES,
   EMPLOYMENT_TYPES,
   EVENT_SOURCE_TYPES,
+  INTERVIEW_STATUSES,
+  INTERVIEW_TYPES,
   SOURCE_PLATFORMS,
 } from "@trackr/domain";
 import { pgEnum } from "drizzle-orm/pg-core";
@@ -40,3 +43,12 @@ export const classificationMethodEnum = pgEnum(
   "classification_method",
   CLASSIFICATION_METHODS,
 );
+
+export const interviewTypeEnum = pgEnum("interview_type", INTERVIEW_TYPES);
+
+export const interviewStatusEnum = pgEnum(
+  "interview_status",
+  INTERVIEW_STATUSES,
+);
+
+export const contactTypeEnum = pgEnum("contact_type", CONTACT_TYPES);

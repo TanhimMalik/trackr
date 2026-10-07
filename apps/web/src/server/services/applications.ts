@@ -32,6 +32,7 @@ import {
 } from "drizzle-orm";
 import { alias, type AnyPgColumn } from "drizzle-orm/pg-core";
 import type { z } from "zod";
+import { activityInputSchema } from "@/lib/applications/details-input";
 import {
   createApplicationSchema,
   selectableStatusSchema,
@@ -53,9 +54,14 @@ import {
 import type {
   Application,
   ApplicationEvent,
+  Contact,
   Database,
+  Interview,
 } from "@/server/db/types";
+import { listContacts } from "./contacts";
 import { NotFoundError } from "./errors";
+import { assertId } from "./ids";
+import { listInterviews } from "./interviews";
 import {
   insertEvent,
   processApplicationEvent,
@@ -67,11 +73,9 @@ import {
 
 const manualDedupeKey = () => `manual:${crypto.randomUUID()}`;
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /** Ids come from URLs and forms; a malformed one is simply not found. */
 function assertApplicationId(applicationId: string) {
-  if (!UUID.test(applicationId)) throw new NotFoundError("Application");
+  assertId(applicationId, "Application");
 }
 
 function ownedApplication(userId: string, applicationId: string) {
@@ -348,6 +352,9 @@ export type ApplicationWithEvents = {
   events: ApplicationEvent[];
   /** The resume submitted with the application, if recorded. */
   resume: { id: string; name: string } | null;
+  contacts: Contact[];
+  /** Dated ones in order, undated ones last. */
+  interviews: Interview[];
 };
 
 export async function getApplication(
@@ -362,33 +369,85 @@ export async function getApplication(
     .where(ownedApplication(userId, applicationId));
   if (!application) throw new NotFoundError("Application");
 
-  const events = await db
-    .select()
-    .from(applicationEvents)
-    .where(
-      and(
-        eq(applicationEvents.applicationId, applicationId),
-        eq(applicationEvents.userId, userId),
-      ),
-    )
-    .orderBy(
-      asc(applicationEvents.eventTimestamp),
-      asc(applicationEvents.createdAt),
-    );
-
-  const [resume] = application.resumeVersionId
-    ? await db
-        .select({ id: resumeVersions.id, name: resumeVersions.name })
-        .from(resumeVersions)
+  const [events, resumes, applicationContacts, applicationInterviews] =
+    await Promise.all([
+      db
+        .select()
+        .from(applicationEvents)
         .where(
           and(
-            eq(resumeVersions.id, application.resumeVersionId),
-            eq(resumeVersions.userId, userId),
+            eq(applicationEvents.applicationId, applicationId),
+            eq(applicationEvents.userId, userId),
           ),
         )
-    : [];
+        .orderBy(
+          asc(applicationEvents.eventTimestamp),
+          asc(applicationEvents.createdAt),
+        ),
+      application.resumeVersionId
+        ? db
+            .select({ id: resumeVersions.id, name: resumeVersions.name })
+            .from(resumeVersions)
+            .where(
+              and(
+                eq(resumeVersions.id, application.resumeVersionId),
+                eq(resumeVersions.userId, userId),
+              ),
+            )
+        : Promise.resolve([]),
+      listContacts(userId, applicationId, db),
+      listInterviews(userId, applicationId, db),
+    ]);
 
-  return { application, events, resume: resume ?? null };
+  return {
+    application,
+    events,
+    resume: resumes[0] ?? null,
+    contacts: applicationContacts,
+    interviews: applicationInterviews,
+  };
+}
+
+/**
+ * Records something that happened, logged by hand ("Sent a follow-up",
+ * "Scheduled an interview"). It goes through the event processor like any
+ * other event, so it updates the status and can be undone.
+ */
+export async function logActivity(
+  userId: string,
+  applicationId: string,
+  /** Validated here with `activityInputSchema`. */
+  input: unknown,
+  db: Database = getDb(),
+): Promise<ProcessedEvent> {
+  assertApplicationId(applicationId);
+  const data = activityInputSchema.parse(input);
+
+  const metadata =
+    data.type === "INTERVIEW_SCHEDULED" || data.type === "INTERVIEW_REQUESTED"
+      ? {
+          interviewKind: data.interviewKind ?? undefined,
+          scheduledAt:
+            data.type === "INTERVIEW_SCHEDULED"
+              ? data.scheduledAt?.toISOString()
+              : undefined,
+        }
+      : data.type === "NEXT_ROUND"
+        ? { isFinalRound: data.isFinalRound }
+        : {};
+
+  return processApplicationEvent(
+    {
+      userId,
+      applicationId,
+      type: data.type,
+      occurredAt: data.occurredAt,
+      sourceType: "MANUAL",
+      metadata,
+      dedupeKey: manualDedupeKey(),
+    },
+    db,
+  );
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;

@@ -9,7 +9,7 @@ import {
 import { z } from "zod";
 
 /** Optional text: trimmed, with blank values stored as null. */
-const optionalText = (max: number) =>
+export const optionalText = (max: number) =>
   z
     .string()
     .trim()
@@ -17,7 +17,8 @@ const optionalText = (max: number) =>
     .transform((value) => value || null)
     .nullish();
 
-const jobUrl = z
+/** An optional http(s) link; blank becomes null. */
+export const optionalLink = z
   .string()
   .trim()
   .max(2048)
@@ -69,7 +70,7 @@ const applicationFields = z.object({
     .trim()
     .min(1, "Enter the role.")
     .max(200, "Use at most 200 characters."),
-  jobUrl,
+  jobUrl: optionalLink,
   location: optionalText(200),
   employmentType: employmentTypeSchema.nullish(),
   salaryMin: salary,

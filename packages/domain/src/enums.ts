@@ -101,3 +101,21 @@ export const INTERVIEW_TYPES = [
 ] as const;
 export type InterviewType = (typeof INTERVIEW_TYPES)[number];
 export const interviewTypeSchema = z.enum(INTERVIEW_TYPES);
+
+export const INTERVIEW_STATUSES = [
+  "SCHEDULED",
+  "COMPLETED",
+  "CANCELED",
+] as const;
+export type InterviewStatus = (typeof INTERVIEW_STATUSES)[number];
+export const interviewStatusSchema = z.enum(INTERVIEW_STATUSES);
+
+export const CONTACT_TYPES = [
+  "RECRUITER",
+  "HIRING_MANAGER",
+  "INTERVIEWER",
+  "COORDINATOR",
+  "OTHER",
+] as const;
+export type ContactType = (typeof CONTACT_TYPES)[number];
+export const contactTypeSchema = z.enum(CONTACT_TYPES);

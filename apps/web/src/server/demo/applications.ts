@@ -2,8 +2,29 @@ import {
   domainFromWebsite,
   type ApplicationEventType,
   type ClassificationMethod,
+  type ContactType,
 } from "@trackr/domain";
 import type { CreateApplicationInput } from "@/lib/applications/input";
+
+/** An interview a demo "interview scheduled" event sets up. */
+export type DemoInterview = {
+  /** Days from the seed date; negative is in the past (and completed). */
+  inDays: number;
+  /** Time of day in UTC. */
+  hour: number;
+  durationMinutes?: number;
+  meetingUrl?: string;
+  location?: string;
+  /** The name of one of the application's demo contacts. */
+  with?: string;
+};
+
+/** Fictional people; no email addresses, so none can belong to anyone real. */
+export type DemoContact = {
+  name: string;
+  title: string;
+  contactType: ContactType;
+};
 
 /** An event in a demo application's history, timed relative to the seed date. */
 export type DemoEvent = {
@@ -17,12 +38,13 @@ export type DemoEvent = {
   method?: ClassificationMethod;
   confidence?: number;
   metadata?: Record<string, unknown>;
+  interview?: DemoInterview;
 };
 
 export type DemoApplication = Omit<
   CreateApplicationInput,
   "status" | "appliedAt"
-> & { events: DemoEvent[] };
+> & { events: DemoEvent[]; contacts?: DemoContact[] };
 
 /** Captured by the extension on submission, then confirmed by email minutes later. */
 const capturedAndConfirmed = (day: number, hour = 14): DemoEvent[] => [
@@ -78,12 +100,26 @@ export const DEMO_APPLICATIONS: DemoApplication[] = [
       email("INTERVIEW_REQUESTED", 35, { confidence: 0.96 }),
       email("INTERVIEW_SCHEDULED", 33, {
         metadata: { interviewKind: "TECHNICAL" },
+        interview: {
+          inDays: -31,
+          hour: 18,
+          durationMinutes: 60,
+          meetingUrl: "https://meet.example.com/stripe-technical",
+          with: "Maya Chen",
+        },
       }),
       email("NEXT_ROUND", 21, {
         confidence: 0.93,
         metadata: { isFinalRound: true },
       }),
       email("OFFER_RECEIVED", 6, { confidence: 0.98 }),
+    ],
+    contacts: [
+      {
+        name: "Maya Chen",
+        title: "Technical Recruiter",
+        contactType: "RECRUITER",
+      },
     ],
   },
   {
@@ -103,7 +139,22 @@ export const DEMO_APPLICATIONS: DemoApplication[] = [
       email("INTERVIEW_REQUESTED", 13),
       email("INTERVIEW_SCHEDULED", 11, {
         metadata: { interviewKind: "TECHNICAL" },
+        interview: {
+          inDays: 2,
+          hour: 18,
+          durationMinutes: 45,
+          meetingUrl: "https://meet.example.com/ramp-technical",
+          with: "Priya Raman",
+        },
       }),
+    ],
+    contacts: [
+      { name: "Daniel Ortiz", title: "Recruiter", contactType: "RECRUITER" },
+      {
+        name: "Priya Raman",
+        title: "Engineering Manager, Payments",
+        contactType: "HIRING_MANAGER",
+      },
     ],
   },
   {
@@ -118,6 +169,9 @@ export const DEMO_APPLICATIONS: DemoApplication[] = [
     events: [
       ...capturedAndConfirmed(29, 15),
       email("INTERVIEW_REQUESTED", 16, { confidence: 0.95 }),
+    ],
+    contacts: [
+      { name: "Lena Park", title: "Talent Partner", contactType: "RECRUITER" },
     ],
   },
   {
@@ -138,6 +192,23 @@ export const DEMO_APPLICATIONS: DemoApplication[] = [
         confidence: 0.91,
         metadata: { isFinalRound: true },
       }),
+      email("INTERVIEW_SCHEDULED", 8, {
+        metadata: { interviewKind: "FINAL" },
+        interview: {
+          inDays: 4,
+          hour: 14,
+          durationMinutes: 240,
+          location: "Pittsburgh office",
+          with: "Sam Whitaker",
+        },
+      }),
+    ],
+    contacts: [
+      {
+        name: "Sam Whitaker",
+        title: "Recruiting Coordinator",
+        contactType: "COORDINATOR",
+      },
     ],
   },
   {
@@ -307,6 +378,7 @@ export const DEMO_APPLICATIONS: DemoApplication[] = [
       email("INTERVIEW_REQUESTED", 32),
       email("INTERVIEW_SCHEDULED", 30, {
         metadata: { interviewKind: "TECHNICAL" },
+        interview: { inDays: -28, hour: 20, durationMinutes: 60 },
       }),
       email("REJECTION_RECEIVED", 19),
     ],

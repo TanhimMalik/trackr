@@ -22,6 +22,27 @@ function yearIn(date: Date, timeZone?: string): string {
   );
 }
 
+/** "Thu, Oct 9 · 2:00 PM", with the year when it isn't the current one. */
+export function formatDateTime(
+  date: Date,
+  { now = new Date(), timeZone }: { now?: Date; timeZone?: string } = {},
+): string {
+  const sameYear = yearIn(date, timeZone) === yearIn(now, timeZone);
+  const day = new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+    timeZone,
+  }).format(date);
+  const time = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+  }).format(date);
+  return `${day} · ${time}`;
+}
+
 /** "Apr 22" within the current year, "Apr 22, 2025" otherwise. */
 export function formatShortDate(
   date: Date,

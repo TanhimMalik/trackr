@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatDateTime,
   formatRelativeTime,
   formatSalary,
   formatShortDate,
@@ -90,5 +91,27 @@ describe("formatSalary", () => {
 
   it("assumes US dollars when no currency is stored", () => {
     expect(formatSalary(100_000, null, null)).toBe("From $100K");
+  });
+});
+
+describe("formatDateTime", () => {
+  const now = new Date("2026-10-07T12:00:00Z");
+
+  it("shows the weekday, date and time", () => {
+    expect(
+      formatDateTime(new Date("2026-10-09T18:00:00Z"), {
+        now,
+        timeZone: "America/Toronto",
+      }),
+    ).toBe("Fri, Oct 9 · 2:00 PM");
+  });
+
+  it("adds the year outside the current one", () => {
+    expect(
+      formatDateTime(new Date("2027-01-04T15:30:00Z"), {
+        now,
+        timeZone: "UTC",
+      }),
+    ).toBe("Mon, Jan 4, 2027 · 3:30 PM");
   });
 });

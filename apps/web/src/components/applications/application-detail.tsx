@@ -9,7 +9,9 @@ import { formatSalary } from "@/lib/format";
 import { requireUser } from "@/server/auth/session";
 import { getApplication } from "@/server/services/applications";
 import { NotFoundError } from "@/server/services/errors";
+import { ApplicationContacts } from "./application-contacts";
 import { ApplicationDetailActions } from "./application-detail-actions";
+import { ApplicationInterviews } from "./application-interviews";
 import { ApplicationTimeline } from "./application-timeline";
 import { CompanyAvatar } from "./company-avatar";
 import { formDefaultsFor } from "./form-defaults";
@@ -71,7 +73,7 @@ export async function ApplicationDetail({
       throw error;
     },
   );
-  const { application, events, resume } = detail;
+  const { application, events, resume, contacts, interviews } = detail;
   const salary = formatSalary(
     application.salaryMin,
     application.salaryMax,
@@ -145,6 +147,14 @@ export async function ApplicationDetail({
           <Fact label="Resume">{resume?.name}</Fact>
         </dl>
       </section>
+
+      <ApplicationInterviews
+        applicationId={application.id}
+        interviews={interviews}
+        contacts={contacts.map(({ id, name }) => ({ id, name }))}
+      />
+
+      <ApplicationContacts applicationId={application.id} contacts={contacts} />
 
       {application.notes && (
         <section aria-labelledby="notes-heading" className="space-y-2">

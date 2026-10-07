@@ -126,7 +126,7 @@ Services are functional modules, not classes. Each owns one responsibility.
 3. Insert the event with `ON CONFLICT (user_id, dedupe_key) DO NOTHING`. If it already existed, return it marked as deduplicated.
 4. Load the application's active events and run status derivation.
 5. Persist `current_status`, `applied_at`, `last_activity_at`, and each event's `status_before` and `status_after`.
-6. Create associated interview and contact records from event metadata.
+6. Sync the interview an event describes: `INTERVIEW_SCHEDULED` with `metadata.scheduledAt` creates one linked by `source_event_id`, and `INTERVIEW_RESCHEDULED` moves the latest scheduled one. Contacts are added by hand for now; extracting them from email arrives with the email pipeline.
 7. If the status changed, create a notification.
 
 It returns the stored event, the previous status, the new status and whether the event was deduplicated.
@@ -177,7 +177,7 @@ Because derivation replays events in the order they happened, an "application re
 
 ### Undo
 
-Undo sets `reverted_at` on the event and re-runs derivation inside the same transactional processor (`revertEvent`). Restore clears it again (`restoreEvent`). Both lock the application row and are safe to repeat. An application always keeps at least one active event, so its first event can't be undone while it is the only one. Reverted events stay visible, struck through, in the timeline with a Restore button. Status changes made from the board, the card menu or the detail view return their event, so their confirmation toast offers Undo.
+Undo sets `reverted_at` on the event and re-runs derivation inside the same transactional processor (`revertEvent`). Restore clears it again (`restoreEvent`). Both lock the application row and are safe to repeat. An application always keeps at least one active event, so its first event can't be undone while it is the only one. Reverted events stay visible, struck through, in the timeline with a Restore button. Undoing an event also removes the interview it created, and restoring it brings the interview back. Status changes made from the board, the card menu or the detail view, and activity logged by hand, return their event, so their confirmation toast offers Undo.
 
 ## Classification pipeline
 

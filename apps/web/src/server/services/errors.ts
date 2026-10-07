@@ -16,3 +16,11 @@ export class LastEventError extends Error {
     this.name = "LastEventError";
   }
 }
+
+/** The application already has a contact with this email address. */
+export class DuplicateContactError extends Error {
+  constructor() {
+    super("A contact with this email already exists for the application");
+    this.name = "DuplicateContactError";
+  }
+}

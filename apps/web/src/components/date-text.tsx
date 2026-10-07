@@ -1,7 +1,11 @@
 "use client";
 
 import { useMounted } from "@/hooks/use-mounted";
-import { formatRelativeTime, formatShortDate } from "@/lib/format";
+import {
+  formatDateTime,
+  formatRelativeTime,
+  formatShortDate,
+} from "@/lib/format";
 
 /**
  * A date in the viewer's time zone. The server renders it in UTC; once mounted
@@ -30,6 +34,26 @@ export function DateText({
       suppressHydrationWarning
     >
       {text}
+    </time>
+  );
+}
+
+/** A date and time in the viewer's time zone ("Thu, Oct 9 · 2:00 PM"). */
+export function DateTimeText({
+  date,
+  className,
+}: {
+  date: Date;
+  className?: string;
+}) {
+  const mounted = useMounted();
+  return (
+    <time
+      dateTime={date.toISOString()}
+      className={className}
+      suppressHydrationWarning
+    >
+      {formatDateTime(date, { timeZone: mounted ? undefined : "UTC" })}
     </time>
   );
 }

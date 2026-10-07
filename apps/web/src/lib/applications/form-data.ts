@@ -6,13 +6,16 @@
 /** Select value meaning "no choice"; Radix selects cannot use an empty string. */
 export const NO_SELECTION = "none";
 
-function text(formData: FormData, name: string): string | undefined {
+export function text(formData: FormData, name: string): string | undefined {
   const value = formData.get(name);
   return typeof value === "string" ? value : undefined;
 }
 
 /** Blank text and the no-selection value become null; absent fields stay undefined. */
-function optional(formData: FormData, name: string): string | null | undefined {
+export function optional(
+  formData: FormData,
+  name: string,
+): string | null | undefined {
   const value = text(formData, name);
   if (value === undefined) return undefined;
   const trimmed = value.trim();

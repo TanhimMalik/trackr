@@ -1,14 +1,25 @@
 import "server-only";
-import { deriveApplicationState, type StatusEvent } from "@trackr/domain";
+import {
+  deriveApplicationState,
+  type InterviewType,
+  type StatusEvent,
+} from "@trackr/domain";
 import { and, count, eq, lt, sql } from "drizzle-orm";
 import { createApplicationSchema } from "@/lib/applications/input";
 import { getDb } from "@/server/db/client";
-import { applicationEvents, applications, users } from "@/server/db/schema";
+import {
+  applicationEvents,
+  applications,
+  contacts,
+  interviews,
+  users,
+} from "@/server/db/schema";
 import type { Database } from "@/server/db/types";
 import {
   DEMO_APPLICATIONS,
   type DemoApplication,
   type DemoEvent,
+  type DemoInterview,
 } from "@/server/demo/applications";
 import { deleteAllApplications, newApplicationValues } from "./applications";
 import { validateEventInput } from "./events";
@@ -47,14 +58,31 @@ const SOURCE_TYPES = {
  * Builds the rows for one demo application. Status, dates and transitions come
  * from the same domain rules the event processor uses.
  */
+function interviewTime(interview: DemoInterview, now: Date): Date {
+  const date = new Date(now.getTime() + interview.inDays * DAY_MS);
+  date.setUTCHours(interview.hour, 0, 0, 0);
+  return date;
+}
+
 function planApplication(userId: string, demo: DemoApplication, now: Date) {
-  const { events: demoEvents, ...fields } = demo;
+  const { events: demoEvents, contacts: demoContacts = [], ...fields } = demo;
   const data = createApplicationSchema.parse(fields);
   const applicationId = crypto.randomUUID();
+
+  const contacts = demoContacts.map((contact) => ({
+    ...contact,
+    id: crypto.randomUUID(),
+    applicationId,
+    userId,
+  }));
+  const contactIds = new Map(contacts.map((c) => [c.name, c.id]));
 
   const events = demoEvents.map((demoEvent, index) => {
     const when = occurredAt(demoEvent, now);
     const isEmail = demoEvent.via === "email";
+    const scheduledAt = demoEvent.interview
+      ? interviewTime(demoEvent.interview, now)
+      : null;
     const input = validateEventInput({
       userId,
       applicationId,
@@ -64,7 +92,9 @@ function planApplication(userId: string, demo: DemoApplication, now: Date) {
       sourceReference: isEmail ? `demo-message-${index + 1}` : null,
       classificationMethod: isEmail ? (demoEvent.method ?? "RULES") : null,
       confidence: isEmail ? (demoEvent.confidence ?? 0.97) : null,
-      metadata: demoEvent.metadata,
+      metadata: scheduledAt
+        ? { ...demoEvent.metadata, scheduledAt: scheduledAt.toISOString() }
+        : demoEvent.metadata,
       dedupeKey: `demo:${crypto.randomUUID()}`,
     });
     return {
@@ -73,7 +103,35 @@ function planApplication(userId: string, demo: DemoApplication, now: Date) {
       recordedAt: new Date(
         when.getTime() + (isEmail ? EMAIL_DETECTION_DELAY_MS : 0),
       ),
+      interview: demoEvent.interview,
+      scheduledAt,
     };
+  });
+
+  // Each scheduled interview, as the event processor would create it, with
+  // the details a person would have filled in since.
+  const interviewRows = events.flatMap((event) => {
+    if (!event.interview || !event.scheduledAt) return [];
+    const metadata = event.input.metadata as { interviewKind?: InterviewType };
+    return [
+      {
+        applicationId,
+        userId,
+        interviewType: metadata.interviewKind ?? ("OTHER" as const),
+        scheduledAt: event.scheduledAt,
+        durationMinutes: event.interview.durationMinutes ?? null,
+        meetingUrl: event.interview.meetingUrl ?? null,
+        location: event.interview.location ?? null,
+        contactId: event.interview.with
+          ? (contactIds.get(event.interview.with) ?? null)
+          : null,
+        status:
+          event.interview.inDays < 0
+            ? ("COMPLETED" as const)
+            : ("SCHEDULED" as const),
+        sourceEventId: event.id,
+      },
+    ];
   });
 
   const state = deriveApplicationState(
@@ -89,6 +147,8 @@ function planApplication(userId: string, demo: DemoApplication, now: Date) {
   const transitions = new Map(state.transitions.map((t) => [t.eventId, t]));
 
   return {
+    contacts,
+    interviews: interviewRows,
     application: {
       ...newApplicationValues(userId, data),
       id: applicationId,
@@ -125,7 +185,12 @@ export async function seedDemoWorkspace(
   userId: string,
   { now = new Date() }: { now?: Date } = {},
   db: Database = getDb(),
-): Promise<{ applications: number; events: number }> {
+): Promise<{
+  applications: number;
+  events: number;
+  contacts: number;
+  interviews: number;
+}> {
   const plans = DEMO_APPLICATIONS.map((demo) =>
     planApplication(userId, demo, now),
   );
@@ -141,8 +206,19 @@ export async function seedDemoWorkspace(
     await tx.insert(applications).values(plans.map((plan) => plan.application));
     const events = plans.flatMap((plan) => plan.events);
     await tx.insert(applicationEvents).values(events);
+    const demoContacts = plans.flatMap((plan) => plan.contacts);
+    if (demoContacts.length > 0) await tx.insert(contacts).values(demoContacts);
+    const demoInterviews = plans.flatMap((plan) => plan.interviews);
+    if (demoInterviews.length > 0) {
+      await tx.insert(interviews).values(demoInterviews);
+    }
 
-    return { applications: plans.length, events: events.length };
+    return {
+      applications: plans.length,
+      events: events.length,
+      contacts: demoContacts.length,
+      interviews: demoInterviews.length,
+    };
   });
 }
 

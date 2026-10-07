@@ -2,8 +2,10 @@ import type {
   ApplicationEventType,
   ApplicationSource,
   ApplicationStatus,
+  ContactType,
   EmploymentType,
   EventSourceType,
+  InterviewStatus,
   InterviewType,
   SourcePlatform,
 } from "./enums";
@@ -83,4 +85,18 @@ export const INTERVIEW_TYPE_LABELS: Record<InterviewType, string> = {
   ONSITE: "Onsite interview",
   FINAL: "Final interview",
   OTHER: "Interview",
+};
+
+export const INTERVIEW_STATUS_LABELS: Record<InterviewStatus, string> = {
+  SCHEDULED: "Scheduled",
+  COMPLETED: "Completed",
+  CANCELED: "Canceled",
+};
+
+export const CONTACT_TYPE_LABELS: Record<ContactType, string> = {
+  RECRUITER: "Recruiter",
+  HIRING_MANAGER: "Hiring manager",
+  INTERVIEWER: "Interviewer",
+  COORDINATOR: "Coordinator",
+  OTHER: "Other",
 };

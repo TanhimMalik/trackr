@@ -15,6 +15,8 @@ import { getDb } from "@/server/db/client";
 import { applicationEvents, applications } from "@/server/db/schema";
 import type { ApplicationEvent, Database } from "@/server/db/types";
 import { LastEventError, NotFoundError } from "./errors";
+import { assertId } from "./ids";
+import { removeInterviewsForEvent, syncInterviewForEvent } from "./interviews";
 
 const eventInputSchema = z.object({
   userId: z.uuid(),
@@ -83,6 +85,7 @@ export async function processApplicationEvent(
       .select()
       .from(applicationEvents)
       .where(eq(applicationEvents.id, row.id));
+    await syncInterviewForEvent(tx, stored!);
 
     return {
       event: stored!,
@@ -217,8 +220,6 @@ export async function recomputeApplicationState(
   return state.status;
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 export type EventChange = {
   event: ApplicationEvent;
   companyName: string;
@@ -237,7 +238,7 @@ async function setEventReverted(
   reverted: boolean,
   db: Database,
 ): Promise<EventChange> {
-  if (!UUID.test(eventId)) throw new NotFoundError("Event");
+  assertId(eventId, "Event");
 
   return db.transaction(async (tx) => {
     const [target] = await tx
@@ -302,6 +303,9 @@ async function setEventReverted(
       .select()
       .from(applicationEvents)
       .where(eq(applicationEvents.id, eventId));
+    // An interview the event created goes and comes back with it.
+    if (reverted) await removeInterviewsForEvent(tx, eventId);
+    else await syncInterviewForEvent(tx, event!);
 
     return {
       event: event!,

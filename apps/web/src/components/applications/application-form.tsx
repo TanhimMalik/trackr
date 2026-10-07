@@ -13,15 +13,9 @@ import { useActionState, useState, useTransition } from "react";
 import { toast } from "sonner";
 import type { ApplicationFormState } from "@/app/(app)/applications/actions";
 import { FormField } from "@/components/forms/form-field";
+import { optionsFrom, SelectField } from "@/components/forms/select-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   appliedDateToIso,
@@ -47,55 +41,6 @@ export type ApplicationFormDefaults = {
   sourcePlatform: string | null;
   notes: string | null;
 };
-
-type Option = { value: string; label: string };
-
-function SelectField({
-  label,
-  name,
-  defaultValue,
-  options,
-  error,
-  hint,
-  onValueChange,
-}: {
-  label: string;
-  name: string;
-  defaultValue: string;
-  options: Option[];
-  error?: string;
-  hint?: string;
-  onValueChange?: (value: string) => void;
-}) {
-  return (
-    <FormField label={label} error={error} hint={hint}>
-      {(control) => (
-        <Select
-          name={name}
-          defaultValue={defaultValue}
-          onValueChange={onValueChange}
-        >
-          <SelectTrigger {...control} className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {options.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-    </FormField>
-  );
-}
-
-const optionsFrom = (
-  values: readonly string[],
-  labels: Record<string, string>,
-): Option[] =>
-  values.map((value) => ({ value, label: labels[value] ?? value }));
 
 export function ApplicationForm({
   mode,
