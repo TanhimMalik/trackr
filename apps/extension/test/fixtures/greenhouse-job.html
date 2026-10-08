@@ -1,0 +1,44 @@
+<!doctype html>
+<!-- Shape of a job-boards.greenhouse.io posting (2026): title in .job__title, location in .job__location, company in the page title. -->
+<html>
+  <head>
+    <title>Job Application for Platform Engineer at Northwind Labs</title>
+    <meta property="og:title" content="Platform Engineer" />
+    <meta property="og:description" content="Remote, Canada" />
+    <meta
+      property="og:url"
+      content="https://job-boards.greenhouse.io/northwindlabs/jobs/4012345"
+    />
+  </head>
+  <body>
+    <div class="job__header">
+      <div class="job__title">
+        <h1 class="section-header section-header--large font-primary">
+          Platform Engineer
+        </h1>
+        <div class="job__location">
+          <svg class="svg-icon"></svg>
+          <div>Remote, Canada</div>
+        </div>
+      </div>
+    </div>
+    <div class="job__description body">
+      <p>Thank you for applying to roles that fit you.</p>
+    </div>
+    <form
+      method="get"
+      action="/northwindlabs/jobs/4012345"
+      id="application-form"
+      class="application--form"
+    >
+      <input type="text" name="first_name" />
+      <input type="email" name="email" />
+    </form>
+    <script>
+      window.__remixContext = {
+        company_name: "Northwind Labs",
+        confirmationPath: "/northwindlabs/jobs/4012345/confirmation",
+      };
+    </script>
+  </body>
+</html>

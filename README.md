@@ -30,7 +30,9 @@ Trackr is an automatic job application tracker. Connect your browser and inbox o
 ```
 apps/
   web/          Next.js application (UI, server actions, API routes, services)
-packages/       Shared, framework-free packages (added as needed)
+  extension/    Chrome extension (Manifest V3) that records applications as you submit them
+packages/
+  domain/       Shared, framework-free domain logic: statuses, events, matching, schemas
 docs/           Product and engineering documentation
 ```
 
@@ -70,6 +72,16 @@ pnpm db:seed --email you@example.com
 | `NEXT_PUBLIC_SUPABASE_URL`             | Project Settings → API                                                      |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Project Settings → API keys (publishable key)                               |
 | `DATABASE_URL`                         | Project Settings → Database → Connection string (session pooler, port 5432) |
+
+## Browser extension
+
+The extension adds applications as you submit them on Greenhouse, Lever and Ashby, and can track a job from any page through its popup.
+
+```bash
+pnpm --filter @trackr/extension build
+```
+
+Then open `chrome://extensions`, turn on Developer mode, choose **Load unpacked** and select `apps/extension/dist`. Open the extension's popup and choose **Connect account**. Use `pnpm --filter @trackr/extension dev` to build against a local server on port 3000 instead. See [docs/browser-extension.md](docs/browser-extension.md).
 
 ## Deploying to Vercel
 

@@ -1,23 +1,24 @@
 {
-  "name": "@trackr/domain",
+  "name": "@trackr/extension",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "sideEffects": false,
-  "exports": {
-    ".": "./src/index.ts"
-  },
   "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch --dev",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "zod": "^4.6.5"
+    "@trackr/domain": "workspace:*"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@types/chrome": "^0.1.38",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
+    "happy-dom": "^20.8.9",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.71.1",
     "vitest": "^5.0.3"

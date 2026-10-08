@@ -1,6 +1,6 @@
 # Browser Extension
 
-> **Status:** Phase 3, in progress. Authorization (connect page, tokens, `/api/extension/me`, Integrations) and submission ingestion (`POST /api/extension/applications`, matching, duplicate review) are implemented. The extension itself follows. Platform-specific selectors and URL patterns below are starting points that will be validated against saved page fixtures during implementation.
+> **Status:** Phase 3, in progress. Implemented: authorization (connect page, tokens, `/api/extension/me`, Integrations), submission ingestion (`POST /api/extension/applications`, matching, duplicate review) and the extension in `apps/extension`. Detectors were checked against live Greenhouse, Lever and Ashby postings in October 2026. Platform-specific selectors and URL patterns below are starting points that will be validated against saved page fixtures during implementation.
 
 The Trackr extension detects when the user submits a job application and reports it to their account, so the application appears in the dashboard without manual entry. When detection is uncertain, the popup lets the user track the current job in one click.
 
@@ -31,18 +31,20 @@ Initial platforms: **Greenhouse, Lever and Ashby.** Workday follows later.
 - **The popup** shows connection status and the detected job, and provides the manual tracking fallback.
 - **Shared contracts:** the submission payload schema and enums come from `packages/domain`, so the extension and the API validate against the same definitions.
 
-Built with TypeScript and Vite (one entry per context), with React for the popup.
+Built with TypeScript and esbuild (`apps/extension/build.mjs`, one bundle per context: an ES module service worker, and classic scripts for the content script and popup). The popup is plain TypeScript and CSS, a few kilobytes, rather than React. Shared types and schemas come from `packages/domain`, which is marked side-effect free so bundles include only what they use.
 
 ## Permissions
 
-| Permission                                      | Why                                                                  |
-| ----------------------------------------------- | -------------------------------------------------------------------- |
-| `storage`                                       | Job context (session storage), tokens and the outbox (local storage) |
-| `alarms`                                        | Retry queued submissions after failures                              |
-| `webNavigation`                                 | Detect in-page navigation on single-page application forms           |
-| Host access for the supported job-board domains | Run content scripts on job and application pages                     |
-| Host access for the Trackr origin               | Call the API from the service worker                                 |
-| `externally_connectable` for the Trackr origin  | Receive the one-time connect code from the authorization page        |
+| Permission                                     | Why                                                                                 |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `storage`                                      | Job context (session storage), tokens and the outbox (local storage)                |
+| `alarms`                                       | Retry queued submissions after failures                                             |
+| `activeTab`, `scripting`                       | Let the popup read the title and metadata of the page it was opened on, to pre-fill |
+| Content scripts on the supported job boards    | Read job pages and recognize submitted applications                                 |
+| Host access for the Trackr origin              | Call the API from the service worker                                                |
+| `externally_connectable` for the Trackr origin | Receive the one-time connect code from the authorization page                       |
+
+Single-page navigation is handled inside the content script with a `MutationObserver`, so `webNavigation` isn't needed. `activeTab` grants access only to the tab the person opened the popup on, only at that moment.
 
 Content scripts are not injected on arbitrary sites. Company career pages that embed a supported job board can be enabled per site through an optional host permission requested from the popup.
 
@@ -72,13 +74,13 @@ interface JobContext {
 
 Extraction prefers structured data, such as schema.org `JobPosting` JSON-LD and Open Graph metadata, over DOM selectors. Selectors are a fallback and are covered by fixture tests.
 
-| Platform   | Job pages (expected)                                                                                                         | Confirmation signals (expected)                                                                                             |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Greenhouse | `boards.greenhouse.io/{board}/jobs/{id}`, `job-boards.greenhouse.io/{board}/jobs/{id}`, and embedded boards on company sites | Confirmation URL or a page state containing "Thank you for applying" or "Application submitted"                             |
-| Lever      | `jobs.lever.co/{company}/{postingId}` and `/apply`                                                                           | Navigation to the `/thanks` page, or "Application submitted"                                                                |
-| Ashby      | `jobs.ashbyhq.com/{company}/{postingId}` and `/application`                                                                  | In-page state change to a success message, detected with a `MutationObserver` because the form is a single-page application |
+| Platform   | Job pages (expected)                                                                                                         | Confirmation signals (expected)                                                                                                                                                        |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Greenhouse | `boards.greenhouse.io/{board}/jobs/{id}`, `job-boards.greenhouse.io/{board}/jobs/{id}`, and embedded boards on company sites | Confirmation URL or a page state containing "Thank you for applying" or "Application submitted"                                                                                        |
+| Lever      | `jobs.lever.co/{company}/{postingId}` and `/apply`                                                                           | Navigation to the `/thanks` page, or "Application submitted"                                                                                                                           |
+| Ashby      | `jobs.ashbyhq.com/{company}/{postingId}` and `/application`                                                                  | In-page state change to a success message, detected with a `MutationObserver`. The form has no `<form>` element; `.ashby-application-form-container` and `#_systemfield_email` mark it |
 
-Confirmation detection requires both a platform-specific signal and a job context captured earlier in the same tab. Text alone, such as "thank you", is never sufficient.
+Confirmation detection requires both a platform-specific signal and a job context captured earlier in the same tab. Detectors report the signal as `url` (a dedicated confirmation page, such as Greenhouse's `/confirmation` or Lever's `/thanks`) or `state` (a success message that replaced the form). A `state` signal only counts after the content script has seen the application form on the same page, so a job description that happens to say "thank you for applying" never triggers it. Text alone is never sufficient.
 
 ## Job context lifecycle
 
@@ -201,6 +203,17 @@ Response: `{ applicationId, outcome: "CREATED" | "MATCHED_EXISTING" | "POSSIBLE_
 
 ## Local development
 
-1. Build the extension in watch mode from `apps/extension`.
-2. Load `apps/extension/dist` as an unpacked extension from `chrome://extensions`, with Developer mode on.
-3. Point the extension at the local web app (`http://localhost:3000`) through its development configuration.
+1. `pnpm --filter @trackr/extension dev` builds into `apps/extension/dist` in watch mode, pointed at `http://localhost:3000`. `pnpm --filter @trackr/extension build` makes a production build pointed at the live site; `TRACKR_URL=https://… node build.mjs` targets another deployment.
+2. Load `apps/extension/dist` as an unpacked extension from `chrome://extensions`, with Developer mode on. Reload it there after a rebuild.
+3. Open the popup and choose **Connect account**. The extension ID isn't fixed during development; the connect page reads it from the link the popup opens.
+
+## Manual QA checklist
+
+Run per platform before a release, since job-board markup changes:
+
+1. Connect from the popup; Integrations lists the browser and the popup shows "Connected".
+2. Open a posting: the popup pre-fills company, role and link.
+3. Submit an application (a test posting, or one you mean to apply to): the toolbar shows ✓ and the application appears as Applied, from the Extension.
+4. Track a job from the popup on an unsupported site: it is added, and tracking it again says "Already tracked".
+5. Go offline, submit or track: the popup says it will be sent later; back online, it arrives within a few minutes.
+6. Disconnect in Integrations: the extension returns to "Not connected" on its next request.
