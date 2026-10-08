@@ -75,6 +75,13 @@ export const applicationEvents = pgTable(
       table.applicationId,
       table.eventTimestamp,
     ),
+    // The Activity page: everything for a user, newest first.
+    index("application_events_user_timestamp_idx").on(
+      table.userId,
+      table.eventTimestamp.desc(),
+      table.createdAt.desc(),
+      table.id.desc(),
+    ),
     index("application_events_user_created_idx").on(
       table.userId,
       table.createdAt.desc(),

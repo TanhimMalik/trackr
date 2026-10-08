@@ -36,6 +36,13 @@
       "when": 1791416789580,
       "tag": "0004_user_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791417062855,
+      "tag": "0005_activity_index",
+      "breakpoints": true
     }
   ]
 }

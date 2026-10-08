@@ -30,7 +30,7 @@ import { TimelineEventAction } from "./timeline-event-action";
 
 const iconProps = { className: "size-3.5", "aria-hidden": true };
 
-function EventIcon({ type }: { type: ApplicationEventType }) {
+export function EventIcon({ type }: { type: ApplicationEventType }) {
   switch (type) {
     case "JOB_SAVED":
       return <Bookmark {...iconProps} />;
@@ -61,7 +61,7 @@ function EventIcon({ type }: { type: ApplicationEventType }) {
   }
 }
 
-function SourceIcon({ source }: { source: EventSourceType }) {
+export function SourceIcon({ source }: { source: EventSourceType }) {
   const props = { className: "size-3", "aria-hidden": true };
   switch (source) {
     case "EMAIL":
@@ -75,7 +75,7 @@ function SourceIcon({ source }: { source: EventSourceType }) {
   }
 }
 
-const chip =
+export const chip =
   "inline-flex items-center gap-1 rounded-md border bg-background px-1.5 py-0.5 text-xs text-muted-foreground";
 
 export type TimelineItem = TimelineEvent & {

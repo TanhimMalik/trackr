@@ -194,7 +194,7 @@ Full email bodies are not copied into Trackr.
 
 ### Activity
 
-A chronological log of everything that happened across all applications, with a **Needs review** tab for possible matches, unmatched emails, medium-confidence updates and possible duplicates.
+A chronological log of everything that happened across all applications, grouped by day in the viewer's time zone and filterable by source (all, automatic, manual). Each entry opens its application and can be undone or restored. A **Needs review** tab for possible matches, unmatched emails, medium-confidence updates and possible duplicates arrives with the email pipeline.
 
 ### Analytics
 

@@ -129,7 +129,8 @@ Indexes and constraints:
 - `FOREIGN KEY (application_id, user_id) → applications (id, user_id)` (cascade), so an event can only belong to an application owned by the same user
 - `UNIQUE (user_id, dedupe_key)`, which makes ingestion idempotent
 - `(application_id, event_timestamp)`, which serves timelines and replay
-- `(user_id, created_at DESC)`, which serves the activity feed
+- `(user_id, event_timestamp DESC, created_at DESC, id DESC)`, which serves the Activity page and its cursor pagination
+- `(user_id, created_at DESC)`, for recently recorded events
 - Check: `confidence` is null or between 0 and 1
 
 ### `emails`

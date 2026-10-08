@@ -18,7 +18,18 @@ export async function RecentAutomation({ userId }: { userId: string }) {
   const items = await listRecentAutomation(userId);
 
   return (
-    <SectionCard id={ID} title={TITLE}>
+    <SectionCard
+      id={ID}
+      title={TITLE}
+      action={
+        <Link
+          href="/activity?source=automatic"
+          className="text-[0.8125rem] text-primary-text underline-offset-4 hover:underline"
+        >
+          View all
+        </Link>
+      }
+    >
       {items.length === 0 ? (
         <p className="py-6 text-center text-muted-foreground">
           Updates Trackr detects in Gmail and from the browser extension will

@@ -1,0 +1,1 @@
+CREATE INDEX "application_events_user_timestamp_idx" ON "application_events" USING btree ("user_id","event_timestamp" DESC NULLS LAST,"created_at" DESC NULLS LAST,"id" DESC NULLS LAST);
