@@ -218,11 +218,12 @@ Matching links an incoming signal, whether an email or an extension submission, 
 | Company domain match                         | +30    |
 | Job title exact match (normalized)           | +30    |
 | Job title similar (token similarity)         | +20    |
-| Applied within 30 days of the signal         | +10    |
+| Applied (or last active) within 30 days      | +10    |
 | Sender domain matches the company domain     | +10    |
 | Clearly different title at the same company  | −30    |
 
-- 80 or more is an automatic match, 50–79 a possible match, and below 50 no match. Thresholds come from user settings.
+- 80 or more is an automatic match, 50–79 a possible match, and below 50 no match. The same ATS job posting on the same platform is decisive on its own. Thresholds are constants for now and move to user settings in Phase 7.
+- "Same role" means identical normalized titles; "similar" means at least half their words are shared; under a third shared counts as a different role.
 - If the top two candidates both clear the automatic threshold within a small margin, the decision drops to a possible match. The system never guesses between two roles at the same company.
 - Every result includes the contributing signals, so the UI can explain itself: "Matched: same company, similar title, applied 2 days earlier."
 - Normalization handles legal suffixes ("Inc.", "LLC"), ATS display names ("Datadog Hiring Team"), seniority and level variants ("Sr.", "II"), and common abbreviations.

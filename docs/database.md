@@ -173,7 +173,7 @@ Indexes and constraints:
 
 ### `review_items`
 
-A single review queue for every source of uncertainty.
+A single review queue for every source of uncertainty. `email_id` is added with the Gmail tables in Phase 4. Merging a duplicate moves its events, contacts, interviews and notifications to the kept application, and the resolved item then points at that application.
 
 | Column                     | Type                             | Notes                                                       |
 | -------------------------- | -------------------------------- | ----------------------------------------------------------- |

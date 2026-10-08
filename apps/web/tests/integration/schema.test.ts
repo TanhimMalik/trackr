@@ -9,6 +9,9 @@ import {
   INTERVIEW_STATUSES,
   INTERVIEW_TYPES,
   NOTIFICATION_TYPES,
+  REVIEW_ITEM_KINDS,
+  REVIEW_ITEM_STATES,
+  REVIEW_RESOLUTIONS,
   SOURCE_PLATFORMS,
 } from "@trackr/domain";
 import { eq } from "drizzle-orm";
@@ -97,6 +100,7 @@ describe("database schema", () => {
       "notifications",
       "rate_limit_buckets",
       "resume_versions",
+      "review_items",
       "user_settings",
       "users",
     ]);
@@ -115,6 +119,9 @@ describe("database schema", () => {
     ["interview_status", INTERVIEW_STATUSES],
     ["contact_type", CONTACT_TYPES],
     ["notification_type", NOTIFICATION_TYPES],
+    ["review_item_kind", REVIEW_ITEM_KINDS],
+    ["review_item_state", REVIEW_ITEM_STATES],
+    ["review_resolution", REVIEW_RESOLUTIONS],
   ])("mirrors the domain values in the %s enum", async (name, values) => {
     const { rows } = await testDb.client.query<{ label: string }>(
       `select e.enumlabel as label

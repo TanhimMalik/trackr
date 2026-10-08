@@ -130,3 +130,23 @@ export const NOTIFICATION_TYPES = [
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 export const notificationTypeSchema = z.enum(NOTIFICATION_TYPES);
+
+export const REVIEW_ITEM_KINDS = [
+  "POSSIBLE_DUPLICATE",
+  "EMAIL_POSSIBLE_MATCH",
+  "EMAIL_UNMATCHED",
+  "LOW_CONFIDENCE_UPDATE",
+] as const;
+export type ReviewItemKind = (typeof REVIEW_ITEM_KINDS)[number];
+
+export const REVIEW_ITEM_STATES = ["OPEN", "RESOLVED", "DISMISSED"] as const;
+export type ReviewItemState = (typeof REVIEW_ITEM_STATES)[number];
+
+export const REVIEW_RESOLUTIONS = [
+  "CONFIRMED",
+  "LINKED",
+  "CREATED",
+  "MERGED",
+  "DISMISSED",
+] as const;
+export type ReviewResolution = (typeof REVIEW_RESOLUTIONS)[number];

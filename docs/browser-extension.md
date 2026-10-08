@@ -1,6 +1,6 @@
 # Browser Extension
 
-> **Status:** Phase 3, in progress. Authorization (connect page, tokens, `/api/extension/me`, Integrations) is implemented. Submission ingestion and the extension itself follow. Platform-specific selectors and URL patterns below are starting points that will be validated against saved page fixtures during implementation.
+> **Status:** Phase 3, in progress. Authorization (connect page, tokens, `/api/extension/me`, Integrations) and submission ingestion (`POST /api/extension/applications`, matching, duplicate review) are implemented. The extension itself follows. Platform-specific selectors and URL patterns below are starting points that will be validated against saved page fixtures during implementation.
 
 The Trackr extension detects when the user submits a job application and reports it to their account, so the application appears in the dashboard without manual entry. When detection is uncertain, the popup lets the user track the current job in one click.
 
@@ -168,7 +168,7 @@ Submission payload (`ExtensionSubmissionPayload`):
 }
 ```
 
-Response: `{ applicationId, outcome: "CREATED" | "MATCHED_EXISTING" | "POSSIBLE_DUPLICATE" }`.
+Response: `{ applicationId, outcome: "CREATED" | "MATCHED_EXISTING" | "POSSIBLE_DUPLICATE" }`, with status 201 when an application was created and 200 when it matched an existing one. Repeating a submission returns the first response and changes nothing. Invalid payloads get `400 invalid_request`; the endpoint allows 30 submissions a minute per browser.
 
 ## Server-side handling
 
@@ -177,11 +177,11 @@ Response: `{ applicationId, outcome: "CREATED" | "MATCHED_EXISTING" | "POSSIBLE_
 3. Match against existing applications using the shared scorer. A matching ATS job ID on the same platform is decisive.
 4. Apply the match result:
 
-   | Match           | Result                                                                                                 |
-   | --------------- | ------------------------------------------------------------------------------------------------------ |
-   | Automatic match | Add an `APPLICATION_SUBMITTED` event to the existing application                                       |
-   | Possible match  | Create the application and open a `POSSIBLE_DUPLICATE` review item offering **Merge** or **Keep both** |
-   | No match        | Create the application with an `APPLICATION_SUBMITTED` event                                           |
+   | Match           | Result                                                                                                                      |
+   | --------------- | --------------------------------------------------------------------------------------------------------------------------- |
+   | Automatic match | Add an `APPLICATION_SUBMITTED` event to the existing application                                                            |
+   | Possible match  | Create the application and open a `POSSIBLE_DUPLICATE` review item offering **Merge** or **Keep both**, with a notification |
+   | No match        | Create the application with an `APPLICATION_SUBMITTED` event                                                                |
 
 5. All writes go through the event processor, with dedupe key `ext:<clientSubmissionId>`.
 

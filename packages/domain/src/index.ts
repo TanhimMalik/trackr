@@ -13,3 +13,5 @@ export * from "./normalize/text";
 export * from "./platform";
 export * from "./notifications";
 export * from "./reminders";
+export * from "./matching";
+export * from "./extension";

@@ -18,3 +18,4 @@ export type Interview = typeof schema.interviews.$inferSelect;
 export type Notification = typeof schema.notifications.$inferSelect;
 export type UserSettings = typeof schema.userSettings.$inferSelect;
 export type ExtensionSession = typeof schema.extensionSessions.$inferSelect;
+export type ReviewItem = typeof schema.reviewItems.$inferSelect;

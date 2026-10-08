@@ -9,6 +9,9 @@ import {
   INTERVIEW_STATUSES,
   INTERVIEW_TYPES,
   NOTIFICATION_TYPES,
+  REVIEW_ITEM_KINDS,
+  REVIEW_ITEM_STATES,
+  REVIEW_RESOLUTIONS,
   SOURCE_PLATFORMS,
 } from "@trackr/domain";
 import { pgEnum } from "drizzle-orm/pg-core";
@@ -57,4 +60,16 @@ export const contactTypeEnum = pgEnum("contact_type", CONTACT_TYPES);
 export const notificationTypeEnum = pgEnum(
   "notification_type",
   NOTIFICATION_TYPES,
+);
+
+export const reviewItemKindEnum = pgEnum("review_item_kind", REVIEW_ITEM_KINDS);
+
+export const reviewItemStateEnum = pgEnum(
+  "review_item_state",
+  REVIEW_ITEM_STATES,
+);
+
+export const reviewResolutionEnum = pgEnum(
+  "review_resolution",
+  REVIEW_RESOLUTIONS,
 );

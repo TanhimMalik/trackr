@@ -56,7 +56,10 @@ export function NotificationCenter({ unreadCount }: { unreadCount: number }) {
       markLocally((other) => other.id === item.id);
       void markNotificationReadAction(item.id);
     }
-    if (item.applicationId) router.push(`/applications/${item.applicationId}`);
+    if (item.type === "REVIEW_NEEDED") router.push("/activity?tab=review");
+    else if (item.applicationId) {
+      router.push(`/applications/${item.applicationId}`);
+    }
   }
 
   function markAllRead() {

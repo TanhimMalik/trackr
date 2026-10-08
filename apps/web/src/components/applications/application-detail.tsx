@@ -3,12 +3,15 @@ import {
   EMPLOYMENT_TYPE_LABELS,
   SOURCE_PLATFORM_LABELS,
 } from "@trackr/domain";
+import { GitMerge } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DateText } from "@/components/date-text";
 import { formatSalary } from "@/lib/format";
 import { requireUser } from "@/server/auth/session";
 import { getApplication } from "@/server/services/applications";
 import { NotFoundError } from "@/server/services/errors";
+import { openReviewItemsFor } from "@/server/services/review";
 import { ApplicationContacts } from "./application-contacts";
 import { ApplicationDetailActions } from "./application-detail-actions";
 import { ApplicationInterviews } from "./application-interviews";
@@ -67,12 +70,13 @@ export async function ApplicationDetail({
   variant: "drawer" | "page";
 }) {
   const user = await requireUser();
-  const detail = await getApplication(user.id, applicationId).catch(
-    (error: unknown) => {
+  const [detail, reviews] = await Promise.all([
+    getApplication(user.id, applicationId).catch((error: unknown) => {
       if (error instanceof NotFoundError) notFound();
       throw error;
-    },
-  );
+    }),
+    openReviewItemsFor(user.id, applicationId),
+  ]);
   const { application, events, resume, contacts, interviews } = detail;
   const salary = formatSalary(
     application.salaryMin,
@@ -105,6 +109,25 @@ export async function ApplicationDetail({
           variant={variant}
         />
       </header>
+
+      {reviews.some((review) => review.kind === "POSSIBLE_DUPLICATE") && (
+        <div className="flex items-center gap-3 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3">
+          <GitMerge
+            className="size-4 shrink-0 text-warning"
+            aria-hidden="true"
+          />
+          <p className="min-w-0 flex-1">
+            This may be a duplicate of another {application.companyName}{" "}
+            application.
+          </p>
+          <Link
+            href="/activity?tab=review"
+            className="shrink-0 font-medium text-primary-text underline-offset-4 hover:underline"
+          >
+            Review
+          </Link>
+        </div>
+      )}
 
       <section aria-labelledby="details-heading">
         <h3 id="details-heading" className="sr-only">

@@ -50,6 +50,13 @@
       "when": 1791417967854,
       "tag": "0006_extension_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791419841669,
+      "tag": "0007_review_items",
+      "breakpoints": true
     }
   ]
 }
