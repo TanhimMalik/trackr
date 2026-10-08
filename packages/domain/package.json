@@ -10,7 +10,8 @@
   "scripts": {
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "email:report": "REPORT=1 vitest run src/email --reporter=dot"
   },
   "dependencies": {
     "zod": "^4.6.5"

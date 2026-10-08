@@ -1,6 +1,6 @@
 # Email Pipeline
 
-> **Status:** design document. Gmail connection, sync, relevance filtering and rule classification are planned for Phase 4. Matching and review arrive in Phase 5, and the LLM fallback in Phase 6.
+> **Status:** Phase 4, in progress. The pure stages are implemented in `packages/domain/src/email` (relevance, body cleanup, rule classifier, extraction, event mapping, automation decision) with a labeled corpus. Gmail connection and sync follow. Matching and review arrive in Phase 5, and the LLM fallback in Phase 6.
 
 The email pipeline turns a user's Gmail inbox into application events: confirmations, assessments, recruiter contact, interview requests, offers and rejections. It is built to be cheap, deterministic where possible, and minimal in what it reads and stores.
 
@@ -65,10 +65,11 @@ The filter runs on metadata only: sender, display name, subject, snippet and lab
 | Subject contains application vocabulary (application, applied, candidate, position, role, interview, assessment, coding challenge, offer, next steps)                                                       | +2 (once)           |
 | Snippet contains application vocabulary (the subject terms plus unfortunately, moving forward, schedule, availability, recruiter)                                                                           | +1 per term, max +2 |
 | Assessment or scheduling platform domain in the snippet (HackerRank, CodeSignal, Codility, Calendly, GoodTime)                                                                                              | +2                  |
+| The thread already has a linked message, or the sender is a contact on an application                                                                                                                       | +3 each             |
 | Job-alert or digest patterns ("jobs you may be interested in", "job alert", "recommended for you")                                                                                                          | −4                  |
 | Promotions category with an unsubscribe header and no other recruiting signal                                                                                                                               | −2                  |
 
-A message is relevant when its score is at least 3 **and** at least two signal kinds contributed. Sender-domain and vocabulary lists are data, kept in the domain package and tuned against labeled fixtures. Irrelevant messages are stored as `IGNORED` rows with identifiers only, so later syncs skip them.
+A message is relevant when its score is at least 3 **and** at least two signal kinds contributed. Vocabulary matches whole words and their plurals. Known threads and contacts let a recruiter's "we'd love to move you to the final round" through even when its subject says nothing about a job. Sender-domain and vocabulary lists are data, kept in the domain package and tuned against labeled fixtures. Irrelevant messages are stored as `IGNORED` rows with identifiers only, so later syncs skip them.
 
 ## Stage 3: body handling
 
@@ -98,6 +99,8 @@ Conflict handling:
 - **Rejection wins over warm language.** "We enjoyed speaking with you, but unfortunately…" is a rejection. Rejection phrases take precedence over positive phrases.
 - **Offer phrases need offer context.** "We offer competitive benefits" in a job description is not an offer.
 - **Ambiguity lowers confidence.** If two incompatible classifications both have strong evidence, such as interview and rejection phrases together, confidence is lowered so the message goes to the LLM or to review.
+- **Hypotheticals don't count as progress.** Interview, assessment, next-round and offer phrases are ignored in sentences with "if", "should", "may", "once" and similar, so a confirmation that says "if your experience matches, we'll schedule an interview" stays a confirmation.
+- **Confirmations from outside an ATS** score 0.93, short of automatic, since a company's own mail is less formulaic.
 - **Below 0.95 continues.** Results below the automatic threshold are passed to the LLM (Phase 6) or, before then, become review items.
 
 ## Stage 5: LLM classifier
@@ -196,4 +199,4 @@ Subjects, snippets, bodies, addresses and tokens are never logged.
 - **Fixture corpus.** Anonymized real-world messages under `tests/fixtures/emails`, each labeled with expected relevance, classification, extracted fields and match target.
 - **Unit tests.** Relevance scoring, every rule (including the ambiguous cases above), extraction patterns, classification-to-event mapping and automation decisions.
 - **Integration tests (PGlite).** A confirmation email matches an extension-created application, an interview email updates the status, a rejection updates the status, a late confirmation does not regress Interview to Applied, and re-syncing creates no duplicates.
-- **Quality report.** A script prints precision and recall per classification over the corpus, so changes to rules or prompts can be measured.
+- **Quality report.** `pnpm --filter @trackr/domain email:report` prints relevance accuracy and precision and recall per classification over the corpus, so changes to rules or prompts can be measured. The corpus lives in `packages/domain/src/email/email.fixtures.ts`: 32 messages written to match real ATS, recruiter and job-board mail, with fictional companies and people. It was written alongside the rules, so it is a regression baseline rather than an accuracy estimate; real messages that fool the rules should be added to it.

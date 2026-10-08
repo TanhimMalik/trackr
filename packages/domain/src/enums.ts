@@ -150,3 +150,20 @@ export const REVIEW_RESOLUTIONS = [
   "DISMISSED",
 ] as const;
 export type ReviewResolution = (typeof REVIEW_RESOLUTIONS)[number];
+
+/** What an email says about an application. */
+export const EMAIL_CLASSIFICATIONS = [
+  "APPLICATION_CONFIRMATION",
+  "ASSESSMENT",
+  "RECRUITER_CONTACT",
+  "INTERVIEW_REQUEST",
+  "INTERVIEW_CONFIRMATION",
+  "INTERVIEW_RESCHEDULE",
+  "NEXT_ROUND",
+  "OFFER",
+  "REJECTION",
+  "WITHDRAWAL",
+  "UNKNOWN",
+] as const;
+export type EmailClassification = (typeof EMAIL_CLASSIFICATIONS)[number];
+export const emailClassificationSchema = z.enum(EMAIL_CLASSIFICATIONS);

@@ -15,3 +15,4 @@ export * from "./notifications";
 export * from "./reminders";
 export * from "./matching";
 export * from "./extension";
+export * from "./email";
