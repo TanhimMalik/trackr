@@ -1,11 +1,16 @@
-import { Puzzle } from "lucide-react";
+import { ExternalLink, Puzzle, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 import { ConnectedBrowsers } from "@/components/integrations/connected-browsers";
+import { SimulateCaptures } from "@/components/integrations/simulate-captures";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireUser } from "@/server/auth/session";
+import { DEMO_CAPTURES } from "@/server/demo/captures";
 import { listConnectedBrowsers } from "@/server/services/extension-auth";
 
 export const metadata: Metadata = { title: "Integrations" };
+
+// The extension isn't in the Chrome Web Store; the README explains loading it.
+const INSTALL_URL = "https://github.com/TanhimMalik/trackr#browser-extension";
 
 export default async function IntegrationsPage() {
   const user = await requireUser();
@@ -17,6 +22,35 @@ export default async function IntegrationsPage() {
         title="Integrations"
         description="Connections that keep your applications up to date on their own."
       />
+
+      {user.isDemo && (
+        <section
+          aria-labelledby="simulate-heading"
+          className="rounded-xl border border-primary/30 bg-card"
+        >
+          <div className="flex items-start gap-3 border-b p-4">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary-text">
+              <Sparkles className="size-4" aria-hidden="true" />
+            </span>
+            <div className="space-y-0.5">
+              <h2 id="simulate-heading" className="font-semibold">
+                Try the extension without installing it
+              </h2>
+              <p className="text-muted-foreground">
+                Each one sends a sample application through the same pipeline
+                the extension uses: matching, duplicate checks and all.
+              </p>
+            </div>
+          </div>
+          <SimulateCaptures
+            captures={DEMO_CAPTURES.map(({ id, title, description }) => ({
+              id,
+              title,
+              description,
+            }))}
+          />
+        </section>
+      )}
 
       <section
         aria-labelledby="extension-heading"
@@ -35,6 +69,15 @@ export default async function IntegrationsPage() {
               Ashby. It only runs on those sites and sends nothing until you
               apply.
             </p>
+            <a
+              href={INSTALL_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[0.8125rem] text-primary-text underline-offset-4 hover:underline"
+            >
+              How to install it
+              <ExternalLink className="size-3" aria-hidden="true" />
+            </a>
           </div>
         </div>
         <ConnectedBrowsers browsers={browsers} />

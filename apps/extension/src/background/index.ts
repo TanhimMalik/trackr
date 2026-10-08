@@ -84,7 +84,9 @@ async function onApplicationSubmitted(tabId: number) {
   const job = await getJob(tabId);
   // Confirmation without a job seen earlier in the tab is never enough.
   if (!job) return;
-  const auth = await getAuth();
+  // Check the setting now, since it may have changed in Trackr; offline,
+  // go by the last known value.
+  const auth = (await refreshAccount().catch(() => null)) ?? (await getAuth());
   if (auth && !auth.autoTrack) return;
   await clearJob(tabId);
   await submit(buildSubmission(job, "AUTO"), tabId);
@@ -96,7 +98,9 @@ async function popupState(
 ): Promise<PopupState> {
   const auth = await getAuth();
   let account = auth?.account ?? null;
-  if (auth && !account) account = await refreshAccount().catch(() => null);
+  if (auth && !account) {
+    account = (await refreshAccount().catch(() => null))?.account ?? null;
+  }
   const connected = (await getAuth()) !== null;
   return {
     connected,

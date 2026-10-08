@@ -57,6 +57,13 @@
       "when": 1791419841669,
       "tag": "0007_review_items",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791423396388,
+      "tag": "0008_auto_track_setting",
+      "breakpoints": true
     }
   ]
 }

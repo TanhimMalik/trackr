@@ -1,6 +1,6 @@
 # Browser Extension
 
-> **Status:** Phase 3, in progress. Implemented: authorization (connect page, tokens, `/api/extension/me`, Integrations), submission ingestion (`POST /api/extension/applications`, matching, duplicate review) and the extension in `apps/extension`. Detectors were checked against live Greenhouse, Lever and Ashby postings in October 2026. Platform-specific selectors and URL patterns below are starting points that will be validated against saved page fixtures during implementation.
+> **Status:** implemented in Phase 3: authorization (connect page, tokens, `/api/extension/me`, Integrations), submission ingestion (`POST /api/extension/applications`, matching, duplicate review) and the extension in `apps/extension`. Detectors were checked against live Greenhouse, Lever and Ashby postings in October 2026. Platform-specific selectors and URL patterns below are starting points that will be validated against saved page fixtures during implementation.
 
 The Trackr extension detects when the user submits a job application and reports it to their account, so the application appears in the dashboard without manual entry. When detection is uncertain, the popup lets the user track the current job in one click.
 
@@ -89,7 +89,11 @@ Confirmation detection requires both a platform-specific signal and a job contex
 3. **Submit.** The service worker sends the submission with a client-generated `clientSubmissionId`. On success the toolbar badge briefly shows a check mark and the context is cleared.
 4. **Retry.** If the request fails because of the network, server errors or rate limits, the submission goes into an outbox in `chrome.storage.local` and is retried with backoff. The client-generated ID makes retries idempotent.
 
-Automatic tracking respects the user's **Automatically track supported job sites** setting, which the extension reads from `/api/extension/me`. When it is disabled, only the popup flow is active.
+Automatic tracking respects the **Track applications automatically** setting (Settings → Browser extension), which the extension reads from `/api/extension/me`. It re-reads it before each automatic submission, so a change applies at once; offline, it uses the last value it saw. When it is off, only the popup flow is active.
+
+## Demo
+
+The extension isn't in the Chrome Web Store, so demo workspaces can simulate it instead. Integrations offers three sample submissions that go through the same ingestion pipeline: a new company (created), the demo's saved Snowflake internship (matched and marked Applied) and a Stripe role close to an existing one (flagged as a possible duplicate). The server action refuses to run outside a demo workspace.
 
 ## Popup
 

@@ -115,21 +115,21 @@ export async function apiFetch(
 }
 
 /** Who the extension is connected as, and the settings it follows. */
-export async function refreshAccount(): Promise<Account | null> {
+export async function refreshAccount(): Promise<AuthState | null> {
   const response = await apiFetch("/api/extension/me");
   if (!response.ok) return null;
   const me = (await response.json()) as Account & {
     settings: { autoTrackSupportedSites: boolean };
   };
   const state = await getAuth();
-  if (state) {
-    await saveAuth({
-      ...state,
-      account: { email: me.email, name: me.name, isDemo: me.isDemo },
-      autoTrack: me.settings.autoTrackSupportedSites,
-    });
-  }
-  return { email: me.email, name: me.name, isDemo: me.isDemo };
+  if (!state) return null;
+  const next: AuthState = {
+    ...state,
+    account: { email: me.email, name: me.name, isDemo: me.isDemo },
+    autoTrack: me.settings.autoTrackSupportedSites,
+  };
+  await saveAuth(next);
+  return next;
 }
 
 /** Disconnects this browser on the server, then forgets the tokens. */

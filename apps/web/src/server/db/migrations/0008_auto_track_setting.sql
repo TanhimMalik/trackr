@@ -1,0 +1,1 @@
+ALTER TABLE "user_settings" ADD COLUMN "auto_track_supported_sites" boolean DEFAULT true NOT NULL;

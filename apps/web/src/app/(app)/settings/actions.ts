@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import { requireUser } from "@/server/auth/session";
 import {
+  setAutoTrackSupportedSites,
   updateFollowUpSettings,
   type FollowUpSettings,
 } from "@/server/services/settings";
@@ -33,6 +34,24 @@ export async function updateFollowUpSettingsAction(
     console.error("settings_update_failed", {
       error: error instanceof Error ? error.name : "unknown",
     });
+    return { ok: false, error: "Couldn't save your settings. Try again." };
+  }
+}
+
+export async function setAutoTrackAction(
+  enabled: boolean,
+): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  const user = await requireUser();
+  try {
+    const value = await setAutoTrackSupportedSites(user.id, enabled);
+    revalidatePath("/settings");
+    return {
+      ok: true,
+      message: value
+        ? "The extension will track applications as you submit them."
+        : "The extension will only track jobs you add from its popup.",
+    };
+  } catch {
     return { ok: false, error: "Couldn't save your settings. Try again." };
   }
 }

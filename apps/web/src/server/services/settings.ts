@@ -67,3 +67,31 @@ export async function updateFollowUpSettings(
     .onConflictDoUpdate({ target: userSettings.userId, set: values });
   return { enabled, afterDays };
 }
+
+/** Whether the extension records applications on supported job sites by itself. */
+export async function getAutoTrackSupportedSites(
+  userId: string,
+  db: Database = getDb(),
+): Promise<boolean> {
+  const [row] = await db
+    .select({ enabled: userSettings.autoTrackSupportedSites })
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId));
+  return row?.enabled ?? true;
+}
+
+export async function setAutoTrackSupportedSites(
+  userId: string,
+  enabled: unknown,
+  db: Database = getDb(),
+): Promise<boolean> {
+  const value = z.boolean().parse(enabled);
+  await db
+    .insert(userSettings)
+    .values({ userId, autoTrackSupportedSites: value })
+    .onConflictDoUpdate({
+      target: userSettings.userId,
+      set: { autoTrackSupportedSites: value },
+    });
+  return value;
+}

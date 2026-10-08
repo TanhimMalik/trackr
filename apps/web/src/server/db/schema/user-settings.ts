@@ -27,6 +27,10 @@ export const userSettings = pgTable(
     followUpAfterDays: integer("follow_up_after_days")
       .notNull()
       .default(DEFAULT_FOLLOW_UP_AFTER_DAYS),
+    // Off: the extension only tracks jobs added from its popup.
+    autoTrackSupportedSites: boolean("auto_track_supported_sites")
+      .notNull()
+      .default(true),
     // Reminders are generated on visits, at most this often; see notifications.
     remindersCheckedAt: timestamp("reminders_checked_at", {
       withTimezone: true,

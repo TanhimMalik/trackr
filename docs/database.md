@@ -60,6 +60,7 @@ Preferences, one row per user, created the first time one is saved or needed. Co
 | `user_id`                     | uuid PK → `users` (cascade) |         |                                                 |
 | `follow_up_reminders_enabled` | boolean                     | true    |                                                 |
 | `follow_up_after_days`        | integer                     | 14      | Check: 1–90; the UI offers 7, 10, 14, 21 or 30  |
+| `auto_track_supported_sites`  | boolean                     | true    | Off: the extension only tracks from its popup   |
 | `reminders_checked_at`        | timestamptz                 |         | Last reminder check; cleared when settings save |
 | `updated_at`                  | timestamptz                 |         |                                                 |
 
