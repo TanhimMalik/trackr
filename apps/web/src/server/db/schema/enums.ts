@@ -6,6 +6,8 @@ import {
   CONTACT_TYPES,
   EMPLOYMENT_TYPES,
   EVENT_SOURCE_TYPES,
+  INTEGRATION_PROVIDERS,
+  INTEGRATION_STATUSES,
   INTERVIEW_STATUSES,
   INTERVIEW_TYPES,
   NOTIFICATION_TYPES,
@@ -72,4 +74,14 @@ export const reviewItemStateEnum = pgEnum(
 export const reviewResolutionEnum = pgEnum(
   "review_resolution",
   REVIEW_RESOLUTIONS,
+);
+
+export const integrationProviderEnum = pgEnum(
+  "integration_provider",
+  INTEGRATION_PROVIDERS,
+);
+
+export const integrationStatusEnum = pgEnum(
+  "integration_status",
+  INTEGRATION_STATUSES,
 );

@@ -8,6 +8,7 @@ import { DEMO_CAPTURES } from "@/server/demo/captures";
 import { NotFoundError } from "@/server/services/errors";
 import { revokeExtensionSession } from "@/server/services/extension-auth";
 import { ingestExtensionSubmission } from "@/server/services/extension-ingestion";
+import { disconnectGmail } from "@/server/services/gmail-connection";
 
 export async function disconnectBrowserAction(
   sessionId: string,
@@ -75,5 +76,15 @@ export async function simulateCaptureAction(
       outcome === "POSSIBLE_DUPLICATE"
         ? "/activity?tab=review"
         : `/applications/${applicationId}`,
+  };
+}
+
+export async function disconnectGmailAction(): Promise<ApplicationFormState> {
+  const user = await requireUser();
+  await disconnectGmail(user.id);
+  revalidatePath("/integrations");
+  return {
+    ok: true,
+    message: "Gmail disconnected. Trackr's access was revoked.",
   };
 }

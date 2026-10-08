@@ -27,3 +27,36 @@ export function serverEnv(): ServerEnv {
   }
   return cached;
 }
+
+export type GoogleOAuthConfig = { clientId: string; clientSecret: string };
+
+/**
+ * The Google OAuth client for Gmail, or null when this deployment doesn't
+ * have one. Gmail is optional: without it, the rest of Trackr still works.
+ */
+export function googleOAuthConfig(): GoogleOAuthConfig | null {
+  const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+  return clientId && clientSecret ? { clientId, clientSecret } : null;
+}
+
+const encryptionKeySchema = z
+  .string()
+  .transform((value) => Buffer.from(value, "base64"))
+  .refine((key) => key.length === 32, "must be 32 bytes, base64-encoded");
+
+/**
+ * The key that encrypts stored OAuth tokens (32 random bytes, base64). Its
+ * version is part of every ciphertext, so it can be rotated later.
+ */
+export function tokenEncryptionKey(): Buffer {
+  const result = encryptionKeySchema.safeParse(
+    process.env.TOKEN_ENCRYPTION_KEY ?? "",
+  );
+  if (!result.success) {
+    throw new Error(
+      "Missing or invalid environment variables: TOKEN_ENCRYPTION_KEY. See apps/web/.env.example.",
+    );
+  }
+  return result.data;
+}

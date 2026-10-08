@@ -57,6 +57,7 @@ export function NotificationCenter({ unreadCount }: { unreadCount: number }) {
       void markNotificationReadAction(item.id);
     }
     if (item.type === "REVIEW_NEEDED") router.push("/activity?tab=review");
+    else if (item.type === "INTEGRATION_ERROR") router.push("/integrations");
     else if (item.applicationId) {
       router.push(`/applications/${item.applicationId}`);
     }

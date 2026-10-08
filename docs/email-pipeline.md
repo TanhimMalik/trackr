@@ -1,6 +1,6 @@
 # Email Pipeline
 
-> **Status:** Phase 4, in progress. The pure stages are implemented in `packages/domain/src/email` (relevance, body cleanup, rule classifier, extraction, event mapping, automation decision) with a labeled corpus. Gmail connection and sync follow. Matching and review arrive in Phase 5, and the LLM fallback in Phase 6.
+> **Status:** Phase 4, in progress. The pure stages are implemented in `packages/domain/src/email` (relevance, body cleanup, rule classifier, extraction, event mapping, automation decision) with a labeled corpus, and so is the Gmail connection (`/api/integrations/gmail/connect` and `/callback`, `services/gmail-connection.ts`). Sync follows. Matching and review arrive in Phase 5, and the LLM fallback in Phase 6.
 
 The email pipeline turns a user's Gmail inbox into application events: confirmations, assessments, recruiter contact, interview requests, offers and rejections. It is built to be cheap, deterministic where possible, and minimal in what it reads and stores.
 
@@ -38,11 +38,13 @@ Each stage is a separate, individually testable function. Stages 2, 4, 6 (rule-b
 - **Separate from sign-in.** Gmail is connected from Integrations through its own Google OAuth flow, independent of how the user signs in to Trackr.
 - **Scopes:** `https://www.googleapis.com/auth/gmail.readonly`, plus `openid` and `email` to identify the connected account.
 - **Offline access:** the flow requests `access_type=offline` and `prompt=consent` to obtain a refresh token.
-- **CSRF protection:** the `state` parameter is a random value bound to an httpOnly cookie and verified on callback.
-- **Storage:** tokens are encrypted with AES-256-GCM before storage. Access tokens are refreshed on demand.
+- **CSRF protection:** the `state` parameter is a random value bound to an httpOnly cookie (scoped to `/api/integrations/gmail`, ten minutes) and verified on callback. The flow also uses PKCE (S256).
+- **Scope check:** Google lets people uncheck Gmail access on the consent screen. A grant without `gmail.readonly` is revoked straight away and the user is told why.
+- **Demo workspaces** can't connect Gmail: they are anonymous and deleted after 48 hours.
+- **Storage:** tokens are encrypted with AES-256-GCM before storage, as `v1.<iv>.<ciphertext>.<tag>` with the key in `TOKEN_ENCRYPTION_KEY`. Access tokens are refreshed on demand a minute before they expire, and a rotated refresh token replaces the old one.
 - **Disconnect:** revokes the token at Google's revocation endpoint, deletes stored tokens and marks the integration `DISCONNECTED`.
 
-`gmail.readonly` is a restricted scope. Until the app completes Google's verification and security assessment, it runs in testing mode: access is limited to listed test users, and refresh tokens expire after seven days. The integration handles this explicitly. An `invalid_grant` response moves the integration to `NEEDS_REAUTH` and shows a reconnect banner.
+`gmail.readonly` is a restricted scope. Until the app completes Google's verification and security assessment, it runs in testing mode: access is limited to listed test users, and refresh tokens expire after seven days. The integration handles this explicitly. An `invalid_grant` response moves the integration to `NEEDS_REAUTH`, clears the tokens, shows **Reconnect Gmail** in Integrations and sends one notification a day while it lasts.
 
 ## Sync
 

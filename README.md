@@ -83,6 +83,20 @@ pnpm --filter @trackr/extension build
 
 Then open `chrome://extensions`, turn on Developer mode, choose **Load unpacked** and select `apps/extension/dist`. Open the extension's popup and choose **Connect account**. Use `pnpm --filter @trackr/extension dev` to build against a local server on port 3000 instead. See [docs/browser-extension.md](docs/browser-extension.md).
 
+## Connecting Gmail
+
+Gmail is optional: without credentials, Integrations shows it as not set up. To enable it:
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create a project, then enable the **Gmail API** (APIs & Services → Library). Without it, connecting succeeds but every Gmail request fails with `accessNotConfigured`.
+2. Configure the **OAuth consent screen** (Google Auth Platform): External, app name and support email. Under **Audience → Test users**, add every Google account that will connect, including your own; others are blocked with `403 access_denied`. Leave the app in testing.
+3. Under **Data access**, add the scopes `openid`, `email` and `https://www.googleapis.com/auth/gmail.readonly`.
+4. Create an **OAuth client ID** (Credentials → Create credentials) of type **Web application**, with these authorized redirect URIs:
+   - `http://localhost:3000/api/integrations/gmail/callback`
+   - `https://<your-deployment>/api/integrations/gmail/callback`
+5. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `TOKEN_ENCRYPTION_KEY` (`openssl rand -base64 32`) in `apps/web/.env.local` and in the deployment's environment variables.
+
+While the app is in testing, Google lets only the listed test users connect and ends access every 7 days; Trackr then asks to reconnect. `gmail.readonly` is a restricted scope, so opening Gmail to everyone requires Google's verification and a security assessment.
+
 ## Deploying to Vercel
 
 The web app deploys to Vercel's free plan from this repository; no custom domain is needed.

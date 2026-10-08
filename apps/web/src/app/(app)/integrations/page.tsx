@@ -1,20 +1,43 @@
 import { ExternalLink, Puzzle, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 import { ConnectedBrowsers } from "@/components/integrations/connected-browsers";
+import {
+  GmailCard,
+  type GmailCardState,
+} from "@/components/integrations/gmail-card";
 import { SimulateCaptures } from "@/components/integrations/simulate-captures";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireUser } from "@/server/auth/session";
 import { DEMO_CAPTURES } from "@/server/demo/captures";
+import { googleOAuthConfig } from "@/server/env";
 import { listConnectedBrowsers } from "@/server/services/extension-auth";
+import { getGmailConnection } from "@/server/services/gmail-connection";
 
 export const metadata: Metadata = { title: "Integrations" };
 
 // The extension isn't in the Chrome Web Store; the README explains loading it.
 const INSTALL_URL = "https://github.com/TanhimMalik/trackr#browser-extension";
 
-export default async function IntegrationsPage() {
+export default async function IntegrationsPage({
+  searchParams,
+}: PageProps<"/integrations">) {
   const user = await requireUser();
-  const browsers = await listConnectedBrowsers(user.id);
+  const [browsers, gmail, params] = await Promise.all([
+    listConnectedBrowsers(user.id),
+    getGmailConnection(user.id),
+    searchParams,
+  ]);
+  const gmailState: GmailCardState = !googleOAuthConfig()
+    ? { kind: "unavailable" }
+    : user.isDemo
+      ? { kind: "demo" }
+      : {
+          kind: "account",
+          status: gmail?.status ?? null,
+          email: gmail?.email ?? null,
+          connectedAt: gmail?.connectedAt ?? null,
+          lastSyncedAt: gmail?.lastSyncedAt ?? null,
+        };
 
   return (
     <div className="flex flex-col gap-6">
@@ -51,6 +74,11 @@ export default async function IntegrationsPage() {
           />
         </section>
       )}
+
+      <GmailCard
+        state={gmailState}
+        result={typeof params.gmail === "string" ? params.gmail : null}
+      />
 
       <section
         aria-labelledby="extension-heading"

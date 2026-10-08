@@ -167,3 +167,14 @@ export const EMAIL_CLASSIFICATIONS = [
 ] as const;
 export type EmailClassification = (typeof EMAIL_CLASSIFICATIONS)[number];
 export const emailClassificationSchema = z.enum(EMAIL_CLASSIFICATIONS);
+
+export const INTEGRATION_PROVIDERS = ["GMAIL"] as const;
+export type IntegrationProvider = (typeof INTEGRATION_PROVIDERS)[number];
+
+export const INTEGRATION_STATUSES = [
+  "CONNECTED",
+  "NEEDS_REAUTH",
+  "ERROR",
+  "DISCONNECTED",
+] as const;
+export type IntegrationStatus = (typeof INTEGRATION_STATUSES)[number];
