@@ -7,3 +7,5 @@ export * from "./contacts";
 export * from "./interviews";
 export * from "./notifications";
 export * from "./user-settings";
+export * from "./extension-sessions";
+export * from "./rate-limit-buckets";

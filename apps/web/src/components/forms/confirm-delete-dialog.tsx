@@ -14,19 +14,23 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-/** Asks before deleting, runs the delete, and reports the outcome in a toast. */
+/** Asks before deleting (or another destructive step), runs it, and reports the outcome in a toast. */
 export function ConfirmDeleteDialog({
   open,
   onOpenChange,
   title,
   description,
   onConfirm,
+  confirmLabel = "Delete",
+  pendingLabel = "Deleting…",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   description: string;
   onConfirm: () => Promise<ApplicationFormState>;
+  confirmLabel?: string;
+  pendingLabel?: string;
 }) {
   const [deleting, startDelete] = useTransition();
 
@@ -55,7 +59,7 @@ export function ConfirmDeleteDialog({
             disabled={deleting}
             onClick={confirm}
           >
-            {deleting ? "Deleting…" : "Delete"}
+            {deleting ? pendingLabel : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

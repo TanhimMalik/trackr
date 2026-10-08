@@ -1,6 +1,6 @@
 # Browser Extension
 
-> **Status:** design document. Implementation is planned for Phase 3. Platform-specific selectors and URL patterns below are starting points that will be validated against saved page fixtures during implementation.
+> **Status:** Phase 3, in progress. Authorization (connect page, tokens, `/api/extension/me`, Integrations) is implemented. Submission ingestion and the extension itself follow. Platform-specific selectors and URL patterns below are starting points that will be validated against saved page fixtures during implementation.
 
 The Trackr extension detects when the user submits a job application and reports it to their account, so the application appears in the dashboard without manual entry. When detection is uncertain, the popup lets the user track the current job in one click.
 
@@ -143,9 +143,13 @@ All endpoints require `Authorization: Bearer <access token>`, validate input aga
 
 | Endpoint                           | Purpose                                                         |
 | ---------------------------------- | --------------------------------------------------------------- |
-| `POST /api/extension/token`        | Exchange a connect code, or rotate a refresh token              |
+| `POST /api/extension/token`        | Exchange a connect code, or rotate a refresh token (no bearer)  |
 | `GET /api/extension/me`            | Connection check, account email and extension-relevant settings |
 | `POST /api/extension/applications` | Report a submitted application                                  |
+
+Token requests send `{ "grantType": "code", "code": "trk_code_…" }` or `{ "grantType": "refresh", "refreshToken": "trk_rt_…" }` and receive `{ accessToken, accessExpiresAt, refreshToken, refreshExpiresAt }`. Failures use OAuth-style errors: `400 invalid_grant` for a used, expired or revoked code or token, `401 invalid_token` with a `WWW-Authenticate` header on the other endpoints, and `429 rate_limited` with `Retry-After`. The token endpoint is limited to 30 requests a minute per address; authenticated endpoints to 60 a minute per browser.
+
+The connect page hands the code over with `chrome.runtime.sendMessage(extensionId, { type: "TRACKR_CONNECT", code })` and expects `{ ok: true }` back.
 
 Submission payload (`ExtensionSubmissionPayload`):
 

@@ -2,6 +2,7 @@ import {
   FileText,
   History,
   House,
+  Plug,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -17,6 +18,7 @@ export const navigation: NavItem[] = [
   { href: "/overview", label: "Overview", icon: House },
   { href: "/applications", label: "Applications", icon: FileText },
   { href: "/activity", label: "Activity", icon: History },
+  { href: "/integrations", label: "Integrations", icon: Plug },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

@@ -59,3 +59,19 @@ export async function findUserByEmail(
     .where(eq(sql`lower(${users.email})`, email.trim().toLowerCase()));
   return user ?? null;
 }
+
+/** The account details the extension shows, or null if the user is gone. */
+export async function getAccount(
+  userId: string,
+  db: Database = getDb(),
+): Promise<{
+  email: string | null;
+  name: string | null;
+  isDemo: boolean;
+} | null> {
+  const [user] = await db
+    .select({ email: users.email, name: users.name, isDemo: users.isDemo })
+    .from(users)
+    .where(eq(users.id, userId));
+  return user ?? null;
+}

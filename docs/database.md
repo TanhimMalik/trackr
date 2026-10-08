@@ -328,6 +328,7 @@ users ─┬─< applications ─┬─< application_events >─ emails
 | ----- | ---------------------------------------------------------------- |
 | 1     | `users`, `applications`, `application_events`, `resume_versions` |
 | 2     | `user_settings`, `contacts`, `interviews`, `notifications`       |
+| 3     | `extension_sessions`, `rate_limit_buckets`, `review_items`       |
 | 3     | `extension_sessions`, `review_items`, `rate_limit_buckets`       |
 | 4     | `integrations`, `emails`, plus `application_events.email_id`     |
 | 5     | New `review_item_kind` values for email review                   |
