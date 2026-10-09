@@ -1,5 +1,6 @@
 import {
   APPLICATION_STATUS_LABELS,
+  PLACEHOLDER_JOB_TITLE,
   type ApplicationStatus,
   type CardSignal,
 } from "@trackr/domain";
@@ -44,14 +45,20 @@ export function ApplicationCard({
   return (
     <div
       className={cn(
-        "group/card relative rounded-lg border bg-card p-3 text-left transition-colors",
+        "group/card relative rounded-lg border bg-card p-3 text-left shadow-xs transition-colors motion-reduce:transition-none",
         className,
       )}
     >
       <div className="flex items-start gap-2.5">
         <CompanyAvatar name={item.companyName} domain={item.companyDomain} />
         <div className="min-w-0 flex-1">
-          <p className="truncate leading-5 font-medium">
+          <p
+            className={cn(
+              "truncate leading-5 font-medium",
+              // Room for the actions button, which sits over the corner.
+              actions && "pr-6",
+            )}
+          >
             {href ? (
               // Stretched over the card; native link dragging is off so the
               // board's own drag and drop keeps working.
@@ -66,11 +73,21 @@ export function ApplicationCard({
               item.companyName
             )}
           </p>
-          <p className="truncate text-[0.8125rem] leading-5 text-muted-foreground">
+          <p
+            className={cn(
+              "line-clamp-2 text-[0.8125rem] leading-5 break-words",
+              // A step above the metadata; a role the email didn't name, below it.
+              item.jobTitle === PLACEHOLDER_JOB_TITLE
+                ? "text-muted-foreground italic"
+                : "text-foreground/80",
+            )}
+          >
             {item.jobTitle}
           </p>
         </div>
-        {actions && <div className="relative z-10">{actions}</div>}
+        {actions && (
+          <div className="absolute top-2 right-2 z-10">{actions}</div>
+        )}
       </div>
       <div className="mt-2 space-y-1 pl-[2.625rem] text-xs text-muted-foreground">
         <p className="tabular-nums">

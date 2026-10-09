@@ -26,7 +26,14 @@ import {
   type BoardColumn,
   type BoardColumnId,
 } from "@trackr/domain";
-import { useId, useOptimistic, useState, useTransition } from "react";
+import {
+  useEffect,
+  useId,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import { changeApplicationStatusAction } from "@/app/(app)/applications/actions";
 import { cn } from "@/lib/utils";
@@ -106,7 +113,7 @@ function DraggableCard({
             applicationId={item.id}
             status={item.status}
             defaults={item.defaults}
-            className="-mt-1 -mr-1 lg:opacity-0 lg:group-focus-within/card:opacity-100 lg:group-hover/card:opacity-100"
+            className="lg:opacity-0 lg:group-focus-within/card:opacity-100 lg:group-hover/card:opacity-100"
           />
         }
       />
@@ -124,13 +131,40 @@ function Column({
   activeId: string | null;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
+  const label = `${column.label}, ${items.length} applications`;
+
+  // An empty stage shrinks to a slim, full-height rail, leaving room for the
+  // full ones. It stays a rail while dragging, so the board doesn't shift
+  // under the pointer, and lights up when a card is over it.
+  if (items.length === 0) {
+    return (
+      <section
+        ref={setNodeRef}
+        aria-label={label}
+        title={`${column.label}: no applications`}
+        className={cn(
+          "flex w-11 shrink-0 snap-start flex-col items-center gap-2 self-stretch rounded-xl bg-column py-3 transition-colors motion-reduce:transition-none",
+          activeId && "ring-1 ring-border",
+          isOver && "bg-primary/10 ring-2 ring-primary/40",
+        )}
+      >
+        <StatusDot status={column.dropStatus} />
+        <span className="text-xs text-muted-foreground tabular-nums">0</span>
+        <h2 className="font-medium text-muted-foreground [writing-mode:vertical-rl]">
+          {column.label}
+        </h2>
+      </section>
+    );
+  }
 
   return (
     <section
       ref={setNodeRef}
-      aria-label={`${column.label}, ${items.length} applications`}
+      aria-label={label}
       className={cn(
-        "flex w-[17rem] shrink-0 snap-start flex-col gap-2 rounded-xl bg-muted/70 p-2 transition-shadow",
+        // Full stages share the width and scroll on their own, so a long
+        // column never pushes the others out of reach.
+        "flex min-w-[17rem] flex-1 basis-0 snap-start flex-col gap-2 self-stretch rounded-xl bg-column p-2 transition-shadow md:min-w-[15.5rem]",
         isOver && "ring-2 ring-primary/40",
       )}
     >
@@ -141,21 +175,50 @@ function Column({
           {items.length}
         </span>
       </header>
-      {items.map((item) => (
-        <DraggableCard
-          key={item.id}
-          item={item}
-          column={column}
-          hidden={item.id === activeId}
-        />
-      ))}
-      {items.length === 0 && (
-        <p className="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">
-          No applications
-        </p>
-      )}
+      <div className="-mx-1 flex min-h-0 scrollbar-quiet flex-col gap-2 overflow-y-auto px-1 pb-0.5">
+        {items.map((item) => (
+          <DraggableCard
+            key={item.id}
+            item={item}
+            column={column}
+            hidden={item.id === activeId}
+          />
+        ))}
+      </div>
     </section>
   );
+}
+
+// Below this, the board grows with its content and the page scrolls instead.
+const MIN_BOARD_HEIGHT = 384;
+const BOTTOM_GAP = 16;
+
+/**
+ * The height that takes the board to the bottom of the window, wherever it
+ * starts (the demo banner and filters move it), kept up to date on resize.
+ */
+function useHeightToViewportBottom() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | null>(null);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const measure = () => {
+      const top = element.getBoundingClientRect().top + window.scrollY;
+      setHeight(
+        Math.max(MIN_BOARD_HEIGHT, window.innerHeight - top - BOTTOM_GAP),
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(document.body);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
+  return [ref, height] as const;
 }
 
 /**
@@ -180,6 +243,7 @@ export function ApplicationsBoard({
   const [activeId, setActiveId] = useState<string | null>(null);
   // A stable id keeps dnd-kit's accessibility ids equal on server and client.
   const boardId = useId();
+  const [boardRef, height] = useHeightToViewportBottom();
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
@@ -256,7 +320,11 @@ export function ApplicationsBoard({
       onDragCancel={() => setActiveId(null)}
       onDragEnd={handleDragEnd}
     >
-      <div className="-mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 md:-mx-6 md:scroll-px-6 md:px-6">
+      <div
+        ref={boardRef}
+        style={height ? { height } : undefined}
+        className="-mx-4 flex snap-x scroll-px-4 scrollbar-thin items-start gap-3 overflow-x-auto px-4 pb-2 md:-mx-6 md:scroll-px-6 md:px-6"
+      >
         {columns.map((column) => (
           <Column
             key={column.id}

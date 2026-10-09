@@ -1,5 +1,6 @@
 "use client";
 
+import { PLACEHOLDER_JOB_TITLE } from "@trackr/domain";
 import { Plus } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -100,7 +101,8 @@ export function EditApplicationDialog({
         <DialogHeader className="border-b px-5 py-4">
           <DialogTitle>Edit application</DialogTitle>
           <DialogDescription>
-            {defaults.companyName} · {defaults.jobTitle}
+            {defaults.companyName} ·{" "}
+            {defaults.jobTitle || PLACEHOLDER_JOB_TITLE}
           </DialogDescription>
         </DialogHeader>
         <ApplicationForm

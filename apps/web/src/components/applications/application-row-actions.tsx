@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  PLACEHOLDER_JOB_TITLE,
   APPLICATION_STATUS_LABELS,
   type ApplicationStatus,
 } from "@trackr/domain";
@@ -41,7 +42,7 @@ export function ApplicationRowActions({
   className?: string;
 }) {
   const [dialog, setDialog] = useState<"edit" | "delete" | null>(null);
-  const label = `${defaults.companyName} · ${defaults.jobTitle}`;
+  const label = `${defaults.companyName} · ${defaults.jobTitle || PLACEHOLDER_JOB_TITLE}`;
   const { changeStatus } = useChangeStatus(
     applicationId,
     defaults.companyName,

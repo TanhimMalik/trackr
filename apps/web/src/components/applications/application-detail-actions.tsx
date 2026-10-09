@@ -2,10 +2,12 @@
 
 import {
   APPLICATION_STATUS_LABELS,
+  PLACEHOLDER_JOB_TITLE,
   type ApplicationStatus,
 } from "@trackr/domain";
 import {
   ChevronDown,
+  CircleHelp,
   Ellipsis,
   ExternalLink,
   ListPlus,
@@ -59,75 +61,93 @@ export function ApplicationDetailActions({
     variant === "drawer" ? router.back() : router.push("/applications");
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" disabled={pending}>
-            <StatusDot status={status} />
-            {APPLICATION_STATUS_LABELS[status]}
-            <ChevronDown className="text-muted-foreground" />
+    <>
+      {!defaults.jobTitle && (
+        // Started from an email that didn't name the role.
+        <div className="flex items-center gap-3 rounded-xl border bg-muted/50 px-4 py-3">
+          <CircleHelp
+            className="size-4 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <p className="min-w-0 flex-1">
+            The email didn&apos;t say which role this is.
+          </p>
+          <Button size="sm" variant="outline" onClick={() => setDialog("edit")}>
+            Add role
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-44">
-          <DropdownMenuRadioGroup
-            value={status}
-            onValueChange={(value) => changeStatus(value as ApplicationStatus)}
-          >
-            {SELECTABLE_STATUSES.map((option) => (
-              <DropdownMenuRadioItem key={option} value={option}>
-                <StatusDot status={option} />
-                {APPLICATION_STATUS_LABELS[option]}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <Button variant="outline" size="sm" onClick={() => setDialog("log")}>
-        <ListPlus />
-        Log activity
-      </Button>
-
-      <Button variant="outline" size="sm" onClick={() => setDialog("edit")}>
-        <Pencil />
-        Edit
-      </Button>
-
-      {defaults.jobUrl && (
-        <Button variant="outline" size="sm" asChild>
-          <a href={defaults.jobUrl} target="_blank" rel="noopener noreferrer">
-            <ExternalLink />
-            Job posting
-          </a>
-        </Button>
+        </div>
       )}
+      <div className="flex flex-wrap items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" disabled={pending}>
+              <StatusDot status={status} />
+              {APPLICATION_STATUS_LABELS[status]}
+              <ChevronDown className="text-muted-foreground" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-44">
+            <DropdownMenuRadioGroup
+              value={status}
+              onValueChange={(value) =>
+                changeStatus(value as ApplicationStatus)
+              }
+            >
+              {SELECTABLE_STATUSES.map((option) => (
+                <DropdownMenuRadioItem key={option} value={option}>
+                  <StatusDot status={option} />
+                  {APPLICATION_STATUS_LABELS[option]}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="More actions">
-            <Ellipsis />
+        <Button variant="outline" size="sm" onClick={() => setDialog("log")}>
+          <ListPlus />
+          Log activity
+        </Button>
+
+        <Button variant="outline" size="sm" onClick={() => setDialog("edit")}>
+          <Pencil />
+          Edit
+        </Button>
+
+        {defaults.jobUrl && (
+          <Button variant="outline" size="sm" asChild>
+            <a href={defaults.jobUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink />
+              Job posting
+            </a>
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44">
-          {variant === "drawer" && (
-            // A full page load, so the link is not intercepted back into the drawer.
-            <DropdownMenuItem asChild>
-              <a href={`/applications/${applicationId}`}>
-                <Maximize2 />
-                Open full page
-              </a>
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem
-            variant="destructive"
-            onSelect={() => setDialog("delete")}
-          >
-            <Trash2 />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        )}
 
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="More actions">
+              <Ellipsis />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            {variant === "drawer" && (
+              // A full page load, so the link is not intercepted back into the drawer.
+              <DropdownMenuItem asChild>
+                <a href={`/applications/${applicationId}`}>
+                  <Maximize2 />
+                  Open full page
+                </a>
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={() => setDialog("delete")}
+            >
+              <Trash2 />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       <EditApplicationDialog
         applicationId={applicationId}
         defaults={defaults}
@@ -142,11 +162,11 @@ export function ApplicationDetailActions({
       />
       <DeleteApplicationDialog
         applicationId={applicationId}
-        label={`${defaults.companyName} · ${defaults.jobTitle}`}
+        label={`${defaults.companyName} · ${defaults.jobTitle || PLACEHOLDER_JOB_TITLE}`}
         open={dialog === "delete"}
         onOpenChange={(open) => setDialog(open ? "delete" : null)}
         onDeleted={onDeleted}
       />
-    </div>
+    </>
   );
 }

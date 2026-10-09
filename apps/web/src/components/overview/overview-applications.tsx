@@ -68,7 +68,7 @@ export function OverviewApplicationsSkeleton() {
       {ACTIVE_BOARD_COLUMN_IDS.map((id) => (
         <div
           key={id}
-          className="flex w-[17rem] shrink-0 flex-col gap-2 rounded-xl bg-muted/70 p-2"
+          className="flex w-[17rem] shrink-0 flex-col gap-2 rounded-xl bg-column p-2"
         >
           <Skeleton className="mx-1.5 my-0.5 h-4 w-24 bg-background" />
           {[0, 1].map((card) => (

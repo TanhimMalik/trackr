@@ -164,7 +164,7 @@ export function ProductPreview({ now }: { now: Date }) {
           {COLUMNS.map((column) => (
             <div
               key={column.label}
-              className="flex w-[15.5rem] shrink-0 flex-col gap-2 rounded-xl bg-muted/70 p-2"
+              className="flex w-[15.5rem] shrink-0 flex-col gap-2 rounded-xl bg-column p-2"
             >
               <div className="flex items-center gap-2 px-1.5 pt-0.5">
                 <StatusDot status={column.status} />

@@ -11,6 +11,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
+  --color-column: var(--column);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
@@ -67,21 +68,25 @@
 :root {
   --radius: 0.375rem;
 
-  /* Neutral surfaces (zinc) */
-  --background: oklch(0.99 0.0015 286);
-  --foreground: oklch(0.18 0.006 286);
-  --card: oklch(1 0 0);
+  /* Neutral surfaces (zinc). A soft gray page rather than white, so the
+     white cards are the brightest thing on it and the layers separate:
+     sidebar and columns a step darker, cards and popovers a step lighter. */
+  --background: oklch(0.966 0.003 286);
+  --foreground: oklch(0.17 0.006 286);
+  --card: oklch(0.995 0.001 286);
   --card-foreground: var(--foreground);
+  /* Board columns: between the page and the cards on it. */
+  --column: oklch(0.93 0.004 286);
   --popover: oklch(1 0 0);
   --popover-foreground: var(--foreground);
-  --muted: oklch(0.967 0.0015 286);
-  --muted-foreground: oklch(0.53 0.016 286);
+  --muted: oklch(0.935 0.004 286);
+  --muted-foreground: oklch(0.47 0.016 286);
   --secondary: var(--muted);
   --secondary-foreground: var(--foreground);
-  --accent: oklch(0.96 0.002 286);
+  --accent: oklch(0.92 0.004 286);
   --accent-foreground: var(--foreground);
-  --border: oklch(0.92 0.004 286);
-  --input: oklch(0.9 0.005 286);
+  --border: oklch(0.875 0.005 286);
+  --input: oklch(0.85 0.006 286);
 
   /* Brand accent (blue) */
   --primary: oklch(0.546 0.245 262.881);
@@ -113,7 +118,7 @@
   --chart-5: oklch(0.871 0.006 286);
 
   /* Sidebar */
-  --sidebar: oklch(1 0 0);
+  --sidebar: oklch(0.95 0.004 286);
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
@@ -124,20 +129,22 @@
 }
 
 .dark {
-  --background: oklch(0.15 0.004 286);
+  /* Each layer a step lighter: page, column, card, popover. */
+  --background: oklch(0.145 0.004 286);
   --foreground: oklch(0.967 0.0015 286);
-  --card: oklch(0.18 0.005 286);
+  --card: oklch(0.205 0.006 286);
   --card-foreground: var(--foreground);
-  --popover: oklch(0.2 0.006 286);
+  --column: oklch(0.172 0.005 286);
+  --popover: oklch(0.225 0.006 286);
   --popover-foreground: var(--foreground);
-  --muted: oklch(0.225 0.006 286);
-  --muted-foreground: oklch(0.705 0.015 286);
+  --muted: oklch(0.235 0.006 286);
+  --muted-foreground: oklch(0.725 0.015 286);
   --secondary: var(--muted);
   --secondary-foreground: var(--foreground);
   --accent: oklch(0.24 0.006 286);
   --accent-foreground: var(--foreground);
-  --border: oklch(0.275 0.006 286);
-  --input: oklch(0.31 0.007 286);
+  --border: oklch(0.285 0.006 286);
+  --input: oklch(0.32 0.007 286);
 
   --primary: oklch(0.546 0.245 262.881);
   --primary-foreground: oklch(0.985 0 0);
@@ -164,7 +171,7 @@
   --chart-4: oklch(0.424 0.199 265.638);
   --chart-5: oklch(0.37 0.013 286);
 
-  --sidebar: oklch(0.15 0.004 286);
+  --sidebar: oklch(0.163 0.005 286);
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
@@ -184,4 +191,19 @@
   body {
     @apply bg-background text-sm text-foreground antialiased;
   }
+}
+
+/* A thin scrollbar that only shows while the area is hovered or focused. */
+@utility scrollbar-quiet {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  &:hover,
+  &:focus-within {
+    scrollbar-color: var(--border) transparent;
+  }
+}
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
