@@ -60,3 +60,18 @@ export function tokenEncryptionKey(): Buffer {
   }
   return result.data;
 }
+
+export type EmailLlmConfig = { apiKey: string; model: string };
+
+/**
+ * The model that reads emails the rules can't settle, or null when this
+ * deployment has no key. Optional: without it, Gmail sync runs on rules alone.
+ */
+export function emailLlmConfig(): EmailLlmConfig | null {
+  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  if (!apiKey) return null;
+  return {
+    apiKey,
+    model: process.env.EMAIL_LLM_MODEL?.trim() || "claude-haiku-5-5",
+  };
+}

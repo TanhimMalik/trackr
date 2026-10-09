@@ -131,6 +131,36 @@ export const JOB_ALERT_PATTERNS = [
   /\bmatching jobs\b/i,
 ];
 
+/**
+ * Job-board senders whose mail is recommendations and marketing, never news
+ * about an application: Indeed's matches, LinkedIn's job alerts and
+ * newsletters, and matching services. Updates those boards do send come from
+ * other addresses (indeedapply@indeed.com, jobs-noreply@linkedin.com) or say
+ * so in the subject (`APPLICATION_UPDATE_SUBJECT`).
+ */
+export const JOB_DIGEST_SENDERS = [
+  /@match\.indeed\.com$/,
+  /^(jobalerts|editors|news|jobs-listings)-noreply@linkedin\.com$/,
+  /@(mail-)?hackajob\.com$/,
+  /@notifications\.joinhandshake\.com$/,
+  /@glassdoor\.com$/,
+  /@builtin\.com$/,
+  /@jobright\.ai$/,
+  /@levels\.fyi$/,
+];
+
+/** A subject about the person's own application, from any sender. */
+export const APPLICATION_UPDATE_SUBJECT =
+  /\b(your application|application (was |has been )?(sent|submitted|received|viewed)|you applied|interview|assessment)\b/i;
+
+/** "Offers" from banks, airlines and shops, not employers. */
+export const COMMERCE_TERMS =
+  /\b(credit|card|cash ?back|points|miles|rewards?|promo|discount|deals?|coupon|shopping|% off|financial aid|scholarship)\b/i;
+
+/** School offices: admissions, enrollment, career services and alumni mail. */
+export const SCHOOL_OFFICE =
+  /^(admissions?|enroll(ment)?|outreach|financial-?aid|registrar|alumni|careers?|career-?services|student-?affairs)@[\w.-]+\.edu$/i;
+
 const escape = (term: string) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** A case-insensitive pattern that matches any of the terms as whole words, or their plurals. */

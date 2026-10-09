@@ -5,10 +5,14 @@ import {
   ASSESSMENT_PLATFORMS,
   ATS_SENDER_DOMAINS,
   isFromDomain,
+  APPLICATION_UPDATE_SUBJECT,
+  COMMERCE_TERMS,
   JOB_ALERT_PATTERNS,
+  JOB_DIGEST_SENDERS,
   JOB_BOARD_SENDER_DOMAINS,
   RECRUITING_LOCAL_PARTS,
   SCHEDULING_PLATFORMS,
+  SCHOOL_OFFICE,
   SNIPPET_ONLY_TERMS,
 } from "./vocabulary";
 
@@ -22,6 +26,9 @@ export type RelevanceSignal =
   | "SNIPPET_VOCABULARY"
   | "ASSESSMENT_OR_SCHEDULING_LINK"
   | "JOB_ALERT"
+  | "JOB_DIGEST"
+  | "COMMERCE"
+  | "SCHOOL"
   | "PROMOTION";
 
 export type Relevance = {
@@ -75,6 +82,27 @@ export function scoreRelevance(email: EmailMetadata): Relevance {
   if (JOB_ALERT_PATTERNS.some((pattern) => pattern.test(text))) {
     signals.JOB_ALERT = -4;
   }
+  const sender = email.fromEmail.toLowerCase();
+  const knownConversation = email.knownThread || email.knownContact;
+  // Recommendation mail from job boards, unless it's about an application.
+  if (
+    JOB_DIGEST_SENDERS.some((pattern) => pattern.test(sender)) &&
+    !APPLICATION_UPDATE_SUBJECT.test(email.subject) &&
+    !knownConversation
+  ) {
+    signals.JOB_DIGEST = -5;
+  }
+  // "Offers" from banks and shops: commercial words, and no hiring sender.
+  if (
+    COMMERCE_TERMS.test(text) &&
+    !signals.ATS_SENDER &&
+    !signals.RECRUITING_SENDER &&
+    !knownConversation
+  ) {
+    signals.COMMERCE = -3;
+  }
+  // Admissions offices say "thank you for applying" too.
+  if (SCHOOL_OFFICE.test(sender) && !knownConversation) signals.SCHOOL = -5;
   if (
     email.labels.includes("CATEGORY_PROMOTIONS") &&
     email.hasListUnsubscribe &&

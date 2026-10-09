@@ -2,12 +2,16 @@ import "server-only";
 import {
   CLASSIFICATION_EVENTS,
   classifyEmail,
+  combineWithLlm,
   extractEmailDetails,
+  LLM_PROMPT_VERSION,
+  needsLlm,
   normalizeJobTitle,
   PLACEHOLDER_JOB_TITLE,
   scoreRelevance,
   senderDomain,
   type ApplicationEventType,
+  type ClassificationMethod,
   type EmailContent,
   type EmailMetadata,
   type ExtractedDetails,
@@ -23,6 +27,10 @@ import {
   reviewItems,
 } from "@/server/db/schema";
 import type { Database } from "@/server/db/types";
+import {
+  LlmUnavailableError,
+  type EmailLlm,
+} from "@/server/integrations/anthropic";
 import type { GmailClient } from "@/server/integrations/gmail-api";
 import {
   receivedAt,
@@ -48,6 +56,21 @@ export type IncomingEmail = {
   loadContent: (metadata: EmailMetadata) => Promise<EmailContent>;
 };
 
+/**
+ * The model that reads what the rules can't settle, and the budget that
+ * decides whether this email may use it. Absent: rules alone.
+ */
+export type EmailLlmPolicy = {
+  classify: EmailLlm;
+  allow: () => Promise<boolean>;
+};
+
+type ProcessingContext = {
+  userId: string;
+  integrationId: string | null;
+  llm?: EmailLlmPolicy;
+};
+
 export type EmailOutcome = {
   outcome: MessageOutcome;
   applicationId: string | null;
@@ -62,6 +85,7 @@ function proposedEvent(
   received: Date,
   rule: RuleClassification,
   details: ExtractedDetails,
+  method: ClassificationMethod,
 ): ProposedEvent {
   const interview = type.startsWith("INTERVIEW_");
   return {
@@ -69,7 +93,7 @@ function proposedEvent(
     occurredAt: received,
     sourceType: "EMAIL",
     sourceReference: messageId,
-    classificationMethod: "RULES",
+    classificationMethod: method,
     confidence: rule.confidence,
     metadata: interview
       ? {
@@ -171,7 +195,7 @@ export async function fillPlaceholderTitle(
 export async function processGmailMessage(
   db: Database,
   client: GmailClient,
-  context: { userId: string; integrationId: string },
+  context: ProcessingContext & { integrationId: string },
   ref: MessageRef,
 ): Promise<MessageOutcome> {
   const [existing] = await db
@@ -204,7 +228,7 @@ export async function processGmailMessage(
  */
 export async function processIncomingEmail(
   db: Database,
-  { userId, integrationId }: { userId: string; integrationId: string | null },
+  { userId, integrationId, llm }: ProcessingContext,
   { ref, receivedAt: received, metadata: headers, loadContent }: IncomingEmail,
   replacesId?: string,
 ): Promise<EmailOutcome> {
@@ -242,28 +266,78 @@ export async function processIncomingEmail(
     receivedAt: received,
   };
 
-  const relevance = scoreRelevance(metadata);
-  if (!relevance.relevant) {
+  async function ignore(method: ClassificationMethod | null) {
     await db.transaction(async (tx) => {
       if (existing) await tx.delete(emails).where(eq(emails.id, existing.id));
-      // Identifiers only: nothing about an unrelated message is kept.
+      // Identifiers only: nothing about an unrelated message is kept. The
+      // method is kept so the model's daily budget counts its calls.
       await tx
         .insert(emails)
-        .values({ ...ids, processingStatus: "IGNORED" })
+        .values({
+          ...ids,
+          processingStatus: "IGNORED",
+          classificationMethod: method,
+        })
         .onConflictDoNothing();
     });
     logProcessed({
       messageId: ref.id,
       relevant: false,
+      method,
       durationMs: Date.now() - started,
     });
-    return { outcome: "ignored", applicationId: null };
+    return { outcome: "ignored" as const, applicationId: null };
   }
+
+  const relevance = scoreRelevance(metadata);
+  if (!relevance.relevant) return ignore(null);
 
   // The body is read for relevant messages only, and only held in memory.
   const content: EmailContent = await loadContent(metadata);
-  const rule = classifyEmail(content);
-  const details = extractEmailDetails(content);
+  let rule: RuleClassification = classifyEmail(content);
+  let details = extractEmailDetails(content);
+  let method: ClassificationMethod = "RULES";
+  let llmUsage: Record<string, unknown> | null = null;
+
+  // What the rules can't settle goes to the model, within its budget.
+  const byRules = {
+    relevant: true,
+    classification: rule.classification,
+    confidence: rule.confidence,
+    method,
+    companyName: details.companyName,
+    jobTitle: details.jobTitle,
+  };
+  if (llm && needsLlm(byRules) && (await llm.allow())) {
+    try {
+      const result = await llm.classify(content, received);
+      const combined = combineWithLlm(content, byRules, result.output);
+      llmUsage = {
+        model: result.model,
+        promptVersion: LLM_PROMPT_VERSION,
+        inputTokens: result.inputTokens,
+        outputTokens: result.outputTokens,
+        costUsd: result.costUsd,
+        latencyMs: result.latencyMs,
+      };
+      if (!combined.relevant) return ignore("LLM");
+      rule = {
+        classification: combined.classification,
+        confidence: combined.confidence,
+        evidence: combined.evidence,
+      };
+      details = {
+        ...details,
+        companyName: combined.companyName,
+        jobTitle: combined.jobTitle,
+      };
+      method = "LLM";
+    } catch (error) {
+      // The rules' answer stands; Re-check past emails tries again later.
+      if (!(error instanceof LlmUnavailableError)) throw error;
+      llmUsage = { error: error.code };
+    }
+  }
   const eventType = CLASSIFICATION_EVENTS[rule.classification];
 
   const outcome = await db.transaction(
@@ -278,7 +352,7 @@ export async function processIncomingEmail(
       const route = await routeEmail(tx, userId, {
         classification: rule.classification,
         confidence: rule.confidence,
-        method: "RULES",
+        method,
         companyName: details.companyName,
         companyDomain: details.companyDomain,
         jobTitle: details.jobTitle,
@@ -305,7 +379,7 @@ export async function processIncomingEmail(
             snippet: metadata.snippet.slice(0, 500),
             classification: rule.classification,
             classificationConfidence: rule.confidence,
-            classificationMethod: "RULES" as const,
+            classificationMethod: method,
             extractedJson: {
               evidence: rule.evidence,
               companyDomain: details.companyDomain,
@@ -315,6 +389,7 @@ export async function processIncomingEmail(
               interviewAt: details.interviewAt,
               interviewKind: details.interviewKind,
               isFinalRound: details.isFinalRound,
+              ...(llmUsage ? { llm: llmUsage } : {}),
             },
             companyName: details.companyName,
             jobTitle: details.jobTitle,
@@ -330,7 +405,14 @@ export async function processIncomingEmail(
         await insertEmail("UNMATCHED", null);
         return { outcome: "ignored", applicationId: null, match };
       }
-      const event = proposedEvent(eventType, ref.id, received, rule, details);
+      const event = proposedEvent(
+        eventType,
+        ref.id,
+        received,
+        rule,
+        details,
+        method,
+      );
 
       if (route.action === "create") {
         const created = await createApplicationFromDetails(tx, userId, details);
@@ -398,7 +480,7 @@ export async function processIncomingEmail(
     relevant: true,
     classification: rule.classification,
     confidence: rule.confidence,
-    method: "RULES",
+    method,
     matchDecision: outcome.match?.decision ?? null,
     outcome: outcome.outcome,
     applicationId: outcome.applicationId,

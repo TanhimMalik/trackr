@@ -131,11 +131,12 @@ Used only when the rule classifier is not confident.
   ```
 
 - **Evidence check:** `evidence` must be a verbatim quote that appears in the input. A quote that cannot be found reduces confidence, which guards against fabricated reasoning. The same quote is shown in the UI as "why".
-- **Confidence cap:** model-reported confidence is capped below the automatic band (at most 0.94) unless the rule classifier independently agrees. LLM-only results are therefore always applied as flagged, or sent to review. Offers and rejections from the LLM alone always go to review.
-- **Failure handling:** a validation failure gets one retry. After that, or on timeout or provider error, the email is stored as `FAILED` with an `error_code` and retried on the next sync. Nothing is guessed.
+- **Confidence cap:** model-reported confidence is capped below the automatic band (at most 0.94) unless the rule classifier independently agrees (then 0.97). LLM-only results are therefore always applied as flagged, or sent to review. Offers and rejections from the LLM alone always go to review (capped at 0.74). A quote that isn't in the email drops the answer to the review floor (0.5).
+- **When it's used:** an email that passed the relevance filter and that the rules classify as unknown or below the flagged threshold (0.75). If the model says it isn't about an application, only its ids are kept, like any ignored message.
+- **Failure handling:** a malformed answer gets one retry. After that, or on a timeout, refusal or provider error, the rules' answer stands and the error code is kept with the email; **Re-check past emails** sends undecided emails through again. Nothing is guessed.
 - **Prompt injection:** email content is untrusted. The model has no tools, can only produce the schema above, and its output is bounded by the confidence cap and the review rules. The worst case is a review item or a flagged, undoable update.
-- **Cost controls:** a per-sync cap on LLM calls and a daily per-user cap. Results are cached by message ID, and messages are never classified twice.
-- **Provider:** behind a small `LlmClassifier` interface. The provider and model are configured through environment variables.
+- **Cost controls:** at most 200 model calls per user per day, counted from stored emails. A message is classified once; its usage (model, prompt version, tokens, cost, latency) is kept with it.
+- **Provider:** `server/integrations/anthropic.ts`, configured by `ANTHROPIC_API_KEY` and optionally `EMAIL_LLM_MODEL`. Without a key, sync runs on rules alone. The prompt, schema and guards are pure (`packages/domain/src/email/llm.ts`), shared by sync and the benchmark.
 
 ## Stage 6: extraction
 
@@ -226,12 +227,27 @@ What it says:
 
 Limits: one person's inbox, with no interviews or offers in it, so those classes rest on the fictional corpus alone. The rules were tuned on this inbox during M28. Company and role start from the rules' extraction in the labeling page, so the 100% extraction scores mean the person found nothing to correct, not an independent check.
 
-**M31: the LLM fallback.**
+**M31: noise filter and the model fallback (2026-10-09).** Three relevance signals, tuned on `dev` only: job-board digest senders (Indeed's matches, LinkedIn job alerts, matching services) unless the subject is about an application, commercial "offers" with no hiring sender, and school offices at `.edu` addresses. Then Claude Haiku 5.5 for what the rules can't settle (Stage 5). The same `test` half, across all four steps:
 
-- Only messages the rules leave uncertain go to the model (Stage 5 above), with the schema, evidence check and confidence caps described there.
-- The benchmark runs again with the fallback on. The model is chosen by the numbers: a smaller model wins if its accuracy is close, since cost scales with volume.
-- The README publishes the before-and-after accuracy per field, the share of messages that needed the model, and cost and latency per thousand messages.
-- Demo workspaces never call the model; their inbox is simulated. Real accounts have per-sync and daily caps.
+| Measure                             | Rules (M28) | Rules (M30) | + noise filter | + Claude Haiku 5.5 |
+| ----------------------------------- | ----------- | ----------- | -------------- | ------------------ |
+| Relevance precision                 | 41.3%       | 41.3%       | 77.8%          | 92.1%              |
+| Relevance recall                    | 100%        | 100%        | 92.1%          | 92.1%              |
+| Classification accuracy (job email) | 89.5%       | 92.1%       | 92.1%          | 92.1%              |
+| Classification macro F1             | 80.8%       | 82.9%       | 82.9%          | 82.9%              |
+| Confident wrong updates             | 4           | 3           | 2              | 2                  |
+| Rejection recall                    | 50%         | 50%         | 50%            | 50%                |
+| Emails sent to the model            | –           | –           | –              | 10 of 103          |
+| Model cost / mean latency per call  | –           | –           | –              | $0.0003 / 1.7 s    |
+
+What it says:
+
+- **The filter now reads far less that isn't job email**, at the price of three dropped messages: two job-board notes labeled "nothing to record" and one rejection the rules already misread.
+- **The model's gain on `test` is precision, not recall.** It cleared the job-board mail that still got through, at about $0.30 per thousand calls. It didn't raise rejection recall, because two of the three missed rejections never reach it: one is filtered before it, and the rules read the other as a confident confirmation. The third it called job-related with nothing to record. On `dev` it caught every rejection the rules missed (75% → 100% recall).
+- **The ceiling is the gate, not the model.** Sending more to the model (say, confident confirmations that also contain rejection language) is the next lever, and would be tuned on `dev` and measured here again.
+- Cost is small enough not to matter at personal scale: under a tenth of a cent per sync for a typical inbox, capped at 200 calls per user per day.
+
+**Model settings.** `claude-haiku-5-5`, thinking off and effort low (a short judgment over text in front of it), structured output validated with zod, prompt version `2026-10-09.1`. Demo workspaces never call the model; their inbox is simulated.
 
 ## Stored data
 

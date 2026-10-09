@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, count, eq, gte, inArray, isNull, lt, or } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/server/db/client";
 import {
@@ -9,7 +9,8 @@ import {
   reviewItems,
 } from "@/server/db/schema";
 import type { Database } from "@/server/db/types";
-import { googleOAuthConfig } from "@/server/env";
+import { emailLlmConfig, googleOAuthConfig } from "@/server/env";
+import { emailLlm, type EmailLlm } from "@/server/integrations/anthropic";
 import {
   gmailClient,
   GmailApiDisabledError,
@@ -23,7 +24,11 @@ import {
   ATS_SEARCH_DOMAINS,
   backfillQuery,
 } from "@/server/integrations/gmail-query";
-import { processGmailMessage, type MessageOutcome } from "./email-processing";
+import {
+  processGmailMessage,
+  type EmailLlmPolicy,
+  type MessageOutcome,
+} from "./email-processing";
 import { rematchEmailReviews } from "./email-rematch";
 import {
   getGmailAccessToken,
@@ -118,6 +123,35 @@ async function nextPage(
   };
 }
 
+const defaultEmailLlm = () => {
+  const config = emailLlmConfig();
+  return config ? emailLlm(config) : null;
+};
+
+/** The most emails a user's sync sends to the model in a day. */
+export const LLM_DAILY_LIMIT = 200;
+
+/** The model with this user's remaining allowance for the day. */
+async function llmPolicy(
+  userId: string,
+  classify: EmailLlm,
+  now: Date,
+  db: Database,
+): Promise<EmailLlmPolicy> {
+  const [used] = await db
+    .select({ n: count() })
+    .from(emails)
+    .where(
+      and(
+        eq(emails.userId, userId),
+        eq(emails.classificationMethod, "LLM"),
+        gte(emails.createdAt, new Date(now.getTime() - DAY_MS)),
+      ),
+    );
+  let remaining = LLM_DAILY_LIMIT - (used?.n ?? 0);
+  return { classify, allow: async () => remaining-- > 0 };
+}
+
 /**
  * Reads the next batch of Gmail for one user and acts on it. The first run
  * works through the last 90 days; later runs follow new mail from Gmail's
@@ -130,7 +164,14 @@ export async function syncGmail(
     fetchImpl = fetch,
     now = new Date(),
     timeBudgetMs = TIME_BUDGET_MS,
-  }: { fetchImpl?: Fetch; now?: Date; timeBudgetMs?: number } = {},
+    llm = defaultEmailLlm(),
+  }: {
+    fetchImpl?: Fetch;
+    now?: Date;
+    timeBudgetMs?: number;
+    /** Reads what the rules can't settle; null for rules alone. */
+    llm?: EmailLlm | null;
+  } = {},
   db: Database = getDb(),
 ): Promise<SyncResult> {
   const config = googleOAuthConfig();
@@ -183,6 +224,8 @@ export async function syncGmail(
     review: 0,
   };
   let processed = 0;
+  // Counted once per batch, when the first email needs it.
+  let policy: EmailLlmPolicy | null | undefined;
   try {
     const client = gmailClient(
       await getGmailAccessToken(userId, config, { fetchImpl, now }, db),
@@ -227,10 +270,11 @@ export async function syncGmail(
         break;
       }
       try {
+        policy ??= llm ? await llmPolicy(userId, llm, now, db) : null;
         const outcome = await processGmailMessage(
           db,
           client,
-          { userId, integrationId: claimed.id },
+          { userId, integrationId: claimed.id, llm: policy ?? undefined },
           ref,
         );
         if (outcome !== "skipped") {

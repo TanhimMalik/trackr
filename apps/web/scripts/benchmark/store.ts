@@ -53,6 +53,19 @@ export function writeLabels(labels: Record<string, StoredLabel>) {
   writeFileSync(LABELS, JSON.stringify(labels, null, 2), { mode: 0o600 });
 }
 
+const CACHE = `${BENCHMARK_DIR}llm-cache.json`;
+
+/** The model's answers, by model, prompt version and message id. */
+export function readCache<T>(): Record<string, T> {
+  if (!existsSync(CACHE)) return {};
+  return JSON.parse(readFileSync(CACHE, "utf8")) as Record<string, T>;
+}
+
+export function writeCache(cache: Record<string, unknown>) {
+  ensureBenchmarkDir();
+  writeFileSync(CACHE, JSON.stringify(cache), { mode: 0o600 });
+}
+
 export function writeResult(name: string, data: unknown): string {
   const dir = `${BENCHMARK_DIR}results/`;
   mkdirSync(dir, { recursive: true, mode: 0o700 });

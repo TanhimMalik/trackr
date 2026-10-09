@@ -15,6 +15,10 @@ import {
   integrations,
   reviewItems,
 } from "@/server/db/schema";
+import {
+  LlmUnavailableError,
+  type EmailLlm,
+} from "@/server/integrations/anthropic";
 import { GmailApiDisabledError } from "@/server/integrations/gmail-api";
 import { GMAIL_READONLY_SCOPE } from "@/server/integrations/google-oauth";
 import {
@@ -33,6 +37,7 @@ import { rematchEmailReviews } from "@/server/services/email-rematch";
 import { routeEmail, type EmailSignal } from "@/server/services/email-routing";
 import {
   GmailSyncBusyError,
+  LLM_DAILY_LIMIT,
   restartGmailSync,
   syncGmail,
 } from "@/server/services/gmail-sync";
@@ -47,6 +52,8 @@ beforeAll(async () => {
   vi.stubEnv("TOKEN_ENCRYPTION_KEY", randomBytes(32).toString("base64"));
   vi.stubEnv("GOOGLE_CLIENT_ID", "client-id");
   vi.stubEnv("GOOGLE_CLIENT_SECRET", "client-secret");
+  // Tests choose their model explicitly; never a real one.
+  vi.stubEnv("ANTHROPIC_API_KEY", "");
   vi.spyOn(console, "info").mockImplementation(() => {});
   testDb = await createTestDatabase();
 });
@@ -493,13 +500,18 @@ describe("what an unknown job's email does", () => {
     });
     // A rejection for a job never tracked still records it.
     expect(byCompany.Initech).toMatchObject({ currentStatus: "REJECTED" });
-    // School admissions aren't job applications: asked about, not created.
+    // School admissions aren't job applications: not even read.
     expect(byCompany["City College"]).toBeUndefined();
-    const reviews = await testDb.db
+    const [school] = await testDb.db
       .select()
-      .from(reviewItems)
-      .where(eq(reviewItems.userId, userId));
-    expect(reviews.map((item) => item.kind)).toEqual(["EMAIL_UNMATCHED"]);
+      .from(emails)
+      .where(
+        and(eq(emails.userId, userId), eq(emails.gmailMessageId, "c-school")),
+      );
+    expect(school).toMatchObject({
+      processingStatus: "IGNORED",
+      subject: null,
+    });
   });
 
   it.each([429, 403] as const)(
@@ -765,5 +777,114 @@ describe("routing by date", () => {
       }),
     );
     expect(route.action).toBe("apply");
+  });
+});
+
+describe("the model fallback", () => {
+  // The rules know "other candidates", not "other applicants".
+  const UNCLEAR: Mail = {
+    id: "m-unclear",
+    from: '"Fabrikam Hiring Team" <no-reply@hire.lever.co>',
+    subject: "An update on your application",
+    body: "Thank you for your patience. We've decided to pursue other applicants for the Backend Engineer, Payments role at Fabrikam.",
+  };
+  const answer = (
+    fields: Partial<Awaited<ReturnType<EmailLlm>>["output"]>,
+  ): EmailLlm => {
+    const classify = vi.fn(async () => ({
+      output: {
+        isJobRelated: true,
+        classification: "REJECTION" as const,
+        companyName: "Fabrikam",
+        jobTitle: "Backend Engineer, Payments",
+        evidence:
+          "We've decided to pursue other applicants for the Backend Engineer, Payments role at Fabrikam.",
+        confidence: 0.93,
+        ...fields,
+      },
+      model: "claude-haiku-5-5",
+      inputTokens: 900,
+      outputTokens: 80,
+      costUsd: 0.00013,
+      latencyMs: 700,
+    }));
+    return classify;
+  };
+  const sync = (llm: EmailLlm, mailbox: Mail[] = [UNCLEAR, MAILBOX[0]!]) =>
+    syncGmail(
+      userId,
+      { fetchImpl: fakeGmail({ mailbox }).fetchImpl, now, llm },
+      testDb.db,
+    );
+  const stored = async (id: string) => {
+    const [row] = await testDb.db
+      .select()
+      .from(emails)
+      .where(and(eq(emails.userId, userId), eq(emails.gmailMessageId, id)));
+    return row!;
+  };
+
+  it("asks the model only about what the rules can't settle", async () => {
+    const llm = answer({});
+    await sync(llm);
+    expect(llm).toHaveBeenCalledTimes(1);
+    const email = await stored("m-unclear");
+    expect(email).toMatchObject({
+      classification: "REJECTION",
+      classificationMethod: "LLM",
+      processingStatus: "NEEDS_REVIEW",
+    });
+    // A rejection on the model's word alone is confirmed by the person.
+    expect(email.classificationConfidence).toBeLessThan(0.75);
+    expect(email.extractedJson).toMatchObject({
+      llm: { model: "claude-haiku-5-5", inputTokens: 900 },
+    });
+    const [application] = await testDb.db
+      .select()
+      .from(applications)
+      .where(eq(applications.userId, userId));
+    expect(application!.currentStatus).toBe("APPLIED");
+  });
+
+  it("keeps only ids when the model says it isn't about an application", async () => {
+    await sync(answer({ isJobRelated: false, classification: "UNKNOWN" }));
+    expect(await stored("m-unclear")).toMatchObject({
+      processingStatus: "IGNORED",
+      classificationMethod: "LLM",
+      subject: null,
+      snippet: null,
+    });
+  });
+
+  it("falls back to the rules when the model is unavailable", async () => {
+    const llm: EmailLlm = vi.fn(async () => {
+      throw new LlmUnavailableError("api_529");
+    });
+    const result = await sync(llm);
+    expect(result.processed).toBe(2);
+    expect(await stored("m-unclear")).toMatchObject({
+      classificationMethod: "RULES",
+      processingStatus: "UNMATCHED",
+      extractedJson: expect.objectContaining({ llm: { error: "api_529" } }),
+    });
+  });
+
+  it("stops calling the model at the daily limit", async () => {
+    await testDb.db.insert(emails).values(
+      Array.from({ length: LLM_DAILY_LIMIT }, (_, i) => ({
+        userId,
+        gmailMessageId: `earlier-${i}`,
+        gmailThreadId: `earlier-${i}`,
+        receivedAt: now,
+        processingStatus: "IGNORED" as const,
+        classificationMethod: "LLM" as const,
+      })),
+    );
+    const llm = answer({});
+    await sync(llm);
+    expect(llm).not.toHaveBeenCalled();
+    expect(await stored("m-unclear")).toMatchObject({
+      classificationMethod: "RULES",
+    });
   });
 });

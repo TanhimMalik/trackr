@@ -4,7 +4,7 @@ Trackr is an automatic job application tracker. Connect your browser and inbox o
 
 **Live demo:** [trackr-coral-gamma.vercel.app/demo](https://trackr-coral-gamma.vercel.app/demo) opens a private workspace with sample data. No sign-up needed.
 
-> **Status:** Phases 1–4 are live: the tracker, events and history, the browser extension and Gmail sync (the demo has a simulated inbox). Next is measured email classification with an LLM fallback (Phase 5). See the [delivery phases](docs/product-spec.md#17-delivery-phases).
+> **Status:** Phases 1–5 are built: the tracker, events and history, the browser extension, Gmail sync (the demo has a simulated inbox) and measured email classification with a Claude fallback. Next are automation controls (Phase 6). See the [delivery phases](docs/product-spec.md#17-delivery-phases).
 
 ## Documentation
 
@@ -95,6 +95,8 @@ Gmail is optional: without credentials, Integrations shows it as not set up. To 
    - `https://<your-deployment>/api/integrations/gmail/callback`
 5. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `TOKEN_ENCRYPTION_KEY` (`openssl rand -base64 32`) in `apps/web/.env.local` and in the deployment's environment variables.
 
+Optionally, set `ANTHROPIC_API_KEY` too (Anthropic Console → API Keys, scoped to a workspace, with a monthly spend limit). Emails the rules can't settle then go to Claude Haiku 5.5; without it, sync runs on rules alone.
+
 While the app is in testing, Google lets only the listed test users connect and ends access every 7 days; Trackr then asks to reconnect. `gmail.readonly` is a restricted scope, so opening Gmail to everyone requires Google's verification and a security assessment.
 
 ## Deploying to Vercel
@@ -118,19 +120,33 @@ The web app deploys to Vercel's free plan from this repository; no custom domain
 
 Share `https://<deployment>/demo` to open a demo workspace in one click.
 
+## Email classification accuracy
+
+Measured on one real inbox, labeled by hand: 202 messages, split by message id into a half for tuning and a held-out half for measuring. These are the held-out 103. Details and caveats in [the email pipeline doc](docs/email-pipeline.md#measuring-accuracy-phase-5).
+
+| Measure                          | Rules (first version) | Rules (now) | Rules + Claude Haiku 5.5 |
+| -------------------------------- | --------------------- | ----------- | ------------------------ |
+| Of what it reads, job email      | 41%                   | 78%         | 92%                      |
+| Job email it reads               | 100%                  | 92%         | 92%                      |
+| Classified correctly (job email) | 89.5%                 | 92.1%       | 92.1%                    |
+| Confident wrong updates          | 4                     | 2           | 2                        |
+| Model calls / cost per call      | –                     | –           | 10 of 103 / $0.0003      |
+
+Claude only sees the emails the rules can't settle, never anything else about the user, and its answers are capped: rejections and offers it finds on its own always wait for the person to confirm.
+
 ## Scripts
 
-| Command                                  | Description                                                            |
-| ---------------------------------------- | ---------------------------------------------------------------------- |
-| `pnpm dev`                               | Start the web app in development mode                                  |
-| `pnpm build`                             | Build all workspace packages                                           |
-| `pnpm lint`                              | Lint all workspace packages                                            |
-| `pnpm typecheck`                         | Type-check all workspace packages                                      |
-| `pnpm test`                              | Run all test suites                                                    |
-| `pnpm db:migrate`                        | Apply database migrations to `DATABASE_URL`                            |
-| `pnpm db:seed --email <email> [--reset]` | Add demo applications to an account (`--reset` replaces existing ones) |
-| `pnpm benchmark:export --email <email>`  | Copy an account's synced Gmail into `.benchmark/` (local, gitignored)  |
-| `pnpm benchmark:label`                   | Label the exported emails at http://127.0.0.1:4100                     |
-| `pnpm benchmark:run [--split test]`      | Score the email classifier against the labels                          |
-| `pnpm format`                            | Format the repository with Prettier                                    |
-| `pnpm check`                             | Run formatting check, lint, typecheck and tests                        |
+| Command                                    | Description                                                            |
+| ------------------------------------------ | ---------------------------------------------------------------------- |
+| `pnpm dev`                                 | Start the web app in development mode                                  |
+| `pnpm build`                               | Build all workspace packages                                           |
+| `pnpm lint`                                | Lint all workspace packages                                            |
+| `pnpm typecheck`                           | Type-check all workspace packages                                      |
+| `pnpm test`                                | Run all test suites                                                    |
+| `pnpm db:migrate`                          | Apply database migrations to `DATABASE_URL`                            |
+| `pnpm db:seed --email <email> [--reset]`   | Add demo applications to an account (`--reset` replaces existing ones) |
+| `pnpm benchmark:export --email <email>`    | Copy an account's synced Gmail into `.benchmark/` (local, gitignored)  |
+| `pnpm benchmark:label`                     | Label the exported emails at http://127.0.0.1:4100                     |
+| `pnpm benchmark:run [--classifier hybrid]` | Score the email classifier (rules, or rules + Claude) against labels   |
+| `pnpm format`                              | Format the repository with Prettier                                    |
+| `pnpm check`                               | Run formatting check, lint, typecheck and tests                        |

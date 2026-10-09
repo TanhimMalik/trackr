@@ -518,7 +518,49 @@ export const EMAIL_FIXTURES: EmailFixture[] = [
       subject: "Financial Aid Offer Letter",
       body: "Your financial aid offer letter for the coming year is ready to view. Review your offer in the student portal.",
     }),
-    expected: { relevant: true, classification: "UNKNOWN" },
+    // Commercial words with no hiring sender: not read at all.
+    expected: { relevant: false },
+  },
+  {
+    id: "indeed-match-digest",
+    email: email({
+      fromName: "Indeed",
+      fromEmail: "donotreply@match.indeed.com",
+      subject: "Junior Software Engineer @ Contoso",
+      body: "Contoso is hiring for a role that matches your profile. Apply now with your Indeed resume.",
+    }),
+    expected: { relevant: false },
+  },
+  {
+    id: "linkedin-job-alert",
+    email: email({
+      fromName: "LinkedIn Job Alerts",
+      fromEmail: "jobalerts-noreply@linkedin.com",
+      subject: "Software Engineer at Fabrikam and 12 more",
+      body: "Your job alert for software engineer in New York. Fabrikam: Software Engineer, New York, NY. Apply with your profile.",
+      hasListUnsubscribe: true,
+    }),
+    expected: { relevant: false },
+  },
+  {
+    id: "card-offers-waiting",
+    email: email({
+      fromName: "Bank",
+      fromEmail: "offers@mail.bank.example",
+      subject: "Sam: you may have offers waiting for you",
+      body: "See which credit card offers you're pre-approved for. Checking won't affect your credit score.",
+    }),
+    expected: { relevant: false },
+  },
+  {
+    id: "school-admissions-thanks",
+    email: email({
+      fromName: "Office of Admissions",
+      fromEmail: "admissions@city.example.edu",
+      subject: "Thank you for applying to City College",
+      body: "We have received your application for admission. Check your applicant portal for next steps.",
+    }),
+    expected: { relevant: false },
   },
   {
     id: "quora-digest-position",
