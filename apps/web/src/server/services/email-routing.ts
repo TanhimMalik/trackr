@@ -17,6 +17,7 @@ import { and, count, eq, isNull, max, sql } from "drizzle-orm";
 import { applicationEvents, applications } from "@/server/db/schema";
 import type { Database } from "@/server/db/types";
 import { findMatchCandidates } from "./matching";
+import { getEmailAutomation } from "./settings";
 
 /** What a classified email says, as the router needs it. */
 export type EmailSignal = {
@@ -159,6 +160,9 @@ async function candidateFacts(
  *   matching application was closed is a new application, not a reopening;
  *   a rejection dated before the match's latest progress ended an earlier one.
  * - A company-only match counts when it's the only application there.
+ *
+ * The person's automation settings apply last: with automatic updates off,
+ * nothing is applied or created without asking.
  */
 export async function routeEmail(
   tx: Database,
@@ -196,8 +200,9 @@ export async function routeEmail(
     candidates,
   );
 
+  const settings = await getEmailAutomation(userId, tx);
   const startOrAsk = (candidateId: string | null): EmailRoute =>
-    canStartApplication(signal)
+    settings.autoUpdateEnabled && canStartApplication(signal)
       ? { action: "create", match }
       : {
           action: "review",
@@ -258,12 +263,15 @@ export async function routeEmail(
     decision = "AUTOMATIC";
   }
 
-  const automation = decideAutomation({
-    classification: signal.classification,
-    confidence: signal.confidence,
-    method: signal.method,
-    match: decision,
-  });
+  const automation = decideAutomation(
+    {
+      classification: signal.classification,
+      confidence: signal.confidence,
+      method: signal.method,
+      match: decision,
+    },
+    settings,
+  );
   if (automation === "NO_UPDATE") return { action: "ignore", match };
   if (automation === "AUTO_APPLY" || automation === "APPLY_FLAGGED") {
     return { action: "apply", applicationId: best.candidateId, match };

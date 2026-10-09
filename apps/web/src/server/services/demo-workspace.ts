@@ -324,7 +324,7 @@ export async function resetDemoWorkspace(
 }
 
 // The Supabase auth schema exists in production but not in tests.
-async function hasAuthUsersTable(db: Database): Promise<boolean> {
+export async function hasAuthUsersTable(db: Database): Promise<boolean> {
   const [row] = await db
     .select({ tables: count() })
     .from(sql`information_schema.tables`)

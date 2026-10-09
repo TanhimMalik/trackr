@@ -1,0 +1,2 @@
+ALTER TABLE "user_settings" ADD COLUMN "email_auto_update" boolean DEFAULT true NOT NULL;--> statement-breakpoint
+ALTER TABLE "user_settings" ADD COLUMN "email_ask_medium_confidence" boolean DEFAULT false NOT NULL;

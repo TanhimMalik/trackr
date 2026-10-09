@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/layout/page-header";
 import { AutoTrackSetting } from "@/components/settings/auto-track-setting";
+import { DataControls } from "@/components/settings/data-controls";
+import { EmailAutomationSettings } from "@/components/settings/email-automation-settings";
 import { FollowUpSettings } from "@/components/settings/follow-up-settings";
 import { ThemeSelect } from "@/components/settings/theme-select";
 import { requireUser } from "@/server/auth/session";
 import {
   getAutoTrackSupportedSites,
+  getEmailAutomation,
   getFollowUpSettings,
 } from "@/server/services/settings";
 
@@ -13,9 +16,10 @@ export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const user = await requireUser();
-  const [followUp, autoTrack] = await Promise.all([
+  const [followUp, autoTrack, automation] = await Promise.all([
     getFollowUpSettings(user.id),
     getAutoTrackSupportedSites(user.id),
+    getEmailAutomation(user.id),
   ]);
 
   return (
@@ -58,6 +62,18 @@ export default async function SettingsPage() {
 
       <section className="rounded-xl border bg-card">
         <div className="space-y-0.5 border-b p-4">
+          <h2 className="font-semibold">Updates from email</h2>
+          <p className="text-muted-foreground">
+            What Trackr may change on its own when it reads your job email.
+            Offers and rejections found only by the language model are always
+            asked about.
+          </p>
+        </div>
+        <EmailAutomationSettings initial={automation} />
+      </section>
+
+      <section className="rounded-xl border bg-card">
+        <div className="space-y-0.5 border-b p-4">
           <h2 className="font-semibold">Browser extension</h2>
           <p className="text-muted-foreground">
             How the Trackr extension records applications.
@@ -76,6 +92,16 @@ export default async function SettingsPage() {
           </div>
           <ThemeSelect />
         </div>
+      </section>
+
+      <section className="rounded-xl border bg-card">
+        <div className="space-y-0.5 border-b p-4">
+          <h2 className="font-semibold">Your data</h2>
+          <p className="text-muted-foreground">
+            Take it with you, or delete it.
+          </p>
+        </div>
+        <DataControls canDeleteAccount={!user.isDemo} />
       </section>
     </div>
   );

@@ -2,6 +2,7 @@ import "server-only";
 import {
   DEFAULT_FOLLOW_UP_AFTER_DAYS,
   FOLLOW_UP_AFTER_DAY_OPTIONS,
+  type AutomationSettings,
 } from "@trackr/domain";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -94,4 +95,41 @@ export async function setAutoTrackSupportedSites(
       set: { autoTrackSupportedSites: value },
     });
   return value;
+}
+
+export const emailAutomationSchema = z.object({
+  autoUpdateEnabled: z.boolean(),
+  askBeforeMediumConfidence: z.boolean(),
+});
+
+/** How much Trackr may change on its own from email; on by default. */
+export async function getEmailAutomation(
+  userId: string,
+  db: Database = getDb(),
+): Promise<AutomationSettings> {
+  const [row] = await db
+    .select({
+      autoUpdateEnabled: userSettings.emailAutoUpdate,
+      askBeforeMediumConfidence: userSettings.emailAskMediumConfidence,
+    })
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId));
+  return row ?? { autoUpdateEnabled: true, askBeforeMediumConfidence: false };
+}
+
+export async function setEmailAutomation(
+  userId: string,
+  input: unknown,
+  db: Database = getDb(),
+): Promise<AutomationSettings> {
+  const settings = emailAutomationSchema.parse(input);
+  const values = {
+    emailAutoUpdate: settings.autoUpdateEnabled,
+    emailAskMediumConfidence: settings.askBeforeMediumConfidence,
+  };
+  await db
+    .insert(userSettings)
+    .values({ userId, ...values })
+    .onConflictDoUpdate({ target: userSettings.userId, set: values });
+  return settings;
 }

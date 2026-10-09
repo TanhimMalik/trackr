@@ -54,7 +54,13 @@ const FEATURES: {
 export default async function LandingPage({ searchParams }: PageProps<"/">) {
   // The preview's dates are relative to today.
   await connection();
-  const { demo } = await searchParams;
+  const { demo, account } = await searchParams;
+  const notice =
+    demo === "ended"
+      ? "Your demo workspace has ended. Start a new one any time."
+      : account === "deleted"
+        ? "Your account and everything in it were deleted."
+        : null;
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -75,12 +81,12 @@ export default async function LandingPage({ searchParams }: PageProps<"/">) {
 
       <main className="flex-1">
         <section className="mx-auto max-w-3xl px-4 pt-14 pb-12 text-center md:pt-20">
-          {demo === "ended" && (
+          {notice && (
             <p
               role="status"
               className="mx-auto mb-8 w-fit rounded-lg border bg-muted/60 px-3 py-1.5 text-[0.8125rem] text-muted-foreground"
             >
-              Your demo workspace has ended. Start a new one any time.
+              {notice}
             </p>
           )}
           <h1 className="text-3xl leading-tight font-semibold tracking-tight text-balance md:text-4xl">

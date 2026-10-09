@@ -97,7 +97,7 @@ Services are functional modules, not classes. Each owns one responsibility.
 | `applications`        | Create, edit, delete, list with filters, detail and board read models. Edits fields, never status.                                      | 1     |
 | `events`              | `processApplicationEvent`, `revertEvent`. The only writer of `current_status` and `last_activity_at`.                                   | 1–2   |
 | `demo-workspace`      | Seeds a realistic, current-dated workspace for demo sessions and development (two bulk inserts, same derivation rules as the processor) | 1     |
-| `analytics`           | Overview metrics, funnel, source and resume analytics. SQL aggregates plus pure domain math.                                            | 1, 8  |
+| `analytics`           | Overview metrics, funnel and trends. SQL aggregates plus pure domain math.                                                              | 1     |
 | `notifications`       | Create, list, mark read, and generate follow-up reminders idempotently.                                                                 | 2     |
 | `activity`            | Cross-application activity feed and review-item listing.                                                                                | 2, 4  |
 | `extension-auth`      | One-time connect codes, token issue, rotation and revocation.                                                                           | 3     |
@@ -109,7 +109,7 @@ Services are functional modules, not classes. Each owns one responsibility.
 | `email-processing`    | One message through relevance, classification, extraction and routing; shared by sync and the demo inbox.                               | 4–5   |
 | `email-routing`       | Decides whether an email updates, starts or asks about an application (`email-rematch` re-asks after each sync).                        | 4     |
 | `demo-inbox`          | Delivers the demo's sample emails through `email-processing`.                                                                           | 4     |
-| `settings`, `privacy` | User preferences, data export, deletion.                                                                                                | 2, 7  |
+| `settings`, `privacy` | User preferences, data export, deletion.                                                                                                | 2, 6  |
 
 ## Event-based tracking
 
@@ -182,7 +182,7 @@ Because derivation replays events in the order they happened, an "application re
 
 `followUpReminders` in the domain package decides which applications deserve a nudge: an applied application with no activity for the user's interval (14 days by default), or an interview with no news five days after it took place. Reminders that came due more than 30 days ago are skipped. Each becomes a `FOLLOW_UP_DUE` notification whose dedupe key names the quiet stretch, so it is raised once, and any new activity starts a new stretch.
 
-Until scheduled jobs arrive (Phase 8), the app layout calls `refreshFollowUpReminders`, which checks at most once an hour per user. It claims the check with a conditional upsert of `user_settings.reminders_checked_at`, so simultaneous page loads don't repeat the work. Saving the settings clears that timestamp, so a new interval takes effect on the next page load.
+Until scheduled jobs arrive (Phase 7), the app layout calls `refreshFollowUpReminders`, which checks at most once an hour per user. It claims the check with a conditional upsert of `user_settings.reminders_checked_at`, so simultaneous page loads don't repeat the work. Saving the settings clears that timestamp, so a new interval takes effect on the next page load.
 
 ### Undo
 
@@ -347,7 +347,7 @@ Fields that are not allowlisted are dropped, so new code cannot leak email conte
 | Integration            | Vitest + PGlite (`apps/web`) | Services against real Postgres with real migrations: create application, extension event creates application, confirmation matches, interview and rejection update status, duplicate events are no-ops, users are isolated |
 | Extension              | Vitest + DOM fixtures        | Platform detectors against saved Greenhouse, Lever and Ashby pages                                                                                                                                                         |
 | Classification quality | Labeled email fixtures       | Precision and recall of the relevance filter, classifier and matcher over time                                                                                                                                             |
-| End to end             | Playwright (Phase 8)         | The MVP acceptance flow                                                                                                                                                                                                    |
+| End to end             | Playwright (Phase 7)         | The MVP acceptance flow                                                                                                                                                                                                    |
 
 PGlite runs Postgres in-process via WebAssembly, so integration tests need no Docker or external database.
 
@@ -355,7 +355,7 @@ PGlite runs Postgres in-process via WebAssembly, so integration tests need no Do
 
 - **Local:** Next.js dev server against a hosted Supabase development project. Tests use PGlite.
 - **Production:** Vercel (free plan, `*.vercel.app` address) and Supabase, with the database reached through Supabase's transaction pooler. Migrations are generated with drizzle-kit, reviewed as SQL, and applied before deploying code that needs them. Only the landing page is open to crawlers (`robots.txt`), and shared links get a generated preview image. Setup steps are in the README.
-- **Scheduled work (Phase 8):** Vercel Cron for periodic Gmail sync and reminder generation. Until then, sync is user-triggered.
+- **Scheduled work (Phase 7):** Vercel Cron for periodic Gmail sync and reminder generation. Until then, sync is user-triggered.
 
 ## Key decisions
 

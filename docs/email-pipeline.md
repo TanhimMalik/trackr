@@ -48,7 +48,7 @@ Each stage is a separate, individually testable function. Stages 2, 4, 6 (rule-b
 
 ## Sync
 
-Sync is triggered by **Sync now** and, from Phase 8, by a scheduled job. Each invocation processes a bounded batch so it fits within serverless execution limits.
+Sync is triggered by **Sync now** and, from Phase 7, by a scheduled job. Each invocation processes a bounded batch so it fits within serverless execution limits.
 
 1. **First sync (backfill).** `users.messages.list` over the last 90 days, with a coarse Gmail search query that pre-selects likely candidates by sender domain and subject keywords and excludes spam, trash and chats. The query is only a cost optimization; the relevance filter makes the actual decision.
 2. **Incremental sync.** `users.history.list` from the stored `historyId` cursor, limited to `messageAdded`. If the cursor has expired, sync falls back to a time-windowed list since `last_synced_at`.
@@ -173,6 +173,7 @@ Routing (`services/email-routing.ts`, shared by sync and the re-match pass) adds
 - **A company-only match counts** when it's the only application at that company. Otherwise it's asked about.
 - **Confirmations, rejections and assessments** for jobs Trackr doesn't know start an application, unless they come from a school (`.edu`). The role is "Role not specified" until an email names it; matching treats that placeholder as unknown.
 - **After each sync**, emails waiting for review are routed again, oldest first, since earlier messages may have created the application they belong to.
+- **The person's settings come last** (Settings → Updates from email). With **Update applications automatically** off, nothing is applied or created without asking; with **Ask before less certain updates** on, only updates at or above the automatic threshold (0.95) are applied on their own.
 
 Each review item stores the event it would record, so the review card can say exactly what **Apply update** does. **Create application** starts one from the email's company and role (editable first). **Dismiss** marks the email `DISMISSED`. A personal sender is added as a recruiter contact when an update is applied.
 | `NO_UPDATE` | Email marked `IGNORED`. |

@@ -13,7 +13,7 @@ import { users } from "./users";
 
 /**
  * Preferences, one row per user, created the first time one is saved or
- * needed. Automation thresholds join later, with the email pipeline.
+ * needed.
  */
 export const userSettings = pgTable(
   "user_settings",
@@ -31,6 +31,12 @@ export const userSettings = pgTable(
     autoTrackSupportedSites: boolean("auto_track_supported_sites")
       .notNull()
       .default(true),
+    // Off: every update found in email waits for the person to confirm it.
+    emailAutoUpdate: boolean("email_auto_update").notNull().default(true),
+    // On: only near-certain updates are applied; the rest are asked about.
+    emailAskMediumConfidence: boolean("email_ask_medium_confidence")
+      .notNull()
+      .default(false),
     // Reminders are generated on visits, at most this often; see notifications.
     remindersCheckedAt: timestamp("reminders_checked_at", {
       withTimezone: true,
