@@ -33,6 +33,7 @@ import {
   type EmailReview,
 } from "@/server/services/review";
 import { saveGmailConnection } from "@/server/services/gmail-connection";
+import { syncAllGmail } from "@/server/services/scheduled-sync";
 import { rematchEmailReviews } from "@/server/services/email-rematch";
 import { routeEmail, type EmailSignal } from "@/server/services/email-routing";
 import {
@@ -886,5 +887,38 @@ describe("the model fallback", () => {
     expect(await stored("m-unclear")).toMatchObject({
       classificationMethod: "RULES",
     });
+  });
+});
+
+describe("syncAllGmail", () => {
+  it("reads every connected account until it's caught up", async () => {
+    const result = await syncAllGmail(
+      { fetchImpl: fakeGmail().fetchImpl, llm: null },
+      testDb.db,
+    );
+    // Other tests' users are connected too; this one is among them.
+    expect(result.failed).toBe(0);
+    expect(result.synced + result.skipped).toBe(result.accounts);
+    const [integration] = await testDb.db
+      .select()
+      .from(integrations)
+      .where(eq(integrations.userId, userId));
+    expect(integration!.lastSyncedAt).not.toBeNull();
+  });
+
+  it("stops when its time is up and leaves the rest for the next run", async () => {
+    let clock = 0;
+    const result = await syncAllGmail(
+      {
+        fetchImpl: fakeGmail().fetchImpl,
+        llm: null,
+        deadlineMs: 10_000,
+        // Each look at the clock costs six seconds.
+        now: () => (clock += 6_000),
+      },
+      testDb.db,
+    );
+    expect(result.processed).toBe(0);
+    expect(result.synced).toBe(0);
   });
 });

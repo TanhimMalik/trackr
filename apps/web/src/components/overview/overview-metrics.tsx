@@ -67,7 +67,12 @@ export async function OverviewMetrics({
 
 export function OverviewMetricsSkeleton() {
   return (
-    <div className={grid} aria-busy="true" aria-label="Loading summary">
+    <div
+      className={grid}
+      role="status"
+      aria-busy="true"
+      aria-label="Loading summary"
+    >
       {Array.from({ length: 4 }, (_, index) => (
         <MetricCardSkeleton key={index} />
       ))}

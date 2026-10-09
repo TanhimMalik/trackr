@@ -3,7 +3,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 /** Placeholder while an application's details load. */
 export function ApplicationDetailSkeleton() {
   return (
-    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Loading">
+    <div
+      className="flex flex-col gap-6"
+      role="status"
+      aria-busy="true"
+      aria-label="Loading"
+    >
       <div className="flex items-start gap-3">
         <Skeleton className="size-11" />
         <div className="flex-1 space-y-2">

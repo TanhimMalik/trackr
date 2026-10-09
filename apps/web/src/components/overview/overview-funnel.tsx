@@ -15,7 +15,11 @@ export async function OverviewFunnel({
 export function OverviewFunnelSkeleton() {
   return (
     <SectionCard id="application-funnel" title="Application funnel">
-      <div className="grid grid-cols-4 gap-3 pt-1" aria-busy="true">
+      <div
+        className="grid grid-cols-4 gap-3 pt-1"
+        role="status"
+        aria-busy="true"
+      >
         {[100, 60, 35, 12].map((height) => (
           <div key={height} className="flex flex-col items-center gap-2">
             <Skeleton className="h-4 w-6" />

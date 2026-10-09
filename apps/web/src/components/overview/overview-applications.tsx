@@ -62,6 +62,7 @@ export function OverviewApplicationsSkeleton() {
   return (
     <div
       className="-mx-4 flex gap-3 overflow-hidden px-4 pb-2 md:-mx-6 md:px-6"
+      role="status"
       aria-busy="true"
       aria-label="Loading applications"
     >

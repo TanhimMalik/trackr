@@ -26,6 +26,7 @@ import {
   type BoardColumn,
   type BoardColumnId,
 } from "@trackr/domain";
+import { GripVertical } from "lucide-react";
 import {
   useEffect,
   useId,
@@ -45,10 +46,21 @@ import { withUndo } from "./undo-event";
 const columnLabel = (id: unknown) =>
   BOARD_COLUMNS.find((column) => column.id === id)?.label ?? "a column";
 
-// Pointer first for mouse and touch; geometry for keyboard moves.
+// Pointer first for mouse and touch. For keyboard moves, the column the
+// card is horizontally inside; columns are full height, so the nearest
+// centre can belong to a neighbour.
 const collisionDetection: CollisionDetection = (args) => {
   const hits = pointerWithin(args);
-  return hits.length > 0 ? hits : closestCenter(args);
+  if (hits.length > 0) return hits;
+  const { collisionRect, droppableContainers, droppableRects } = args;
+  const centerX = collisionRect.left + collisionRect.width / 2;
+  const inside = droppableContainers.filter((container) => {
+    const rect = droppableRects.get(container.id);
+    return rect && centerX >= rect.left && centerX <= rect.right;
+  });
+  return inside.length > 0
+    ? inside.map((container) => ({ id: container.id }))
+    : closestCenter(args);
 };
 
 /** Left and right arrows jump to the neighbouring column. */
@@ -87,22 +99,34 @@ function DraggableCard({
   column: BoardColumn;
   hidden: boolean;
 }) {
-  const { attributes, listeners, setNodeRef } = useDraggable({
-    id: item.id,
-    attributes: { roleDescription: "draggable application" },
-  });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef } =
+    useDraggable({
+      id: item.id,
+      attributes: { roleDescription: "draggable application" },
+    });
+  // Mouse and touch drag the whole card; the keyboard drags with a handle of
+  // its own, so the card's link and menu aren't nested inside a control.
+  const { onKeyDown, ...pointerListeners } = listeners ?? {};
 
   return (
     <div
       ref={setNodeRef}
-      {...attributes}
-      {...listeners}
-      aria-label={`${item.companyName}, ${item.jobTitle}, ${APPLICATION_STATUS_LABELS[item.status]}`}
+      {...pointerListeners}
       className={cn(
-        "cursor-grab rounded-lg outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50 active:cursor-grabbing",
+        "relative cursor-grab rounded-lg select-none active:cursor-grabbing",
         hidden && "opacity-40",
       )}
     >
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        {...attributes}
+        onKeyDown={onKeyDown as React.KeyboardEventHandler | undefined}
+        aria-label={`Move ${item.companyName}, ${item.jobTitle}, ${APPLICATION_STATUS_LABELS[item.status]}`}
+        className="absolute right-2 bottom-2 z-10 flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none hover:bg-accent focus-visible:opacity-100 focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        <GripVertical className="size-4" aria-hidden="true" />
+      </button>
       <ApplicationCard
         item={item}
         href={`/applications/${item.id}`}

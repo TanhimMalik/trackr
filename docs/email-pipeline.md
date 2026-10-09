@@ -48,7 +48,7 @@ Each stage is a separate, individually testable function. Stages 2, 4, 6 (rule-b
 
 ## Sync
 
-Sync is triggered by **Sync now** and, from Phase 7, by a scheduled job. Each invocation processes a bounded batch so it fits within serverless execution limits.
+Sync is triggered by **Sync now** and once a day by Vercel Cron (`/api/cron/gmail-sync`, protected by `CRON_SECRET`, in `services/scheduled-sync.ts`). Each invocation processes a bounded batch so it fits within serverless execution limits.
 
 1. **First sync (backfill).** `users.messages.list` over the last 90 days, with a coarse Gmail search query that pre-selects likely candidates by sender domain and subject keywords and excludes spam, trash and chats. The query is only a cost optimization; the relevance filter makes the actual decision.
 2. **Incremental sync.** `users.history.list` from the stored `historyId` cursor, limited to `messageAdded`. If the cursor has expired, sync falls back to a time-windowed list since `last_synced_at`.

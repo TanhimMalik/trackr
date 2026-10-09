@@ -124,7 +124,7 @@ function NotificationList({
 }) {
   if (!items) {
     return (
-      <div className="space-y-3 p-4" aria-busy="true">
+      <div className="space-y-3 p-4" role="status" aria-busy="true">
         {[0, 1, 2].map((row) => (
           <div key={row} className="flex items-center gap-3">
             <Skeleton className="size-8 rounded-lg" />

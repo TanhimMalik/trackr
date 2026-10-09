@@ -46,7 +46,7 @@ export function SectionCardSkeleton({
 }) {
   return (
     <SectionCard id={id} title={title}>
-      <div className="flex flex-col gap-3 py-1" aria-busy="true">
+      <div className="flex flex-col gap-3 py-1" role="status" aria-busy="true">
         {Array.from({ length: rows }, (_, index) => (
           <div key={index} className="flex items-center gap-3">
             <Skeleton className="size-7 shrink-0" />

@@ -95,6 +95,8 @@ Gmail is optional: without credentials, Integrations shows it as not set up. To 
    - `https://<your-deployment>/api/integrations/gmail/callback`
 5. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `TOKEN_ENCRYPTION_KEY` (`openssl rand -base64 32`) in `apps/web/.env.local` and in the deployment's environment variables.
 
+To sync every day without pressing **Sync now**, set `CRON_SECRET` (`openssl rand -hex 32`) in the deployment's environment variables. `apps/web/vercel.json` schedules `/api/cron/gmail-sync` daily at 12:00 UTC (the free plan allows one run a day); it reads new mail for every connected account, least recently synced first, within the function's time limit.
+
 Optionally, set `ANTHROPIC_API_KEY` too (Anthropic Console → API Keys, scoped to a workspace, with a monthly spend limit). Emails the rules can't settle then go to Claude Haiku 5.5; without it, sync runs on rules alone.
 
 While the app is in testing, Google lets only the listed test users connect and ends access every 7 days; Trackr then asks to reconnect. `gmail.readonly` is a restricted scope, so opening Gmail to everyone requires Google's verification and a security assessment.
@@ -136,17 +138,18 @@ Claude only sees the emails the rules can't settle, never anything else about th
 
 ## Scripts
 
-| Command                                    | Description                                                            |
-| ------------------------------------------ | ---------------------------------------------------------------------- |
-| `pnpm dev`                                 | Start the web app in development mode                                  |
-| `pnpm build`                               | Build all workspace packages                                           |
-| `pnpm lint`                                | Lint all workspace packages                                            |
-| `pnpm typecheck`                           | Type-check all workspace packages                                      |
-| `pnpm test`                                | Run all test suites                                                    |
-| `pnpm db:migrate`                          | Apply database migrations to `DATABASE_URL`                            |
-| `pnpm db:seed --email <email> [--reset]`   | Add demo applications to an account (`--reset` replaces existing ones) |
-| `pnpm benchmark:export --email <email>`    | Copy an account's synced Gmail into `.benchmark/` (local, gitignored)  |
-| `pnpm benchmark:label`                     | Label the exported emails at http://127.0.0.1:4100                     |
-| `pnpm benchmark:run [--classifier hybrid]` | Score the email classifier (rules, or rules + Claude) against labels   |
-| `pnpm format`                              | Format the repository with Prettier                                    |
-| `pnpm check`                               | Run formatting check, lint, typecheck and tests                        |
+| Command                                    | Description                                                                   |
+| ------------------------------------------ | ----------------------------------------------------------------------------- |
+| `pnpm dev`                                 | Start the web app in development mode                                         |
+| `pnpm build`                               | Build all workspace packages                                                  |
+| `pnpm lint`                                | Lint all workspace packages                                                   |
+| `pnpm typecheck`                           | Type-check all workspace packages                                             |
+| `pnpm test`                                | Run all test suites                                                           |
+| `pnpm db:migrate`                          | Apply database migrations to `DATABASE_URL`                                   |
+| `pnpm db:seed --email <email> [--reset]`   | Add demo applications to an account (`--reset` replaces existing ones)        |
+| `pnpm benchmark:export --email <email>`    | Copy an account's synced Gmail into `.benchmark/` (local, gitignored)         |
+| `pnpm benchmark:label`                     | Label the exported emails at http://127.0.0.1:4100                            |
+| `pnpm benchmark:run [--classifier hybrid]` | Score the email classifier (rules, or rules + Claude) against labels          |
+| `pnpm format`                              | Format the repository with Prettier                                           |
+| `pnpm check`                               | Run formatting check, lint, typecheck and tests                               |
+| `pnpm --filter @trackr/web test:e2e`       | Playwright tests of the demo in local Chrome (build first; uses `.env.local`) |
