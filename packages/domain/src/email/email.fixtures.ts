@@ -36,6 +36,21 @@ const email = (
 export const EMAIL_FIXTURES: EmailFixture[] = [
   // Application confirmations
   {
+    // Says what happens if it doesn't work out; still only a confirmation.
+    id: "confirmation-with-if-not-selected",
+    email: email({
+      fromName: "Wingtip Careers",
+      fromEmail: "careers@wingtip.example",
+      subject: "Thanks for applying to Wingtip",
+      body: "Hi Sam,\n\nThanks for applying to the Software Engineer role at Wingtip. We've received your application and our team will review it.\n\nIf you are not selected for this position, keep an eye on our jobs page as we're growing and adding openings.",
+    }),
+    expected: {
+      relevant: true,
+      classification: "APPLICATION_CONFIRMATION",
+      companyName: "Wingtip",
+    },
+  },
+  {
     id: "greenhouse-confirmation",
     email: email({
       fromName: "Northwind Labs Hiring Team",

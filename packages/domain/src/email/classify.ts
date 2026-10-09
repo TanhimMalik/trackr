@@ -42,6 +42,9 @@ const RULES: Rule[] = [
       /\bnot (been )?selected\b/,
       /\bunfortunately\b.*\b(application|candidacy|position|role|other candidates)\b/,
     ],
+    // Confirmations say what happens if it doesn't work out; that's not news.
+    exclude:
+      /^(if|should|in the event|unless)\b|\bif (you are|you're|you aren't) not\b/,
   },
   {
     classification: "WITHDRAWAL",

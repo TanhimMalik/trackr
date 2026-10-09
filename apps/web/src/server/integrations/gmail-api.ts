@@ -5,6 +5,10 @@ import type { GmailMessage } from "./gmail-message";
 const API = "https://gmail.googleapis.com/gmail/v1/users/me";
 const RETRIES = 3;
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+const RATE_LIMIT_REASONS = new Set([
+  "rateLimitExceeded",
+  "userRateLimitExceeded",
+]);
 
 /** The Gmail API isn't enabled for the Google Cloud project behind this deployment. */
 export class GmailApiDisabledError extends Error {
@@ -32,8 +36,13 @@ export class GmailHistoryExpiredError extends Error {
 
 /** Rate limits, outages and timeouts: try again later. */
 export class GmailTemporaryError extends Error {
-  constructor(readonly status: number) {
-    super(`Gmail is temporarily unavailable (${status})`);
+  constructor(
+    readonly status: number,
+    readonly reason?: string,
+  ) {
+    super(
+      `Gmail is temporarily unavailable (${status}${reason ? ` ${reason}` : ""})`,
+    );
     this.name = "GmailTemporaryError";
   }
 }
@@ -62,13 +71,23 @@ export function gmailClient(
       for (const item of [value].flat())
         if (item !== undefined) url.searchParams.append(key, item);
     }
+    const reasonOf = async (response: Response) => {
+      const body = (await response.json().catch(() => ({}))) as {
+        error?: { errors?: { reason?: string }[] };
+      };
+      return body.error?.errors?.[0]?.reason;
+    };
     let response = await send(url);
+    let reason: string | undefined;
     // Gmail allows a limited number of requests per second; wait and retry.
-    for (
-      let attempt = 1;
-      attempt <= RETRIES && RETRYABLE.has(response.status);
-      attempt++
-    ) {
+    // It reports going over as 429, or as 403 with a rate-limit reason.
+    for (let attempt = 1; ; attempt++) {
+      if (response.ok) return (await response.json()) as T;
+      reason = await reasonOf(response);
+      const limited =
+        RETRYABLE.has(response.status) ||
+        (response.status === 403 && RATE_LIMIT_REASONS.has(reason ?? ""));
+      if (!limited || attempt > RETRIES) break;
       const retryAfter = Number(response.headers.get("retry-after"));
       await sleep(
         Number.isFinite(retryAfter) && retryAfter > 0
@@ -77,18 +96,13 @@ export function gmailClient(
       );
       response = await send(url);
     }
-    if (response.ok) return (await response.json()) as T;
-    const body = (await response.json().catch(() => ({}))) as {
-      error?: { errors?: { reason?: string }[] };
-    };
-    const reason = body.error?.errors?.[0]?.reason;
     if (response.status === 401) throw new GmailUnauthorizedError();
     if (response.status === 403 && reason === "accessNotConfigured") {
       throw new GmailApiDisabledError();
     }
     if (response.status === 404 && path === "/history")
       throw new GmailHistoryExpiredError();
-    throw new GmailTemporaryError(response.status);
+    throw new GmailTemporaryError(response.status, reason);
   }
 
   return {

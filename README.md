@@ -129,5 +129,8 @@ Share `https://<deployment>/demo` to open a demo workspace in one click.
 | `pnpm test`                              | Run all test suites                                                    |
 | `pnpm db:migrate`                        | Apply database migrations to `DATABASE_URL`                            |
 | `pnpm db:seed --email <email> [--reset]` | Add demo applications to an account (`--reset` replaces existing ones) |
+| `pnpm benchmark:export --email <email>`  | Copy an account's synced Gmail into `.benchmark/` (local, gitignored)  |
+| `pnpm benchmark:label`                   | Label the exported emails at http://127.0.0.1:4100                     |
+| `pnpm benchmark:run [--split test]`      | Score the email classifier against the labels                          |
 | `pnpm format`                            | Format the repository with Prettier                                    |
 | `pnpm check`                             | Run formatting check, lint, typecheck and tests                        |

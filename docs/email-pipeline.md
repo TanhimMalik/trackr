@@ -196,11 +196,35 @@ Classifications map to event types in one function:
 
 Rules tuned against a corpus written alongside them can't prove anything; the first real inbox showed that. Phase 5 measures the pipeline on real email before and after adding the LLM fallback.
 
-**M30: labeling and the baseline.**
+**M30: labeling and the baseline.** Three local scripts, run from the repository root:
 
-- A local-only labeling tool lists the user's job-related messages with Trackr's current reading (relevance, classification, company, role) and lets the person confirm or correct each field.
-- Labels and message content stay on the machine, in a gitignored directory. Real email is never committed; the repository keeps only the fictional corpus and published numbers.
-- A benchmark script replays the labeled set through the pipeline and reports, per field: exact-match accuracy, precision and recall per classification, and how many messages fell below the automatic threshold. The rules alone are the baseline.
+1. `pnpm benchmark:export --email <account>` re-reads the account's synced Gmail into `.benchmark/emails.jsonl`: every message sync kept (matched, in review, or job-related but unclear) and a fixed sample of the ones it ignored (150 by default), so job email the filter dropped is measured too. It stores what the classifier sees (headers, labels, cleaned body up to 4,000 characters, link targets, whether the thread or sender was already known), prints counts only, pauses when Gmail rate-limits it, and only adds messages not already exported.
+2. `pnpm benchmark:label` serves a labeling page at `http://127.0.0.1:4100`, one email at a time and keyboard-driven: not job-related, one of the classifications, or job-related with nothing to record; plus the company and role. The classification starts blank so the rules' answer can't sway the label; company and role start from what the rules extracted and are marked as suggestions. It only answers requests from its own page.
+3. `pnpm benchmark:run [--split test|dev|all] [--errors]` scores the rules against the labels and prints a Markdown report: relevance precision and recall, classification accuracy and macro F1 over job email, precision and recall per classification, confident wrong updates (wrong answers at or above the 0.75 threshold that applies them), job email left unclear (what a fallback could take), and company and role extraction. `--errors` lists mistakes by message id, sender domain and classification only. Results are saved in `.benchmark/results/`.
+
+Each message lands in `dev` or `test` by a hash of its id. Rules and prompts are tuned on `dev`; the published numbers come from `test`. The rules were already tuned on this same inbox during M28, so the rules' baseline is, if anything, flattering.
+
+`.benchmark/` holds real email, so it is gitignored and readable only by its owner; delete it with `rm -rf .benchmark`. The repository keeps only the fictional corpus and the published numbers. The scoring code is pure (`packages/domain/src/email/benchmark.ts`) and takes any classifier's predictions, including cost and latency, so M31 plugs in beside the rules.
+
+**Baseline (2026-10-09).** One real inbox: 365 messages exported, 202 labeled by hand (122 not job-related, 59 confirmations, 14 rejections, 2 assessments, 1 recruiter message, 4 job-related with nothing to record). Rules alone, on the 103-message `test` half:
+
+| Measure                             | Rules (M28) | Rules (M30) |
+| ----------------------------------- | ----------- | ----------- |
+| Relevance recall (job email kept)   | 100%        | 100%        |
+| Relevance precision                 | 41.3%       | 41.3%       |
+| Classification accuracy (job email) | 89.5%       | 92.1%       |
+| Classification macro F1             | 80.8%       | 82.9%       |
+| Confident wrong updates             | 4           | 3           |
+| Rejection recall                    | 50%         | 50%         |
+| Confirmation F1                     | 96.4%       | 98.2%       |
+
+What it says:
+
+- **The filter keeps every job email, and too much else.** Fewer than half the messages it passes on are job email; the rest are job-board recommendations and alerts (Indeed, LinkedIn, Glassdoor, hackajob and others). The classifier then records nothing for them, so no application changes, but their bodies are read when they needn't be.
+- **Confirmations are reliable; rejections are the weak spot.** Half the rejections on the test half were missed. These are unclear email a fallback can take.
+- **One rule bug, found on `dev`:** a confirmation's "if you are not selected for this position…" was read as a rejection at 0.97, which would have closed a live application. Rejection phrases now skip conditional sentences (M30 column), with a fictional regression case in the corpus.
+
+Limits: one person's inbox, with no interviews or offers in it, so those classes rest on the fictional corpus alone. The rules were tuned on this inbox during M28. Company and role start from the rules' extraction in the labeling page, so the 100% extraction scores mean the person found nothing to correct, not an independent check.
 
 **M31: the LLM fallback.**
 
@@ -230,4 +254,4 @@ Subjects, snippets, bodies, addresses and tokens are never logged.
 - **Fixture corpus.** Fictional messages written to match real patterns, in `packages/domain/src/email/email.fixtures.ts`, each labeled with expected relevance, classification and extracted fields.
 - **Unit tests.** Relevance scoring, every rule (including the ambiguous cases above), extraction patterns, classification-to-event mapping and automation decisions.
 - **Integration tests (PGlite).** A confirmation email matches an extension-created application, an interview email updates the status, a rejection updates the status, a late confirmation does not regress Interview to Applied, and re-syncing creates no duplicates (`tests/integration/gmail-sync.test.ts`). Each simulated demo email has the outcome it promises (`tests/integration/demo-inbox.test.ts`).
-- **Quality report.** `pnpm --filter @trackr/domain email:report` prints relevance accuracy and precision and recall per classification over the corpus, so changes to rules or prompts can be measured. The corpus has 53 messages written to match real ATS, recruiter and job-board mail, with fictional companies and people. It was written alongside the rules, so it is a regression baseline rather than an accuracy estimate; real messages that fool the rules should be added to it.
+- **Quality report.** `pnpm --filter @trackr/domain email:report` prints the benchmark report over the corpus, so changes to rules or prompts can be measured. The corpus has 51 messages written to match real ATS, recruiter and job-board mail, with fictional companies and people. It was written alongside the rules, so it is a regression baseline rather than an accuracy estimate; real messages that fool the rules should be added to it.

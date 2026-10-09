@@ -108,7 +108,12 @@ function fakeGmail({
   disabled = false,
   mailbox = MAILBOX,
   rateLimitOnce = false,
-}: { disabled?: boolean; mailbox?: Mail[]; rateLimitOnce?: boolean } = {}) {
+}: {
+  disabled?: boolean;
+  mailbox?: Mail[];
+  /** Gmail signals rate limits as 429, or as 403 with a reason. */
+  rateLimitOnce?: false | 429 | 403;
+} = {}) {
   let limited = !rateLimitOnce;
   const fullFetches: string[] = [];
   const fetchImpl = (async (input: string | URL) => {
@@ -123,10 +128,14 @@ function fakeGmail({
     }
     if (!limited) {
       limited = true;
-      return new Response("{}", {
-        status: 429,
-        headers: { "retry-after": "0" },
-      });
+      return new Response(
+        rateLimitOnce === 403
+          ? JSON.stringify({
+              error: { errors: [{ reason: "userRateLimitExceeded" }] },
+            })
+          : "{}",
+        { status: rateLimitOnce || 429, headers: { "retry-after": "0" } },
+      );
     }
     const path = url.pathname.replace("/gmail/v1/users/me", "");
     if (path === "/profile") return json({ historyId: "1000" });
@@ -493,14 +502,17 @@ describe("what an unknown job's email does", () => {
     expect(reviews.map((item) => item.kind)).toEqual(["EMAIL_UNMATCHED"]);
   });
 
-  it("retries when Gmail rate-limits a request", async () => {
-    const result = await syncGmail(
-      userId,
-      { fetchImpl: fakeGmail({ rateLimitOnce: true }).fetchImpl, now },
-      testDb.db,
-    );
-    expect(result.processed).toBe(5);
-  });
+  it.each([429, 403] as const)(
+    "retries when Gmail rate-limits a request (%i)",
+    async (status) => {
+      const result = await syncGmail(
+        userId,
+        { fetchImpl: fakeGmail({ rateLimitOnce: status }).fetchImpl, now },
+        testDb.db,
+      );
+      expect(result.processed).toBe(5);
+    },
+  );
 });
 
 describe("rematchEmailReviews", () => {

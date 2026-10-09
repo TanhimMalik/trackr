@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Trackr · Label emails</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #fafafa;
+        --card: #fff;
+        --border: #e4e4e7;
+        --muted: #71717a;
+        --text: #18181b;
+        --accent: #2563eb;
+        --accent-soft: #dbeafe;
+        --done: #16a34a;
+        font:
+          14px/1.5 system-ui,
+          -apple-system,
+          sans-serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #09090b;
+          --card: #18181b;
+          --border: #27272a;
+          --muted: #a1a1aa;
+          --text: #fafafa;
+          --accent: #60a5fa;
+          --accent-soft: #1e3a5f;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        height: 100vh;
+      }
+      aside {
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      aside header {
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+      }
+      .progress {
+        height: 4px;
+        background: var(--border);
+        border-radius: 2px;
+        margin-top: 8px;
+      }
+      .progress div {
+        height: 100%;
+        background: var(--done);
+        border-radius: 2px;
+      }
+      select {
+        width: 100%;
+        margin-top: 8px;
+      }
+      ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        overflow-y: auto;
+      }
+      li button {
+        all: unset;
+        display: block;
+        width: 100%;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border);
+        cursor: pointer;
+        box-sizing: border-box;
+      }
+      li button[aria-current="true"] {
+        background: var(--accent-soft);
+      }
+      li .line {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .small {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .tag {
+        display: inline-block;
+        font-size: 11px;
+        padding: 0 6px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--muted);
+      }
+      .tag.done {
+        color: var(--done);
+        border-color: var(--done);
+      }
+      main {
+        overflow-y: auto;
+        padding: 16px 24px 48px;
+        min-width: 0;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+      h1 {
+        font-size: 16px;
+        margin: 0 0 4px;
+      }
+      pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        font: inherit;
+        margin: 12px 0 0;
+        max-height: 45vh;
+        overflow-y: auto;
+      }
+      .choices {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 6px;
+      }
+      .choices label {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .choices label:has(input:checked) {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+      }
+      kbd {
+        font:
+          11px ui-monospace,
+          monospace;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 0 4px;
+        color: var(--muted);
+      }
+      .fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .fields label {
+        display: block;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      input[type="text"] {
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+      }
+      input.suggested {
+        border-style: dashed;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 12px;
+      }
+      button.primary {
+        background: var(--accent);
+        color: #fff;
+        border: 0;
+        border-radius: 6px;
+        padding: 6px 14px;
+        font: inherit;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 6px;
+        padding: 6px 14px;
+        font: inherit;
+        cursor: pointer;
+      }
+      details {
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <aside>
+      <header>
+        <strong>Label emails</strong>
+        <div class="small" id="count"></div>
+        <div class="progress"><div id="bar"></div></div>
+        <select id="filter" aria-label="Show">
+          <option value="unlabeled">Unlabeled</option>
+          <option value="all">All</option>
+          <option value="labeled">Labeled</option>
+        </select>
+      </header>
+      <ul id="list"></ul>
+    </aside>
+    <main id="main"></main>
+
+    <script>
+      const HINTS = {
+        APPLICATION_CONFIRMATION: "We received your application",
+        ASSESSMENT: "Online assessment, coding test, take-home",
+        RECRUITER_CONTACT: "A person reaching out about a role",
+        INTERVIEW_REQUEST: "Asked to schedule an interview",
+        INTERVIEW_CONFIRMATION: "An interview time is set",
+        INTERVIEW_RESCHEDULE: "An interview moved",
+        NEXT_ROUND: "Moving forward to another round",
+        OFFER: "A job offer",
+        REJECTION: "Not moving forward",
+        WITHDRAWAL: "Application withdrawn",
+        UNKNOWN: "About a job search, but nothing to record",
+      };
+      const KEYS = {
+        APPLICATION_CONFIRMATION: "1",
+        ASSESSMENT: "2",
+        RECRUITER_CONTACT: "3",
+        INTERVIEW_REQUEST: "4",
+        INTERVIEW_CONFIRMATION: "5",
+        INTERVIEW_RESCHEDULE: "6",
+        NEXT_ROUND: "7",
+        OFFER: "8",
+        REJECTION: "9",
+        WITHDRAWAL: "w",
+        UNKNOWN: "u",
+      };
+      const NOT_RELEVANT = "NOT_RELEVANT";
+
+      let items = [];
+      let classes = [];
+      let current = null;
+
+      const el = (tag, props = {}, children = []) => {
+        const node = Object.assign(document.createElement(tag), props);
+        for (const child of [children].flat()) {
+          node.append(child instanceof Node ? child : String(child));
+        }
+        return node;
+      };
+
+      function visible() {
+        const filter = document.getElementById("filter").value;
+        return items.filter((item) =>
+          filter === "all"
+            ? true
+            : filter === "labeled"
+              ? item.label
+              : !item.label || item.id === current,
+        );
+      }
+
+      function renderList() {
+        const done = items.filter((item) => item.label).length;
+        document.getElementById("count").textContent =
+          `${done} of ${items.length} labeled`;
+        document.getElementById("bar").style.width =
+          `${(done / items.length) * 100}%`;
+        const list = document.getElementById("list");
+        list.replaceChildren(
+          ...visible().map((item) =>
+            el("li", {}, [
+              el(
+                "button",
+                {
+                  onclick: () => show(item.id),
+                  ariaCurrent: String(item.id === current),
+                },
+                [
+                  el(
+                    "div",
+                    { className: "line" },
+                    item.fromName || item.fromEmail,
+                  ),
+                  el(
+                    "div",
+                    { className: "line small" },
+                    item.subject || "(no subject)",
+                  ),
+                  el(
+                    "span",
+                    { className: item.label ? "tag done" : "tag" },
+                    item.label
+                      ? item.label.relevant
+                        ? item.label.classification
+                        : "not job-related"
+                      : "to label",
+                  ),
+                ],
+              ),
+            ]),
+          ),
+        );
+      }
+
+      function choice(value, text, key, checked) {
+        return el("label", {}, [
+          el("input", {
+            type: "radio",
+            name: "classification",
+            value,
+            checked,
+          }),
+          el("span", { style: "flex:1" }, [
+            el("div", {}, text),
+            HINTS[value] ? el("div", { className: "small" }, HINTS[value]) : "",
+          ]),
+          el("kbd", {}, key),
+        ]);
+      }
+
+      function show(id) {
+        current = id;
+        const item = items.find((entry) => entry.id === id);
+        const label = item.label;
+        const selected = label
+          ? label.relevant
+            ? label.classification
+            : NOT_RELEVANT
+          : null;
+        const field = (name, title) => {
+          const saved = label ? label[name] : null;
+          const input = el("input", {
+            type: "text",
+            id: name,
+            value: (label ? saved : item.suggestion[name]) ?? "",
+            className: label ? "" : "suggested",
+            placeholder: "None",
+            oninput: () => input.classList.remove("suggested"),
+          });
+          return el("div", {}, [el("label", { htmlFor: name }, title), input]);
+        };
+
+        document.getElementById("main").replaceChildren(
+          el("div", { className: "card" }, [
+            el("h1", {}, item.subject || "(no subject)"),
+            el("div", {}, [
+              el("strong", {}, item.fromName || ""),
+              " ",
+              el("span", { className: "small" }, `<${item.fromEmail}>`),
+            ]),
+            el(
+              "div",
+              { className: "small" },
+              `${new Date(item.receivedAt).toLocaleString()} · ${item.gmailLabels.join(", ")} · ${item.split}`,
+            ),
+            item.linkHosts.length
+              ? el(
+                  "div",
+                  { className: "small" },
+                  `Links to: ${item.linkHosts.join(", ")}`,
+                )
+              : "",
+            el("pre", {}, item.body || "(no text)"),
+          ]),
+          el("div", { className: "card" }, [
+            el("div", { className: "choices" }, [
+              choice(
+                NOT_RELEVANT,
+                "Not job-related",
+                "0",
+                selected === NOT_RELEVANT,
+              ),
+              ...classes.map((kind) =>
+                choice(
+                  kind,
+                  kind.replaceAll("_", " ").toLowerCase(),
+                  KEYS[kind],
+                  selected === kind,
+                ),
+              ),
+            ]),
+            el("div", { className: "fields" }, [
+              field("companyName", "Company"),
+              field("jobTitle", "Role"),
+            ]),
+            el("details", {}, [
+              el("summary", { className: "small" }, "Note"),
+              el("input", {
+                type: "text",
+                id: "notes",
+                value: label?.notes ?? "",
+              }),
+            ]),
+            el("div", { className: "actions" }, [
+              el(
+                "button",
+                { className: "primary", onclick: save },
+                "Save and next",
+              ),
+              el("kbd", {}, "Enter"),
+              sameSender(item).length
+                ? el(
+                    "button",
+                    { className: "secondary", onclick: saveSender },
+                    `Save for all ${sameSender(item).length + 1} from this sender`,
+                  )
+                : "",
+              sameSender(item).length ? el("kbd", {}, "Shift+Enter") : "",
+              label
+                ? el(
+                    "button",
+                    { className: "secondary", onclick: clear },
+                    "Clear label",
+                  )
+                : "",
+              el(
+                "span",
+                { className: "small", style: "margin-left:auto" },
+                "← → move · 0–9, w, u choose",
+              ),
+            ]),
+          ]),
+        );
+        renderList();
+        document
+          .querySelector("li button[aria-current=true]")
+          ?.scrollIntoView({ block: "nearest" });
+        document.getElementById("main").scrollTop = 0;
+      }
+
+      async function post(body) {
+        const response = await fetch("/api/label", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!response.ok) throw new Error("Save failed");
+      }
+
+      const senderOf = (item) => item.fromEmail.toLowerCase();
+
+      /** Other unlabeled emails from the same address. */
+      function sameSender(item) {
+        return items.filter(
+          (entry) =>
+            entry.id !== item.id &&
+            !entry.label &&
+            senderOf(entry) === senderOf(item),
+        );
+      }
+
+      /**
+       * Labels this email and every unlabeled one from the same address as
+       * not job-related, or job-related with nothing to record. Only those
+       * two: anything else needs each email's own company and role.
+       */
+      async function saveSender() {
+        const picked = document.querySelector(
+          "input[name=classification]:checked",
+        );
+        if (picked?.value !== NOT_RELEVANT && picked?.value !== "UNKNOWN") {
+          alert(
+            "Only “Not job-related” (0) and “unknown” (u) can be applied to a whole sender. Label the others one by one.",
+          );
+          return;
+        }
+        const item = items.find((entry) => entry.id === current);
+        const others = sameSender(item);
+        const subjects = others
+          .slice(0, 25)
+          .map((entry) => `• ${entry.subject || "(no subject)"}`)
+          .join("\n");
+        const more =
+          others.length > 25 ? `\n…and ${others.length - 25} more` : "";
+        const name =
+          picked.value === NOT_RELEVANT ? "not job-related" : "unknown";
+        if (
+          !confirm(
+            `Label ${others.length + 1} emails from ${item.fromEmail} as ${name}? Check none of these is a real update:\n\n${subjects}${more}`,
+          )
+        ) {
+          return;
+        }
+        const relevant = picked.value !== NOT_RELEVANT;
+        const label = {
+          relevant,
+          classification: relevant ? "UNKNOWN" : null,
+          companyName: null,
+          jobTitle: null,
+        };
+        for (const entry of [item, ...others]) {
+          await post({ id: entry.id, label });
+          entry.label = label;
+        }
+        next(true);
+      }
+
+      async function save() {
+        const picked = document.querySelector(
+          "input[name=classification]:checked",
+        );
+        if (!picked) {
+          alert("Choose a classification first.");
+          return;
+        }
+        const relevant = picked.value !== NOT_RELEVANT;
+        const value = (id) => document.getElementById(id).value.trim() || null;
+        const label = {
+          relevant,
+          classification: relevant ? picked.value : null,
+          companyName: relevant ? value("companyName") : null,
+          jobTitle: relevant ? value("jobTitle") : null,
+          notes: value("notes") ?? undefined,
+        };
+        await post({ id: current, label });
+        const item = items.find((entry) => entry.id === current);
+        item.label = label;
+        next(true);
+      }
+
+      async function clear() {
+        await post({ id: current, label: null });
+        items.find((entry) => entry.id === current).label = null;
+        show(current);
+      }
+
+      function next(unlabeledOnly) {
+        const index = items.findIndex((entry) => entry.id === current);
+        const after = [...items.slice(index + 1), ...items.slice(0, index)];
+        const target = unlabeledOnly
+          ? after.find((entry) => !entry.label)
+          : after[0];
+        if (target) show(target.id);
+        else renderList();
+      }
+
+      function previous() {
+        const index = items.findIndex((entry) => entry.id === current);
+        if (index > 0) show(items[index - 1].id);
+      }
+
+      document.addEventListener("keydown", (event) => {
+        if (event.target.matches("input[type=text]")) {
+          if (event.key === "Enter") event.shiftKey ? saveSender() : save();
+          if (event.key === "Escape") event.target.blur();
+          return;
+        }
+        if (event.metaKey || event.ctrlKey || event.altKey) return;
+        const key = event.key.toLowerCase();
+        const kind =
+          key === "0"
+            ? NOT_RELEVANT
+            : Object.keys(KEYS).find((name) => KEYS[name] === key);
+        if (kind) {
+          const input = document.querySelector(`input[value="${kind}"]`);
+          if (input) input.checked = true;
+        } else if (key === "enter") event.shiftKey ? saveSender() : save();
+        else if (key === "arrowright") next(false);
+        else if (key === "arrowleft") previous();
+        else return;
+        event.preventDefault();
+      });
+      document.getElementById("filter").addEventListener("change", renderList);
+
+      fetch("/api/state")
+        .then((response) => response.json())
+        .then((state) => {
+          classes = state.classifications;
+          // Job-related ones first (sync's view); within each, the busiest
+          // senders first and grouped, so a whole sender can be done at once.
+          const rank = (item) => (item.syncStatus === "IGNORED" ? 1 : 0);
+          const volume = new Map();
+          for (const item of state.items) {
+            const key = senderOf(item);
+            volume.set(key, (volume.get(key) ?? 0) + 1);
+          }
+          items = state.items.sort(
+            (a, b) =>
+              rank(a) - rank(b) ||
+              volume.get(senderOf(b)) - volume.get(senderOf(a)) ||
+              senderOf(a).localeCompare(senderOf(b)) ||
+              a.receivedAt.localeCompare(b.receivedAt),
+          );
+          const first = items.find((item) => !item.label) ?? items[0];
+          show(first.id);
+        });
+    </script>
+  </body>
+</html>

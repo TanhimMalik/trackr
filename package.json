@@ -16,6 +16,9 @@
     "db:migrate": "pnpm --filter @trackr/web db:migrate",
     "db:seed": "pnpm --filter @trackr/web db:seed",
     "db:studio": "pnpm --filter @trackr/web db:studio",
+    "benchmark:export": "pnpm --filter @trackr/web benchmark:export",
+    "benchmark:label": "pnpm --filter @trackr/web benchmark:label",
+    "benchmark:run": "pnpm --filter @trackr/web benchmark:run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test"

@@ -1,4 +1,10 @@
 import { describe, expect, it } from "vitest";
+import {
+  formatBenchmarkReport,
+  predictWithRules,
+  scoreBenchmark,
+  type LabeledEmail,
+} from "./benchmark";
 import { cleanEmailBody, htmlToText } from "./body";
 import { classifyEmail } from "./classify";
 import { decideAutomation } from "./decide";
@@ -35,43 +41,34 @@ describe.each(EMAIL_FIXTURES)("$id", ({ email, expected }) => {
 });
 
 describe("quality report", () => {
-  it("summarizes precision and recall per classification", () => {
-    const counts = new Map<string, { tp: number; fp: number; fn: number }>();
-    const bump = (kind: string, key: "tp" | "fp" | "fn") => {
-      const entry = counts.get(kind) ?? { tp: 0, fp: 0, fn: 0 };
-      entry[key]++;
-      counts.set(kind, entry);
-    };
-    let relevanceCorrect = 0;
-    for (const { email, expected } of EMAIL_FIXTURES) {
-      const relevant = scoreRelevance(email).relevant;
-      if (relevant === expected.relevant) relevanceCorrect++;
-      if (!relevant || !expected.classification) continue;
-      const actual = classifyEmail(email).classification;
-      if (actual === expected.classification) bump(actual, "tp");
-      else {
-        bump(actual, "fp");
-        bump(expected.classification, "fn");
-      }
-    }
+  it("scores the rules over the corpus", () => {
+    const items: LabeledEmail[] = EMAIL_FIXTURES.map(
+      ({ id, email, expected }) => ({
+        id,
+        email,
+        label: {
+          relevant: expected.relevant,
+          classification: expected.classification ?? null,
+          companyName: expected.companyName ?? null,
+          jobTitle: expected.jobTitle ?? null,
+        },
+      }),
+    );
+    const report = scoreBenchmark(
+      items,
+      new Map(items.map(({ id, email }) => [id, predictWithRules(email)])),
+    );
 
     // The domain package has no Node types; read the variable loosely.
     const env = (
       globalThis as { process?: { env: Record<string, string | undefined> } }
     ).process?.env;
     if (env?.REPORT) {
-      const rows = [...counts].map(([kind, { tp, fp, fn }]) => ({
-        classification: kind,
-        precision: tp + fp ? (tp / (tp + fp)).toFixed(2) : "–",
-        recall: tp + fn ? (tp / (tp + fn)).toFixed(2) : "–",
-        examples: tp + fn,
-      }));
-      console.log(
-        `Relevance: ${relevanceCorrect}/${EMAIL_FIXTURES.length} correct`,
-      );
-      console.table(rows);
+      console.log(formatBenchmarkReport(report, "Rules on the fixture corpus"));
     }
-    expect(relevanceCorrect).toBe(EMAIL_FIXTURES.length);
+    expect(report.relevance.accuracy).toBe(1);
+    expect(report.classification.accuracy).toBe(1);
+    expect(report.classification.confidentErrors).toBe(0);
   });
 });
 

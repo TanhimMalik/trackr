@@ -27,3 +27,6 @@ next-env.d.ts
 # misc
 .DS_Store
 *.pem
+
+# local email benchmark: real email, never committed
+.benchmark/
