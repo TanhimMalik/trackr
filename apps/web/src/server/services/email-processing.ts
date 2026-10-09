@@ -9,6 +9,7 @@ import {
   senderDomain,
   type ApplicationEventType,
   type EmailContent,
+  type EmailMetadata,
   type ExtractedDetails,
   type MatchResult,
   type RuleClassification,
@@ -36,6 +37,21 @@ export type MessageOutcome =
   "skipped" | "ignored" | "applied" | "created" | "review";
 
 type MessageRef = { id: string; threadId: string };
+
+/** A message to process, before Trackr has looked at it. */
+export type IncomingEmail = {
+  ref: MessageRef;
+  receivedAt: Date;
+  /** Headers and snippet; who sent it is checked against known contacts. */
+  metadata: Omit<EmailMetadata, "knownThread" | "knownContact">;
+  /** Reads the body. Called only when the message looks job-related. */
+  loadContent: (metadata: EmailMetadata) => Promise<EmailContent>;
+};
+
+export type EmailOutcome = {
+  outcome: MessageOutcome;
+  applicationId: string | null;
+};
 
 /** The event a classified email proposes, minus the application it goes to. */
 type ProposedEvent = Omit<ApplicationEventInput, "userId" | "applicationId">;
@@ -155,18 +171,46 @@ export async function fillPlaceholderTitle(
 export async function processGmailMessage(
   db: Database,
   client: GmailClient,
-  { userId, integrationId }: { userId: string; integrationId: string },
+  context: { userId: string; integrationId: string },
   ref: MessageRef,
 ): Promise<MessageOutcome> {
-  const started = Date.now();
   const [existing] = await db
     .select({ id: emails.id, status: emails.processingStatus })
     .from(emails)
-    .where(and(eq(emails.userId, userId), eq(emails.gmailMessageId, ref.id)));
+    .where(
+      and(eq(emails.userId, context.userId), eq(emails.gmailMessageId, ref.id)),
+    );
   if (existing && existing.status !== "FAILED") return "skipped";
 
   const message = await client.metadata(ref.id);
-  const fromEmail = toEmailMetadata(message).fromEmail;
+  const { outcome } = await processIncomingEmail(
+    db,
+    context,
+    {
+      ref,
+      receivedAt: receivedAt(message),
+      metadata: toEmailMetadata(message),
+      loadContent: async (metadata) =>
+        toEmailContent(await client.full(ref.id), metadata),
+    },
+    existing?.id,
+  );
+  return outcome;
+}
+
+/**
+ * The pipeline after a message is fetched, shared by Gmail sync and the
+ * demo's simulated inbox. `replacesId` is a failed earlier attempt to redo.
+ */
+export async function processIncomingEmail(
+  db: Database,
+  { userId, integrationId }: { userId: string; integrationId: string | null },
+  { ref, receivedAt: received, metadata: headers, loadContent }: IncomingEmail,
+  replacesId?: string,
+): Promise<EmailOutcome> {
+  const started = Date.now();
+  const existing = replacesId ? { id: replacesId } : undefined;
+  const fromEmail = headers.fromEmail;
   const [thread] = await db
     .select({ id: emails.id })
     .from(emails)
@@ -185,11 +229,11 @@ export async function processGmailMessage(
         .where(and(eq(contacts.userId, userId), eq(contacts.email, fromEmail)))
         .limit(1)
     : [];
-  const metadata = toEmailMetadata(message, {
+  const metadata: EmailMetadata = {
+    ...headers,
     knownThread: Boolean(thread),
     knownContact: Boolean(contact),
-  });
-  const received = receivedAt(message);
+  };
   const ids = {
     userId,
     integrationId,
@@ -213,14 +257,11 @@ export async function processGmailMessage(
       relevant: false,
       durationMs: Date.now() - started,
     });
-    return "ignored";
+    return { outcome: "ignored", applicationId: null };
   }
 
   // The body is read for relevant messages only, and only held in memory.
-  const content: EmailContent = toEmailContent(
-    await client.full(ref.id),
-    metadata,
-  );
+  const content: EmailContent = await loadContent(metadata);
   const rule = classifyEmail(content);
   const details = extractEmailDetails(content);
   const eventType = CLASSIFICATION_EVENTS[rule.classification];
@@ -363,5 +404,5 @@ export async function processGmailMessage(
     applicationId: outcome.applicationId,
     durationMs: Date.now() - started,
   });
-  return outcome.outcome;
+  return { outcome: outcome.outcome, applicationId: outcome.applicationId };
 }

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import type { ApplicationFormState } from "@/app/(app)/applications/actions";
 import { requireUser } from "@/server/auth/session";
 import { DEMO_CAPTURES } from "@/server/demo/captures";
+import { DEMO_EMAILS } from "@/server/demo/emails";
 import { NotFoundError } from "@/server/services/errors";
 import { revokeExtensionSession } from "@/server/services/extension-auth";
 import { ingestExtensionSubmission } from "@/server/services/extension-ingestion";
@@ -12,6 +13,8 @@ import {
   GmailApiDisabledError,
   GmailTemporaryError,
 } from "@/server/integrations/gmail-api";
+import { deliverDemoEmail } from "@/server/services/demo-inbox";
+import type { MessageOutcome } from "@/server/services/email-processing";
 import {
   disconnectGmail,
   GmailNotConnectedError,
@@ -91,6 +94,45 @@ export async function simulateCaptureAction(
       outcome === "POSSIBLE_DUPLICATE"
         ? "/activity?tab=review"
         : `/applications/${applicationId}`,
+  };
+}
+
+export type SimulatedEmailResult =
+  | { ok: true; message: string; href: string | null }
+  | { ok: false; error: string };
+
+const EMAIL_MESSAGES: Record<MessageOutcome, string> = {
+  applied: "Read it and updated the application.",
+  created: "Read it and added the application to your board.",
+  review: "Not sure where it belongs, so it's waiting in Needs review.",
+  ignored: "Not about a job you applied to, so it was left alone.",
+  skipped: "Already read.",
+};
+
+/**
+ * Demo only: delivers a sample email to the same pipeline Gmail sync uses,
+ * as though it had just arrived.
+ */
+export async function simulateEmailAction(
+  emailId: string,
+): Promise<SimulatedEmailResult> {
+  const user = await requireUser();
+  const email = DEMO_EMAILS.find((item) => item.id === emailId);
+  if (!user.isDemo || !email) {
+    return { ok: false, error: "The simulated inbox is only in the demo." };
+  }
+
+  const { outcome, applicationId } = await deliverDemoEmail(user.id, email);
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message: EMAIL_MESSAGES[outcome],
+    href:
+      outcome === "review"
+        ? "/activity?tab=review"
+        : applicationId
+          ? `/applications/${applicationId}`
+          : null,
   };
 }
 

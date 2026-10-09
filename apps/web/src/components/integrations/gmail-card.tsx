@@ -276,7 +276,8 @@ function GmailStatus({ state }: { state: GmailCardState }) {
   if (state.kind === "demo") {
     return (
       <p className="text-muted-foreground">
-        Connecting Gmail needs an account; demo workspaces can&apos;t.
+        Connecting Gmail needs an account. The sample inbox above shows what it
+        does.
       </p>
     );
   }

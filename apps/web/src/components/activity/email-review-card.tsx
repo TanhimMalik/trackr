@@ -14,6 +14,7 @@ import { DateText } from "@/components/date-text";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { gmailMessageUrl } from "@/lib/gmail";
 import type { EmailReview } from "@/server/services/review";
 import { ApplicationSummary } from "./application-summary";
 
@@ -26,6 +27,7 @@ const HEADINGS: Record<EmailReview["kind"], string> = {
 /** One email Trackr wasn't sure about: what it says, and what Trackr would do. */
 export function EmailReviewCard({ item }: { item: EmailReview }) {
   const { email } = item;
+  const gmailUrl = gmailMessageUrl(email.gmailMessageId);
   const [pending, startTransition] = useTransition();
   const [companyName, setCompanyName] = useState(email.companyName ?? "");
   const [jobTitle, setJobTitle] = useState(email.jobTitle ?? "");
@@ -86,15 +88,17 @@ export function EmailReviewCard({ item }: { item: EmailReview }) {
             {email.confidence !== null && (
               <span>· {Math.round(email.confidence * 100)}% sure</span>
             )}
-            <a
-              href={`https://mail.google.com/mail/#all/${email.gmailMessageId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-primary-text underline-offset-4 hover:underline"
-            >
-              Open in Gmail
-              <ExternalLink className="size-3" aria-hidden="true" />
-            </a>
+            {gmailUrl && (
+              <a
+                href={gmailUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-primary-text underline-offset-4 hover:underline"
+              >
+                Open in Gmail
+                <ExternalLink className="size-3" aria-hidden="true" />
+              </a>
+            )}
           </p>
         </div>
         {item.candidate && (

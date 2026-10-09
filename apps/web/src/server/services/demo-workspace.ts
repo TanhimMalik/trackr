@@ -13,6 +13,7 @@ import {
   applicationEvents,
   applications,
   contacts,
+  emails,
   interviews,
   notifications,
   users,
@@ -24,6 +25,7 @@ import {
   type DemoEvent,
   type DemoInterview,
 } from "@/server/demo/applications";
+import { seedEmailFor } from "@/server/demo/emails";
 import { deleteAllApplications, newApplicationValues } from "./applications";
 import { validateEventInput } from "./events";
 import { eventDedupeKey } from "./notifications";
@@ -85,7 +87,7 @@ function planApplication(userId: string, demo: DemoApplication, now: Date) {
   }));
   const contactIds = new Map(contacts.map((c) => [c.name, c.id]));
 
-  const events = demoEvents.map((demoEvent, index) => {
+  const events = demoEvents.map((demoEvent) => {
     const when = occurredAt(demoEvent, now);
     const isEmail = demoEvent.via === "email";
     const scheduledAt = demoEvent.interview
@@ -97,7 +99,8 @@ function planApplication(userId: string, demo: DemoApplication, now: Date) {
       type: demoEvent.type,
       occurredAt: when,
       sourceType: SOURCE_TYPES[demoEvent.via],
-      sourceReference: isEmail ? `demo-message-${index + 1}` : null,
+      // Message ids are per user, so each seeded email gets its own.
+      sourceReference: isEmail ? `demo-${crypto.randomUUID()}` : null,
       classificationMethod: isEmail ? (demoEvent.method ?? "RULES") : null,
       confidence: isEmail ? (demoEvent.confidence ?? 0.97) : null,
       metadata: scheduledAt
@@ -185,8 +188,37 @@ function planApplication(userId: string, demo: DemoApplication, now: Date) {
     ];
   });
 
+  // The emails behind Gmail-detected events, as sync would have kept them.
+  const emailRows = events.flatMap(({ input, recordedAt }) => {
+    if (input.sourceType !== "EMAIL" || !input.sourceReference) return [];
+    const { evidence, ...email } = seedEmailFor(input.type, {
+      companyName: data.companyName,
+      jobTitle: data.jobTitle,
+      platform: data.sourcePlatform ?? null,
+    });
+    return [
+      {
+        ...email,
+        userId,
+        applicationId,
+        gmailMessageId: input.sourceReference,
+        gmailThreadId: input.sourceReference,
+        senderDomain: email.senderEmail?.split("@")[1] ?? null,
+        receivedAt: input.occurredAt,
+        classificationConfidence: input.confidence ?? null,
+        classificationMethod: input.classificationMethod ?? null,
+        extractedJson: { evidence },
+        companyName: data.companyName,
+        jobTitle: data.jobTitle,
+        processingStatus: "MATCHED" as const,
+        createdAt: recordedAt,
+      },
+    ];
+  });
+
   return {
     contacts,
+    emails: emailRows,
     interviews: interviewRows,
     notifications: notificationRows,
     application: {
@@ -247,6 +279,8 @@ export async function seedDemoWorkspace(
     await tx.insert(applications).values(plans.map((plan) => plan.application));
     const events = plans.flatMap((plan) => plan.events);
     await tx.insert(applicationEvents).values(events);
+    const demoEmails = plans.flatMap((plan) => plan.emails);
+    if (demoEmails.length > 0) await tx.insert(emails).values(demoEmails);
     const demoContacts = plans.flatMap((plan) => plan.contacts);
     if (demoContacts.length > 0) await tx.insert(contacts).values(demoContacts);
     const demoInterviews = plans.flatMap((plan) => plan.interviews);
@@ -284,6 +318,8 @@ export async function resetDemoWorkspace(
   db: Database = getDb(),
 ): Promise<void> {
   await deleteAllApplications(userId, db);
+  // Emails delivered from the sample inbox, and their review items.
+  await db.delete(emails).where(eq(emails.userId, userId));
   await seedDemoWorkspace(userId, { now }, db);
 }
 

@@ -11,6 +11,17 @@ import {
   type EventSourceType,
 } from "@trackr/domain";
 
+/** What Trackr kept of the email behind an event: never the body. */
+export type EmailPreview = {
+  gmailMessageId: string;
+  senderName: string | null;
+  senderEmail: string | null;
+  subject: string | null;
+  snippet: string | null;
+  /** The sentence the classification rested on. */
+  evidence: string | null;
+};
+
 export type TimelineEvent = {
   eventType: ApplicationEventType;
   sourceType: EventSourceType;
@@ -20,6 +31,8 @@ export type TimelineEvent = {
   statusBefore: ApplicationStatus | null;
   statusAfter: ApplicationStatus | null;
   revertedAt: Date | null;
+  /** The email it came from, when Trackr kept one. */
+  email?: EmailPreview | null;
 };
 
 export type TimelineEntry = {

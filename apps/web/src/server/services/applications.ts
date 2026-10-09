@@ -33,6 +33,7 @@ import {
 import { alias, type AnyPgColumn } from "drizzle-orm/pg-core";
 import type { z } from "zod";
 import { activityInputSchema } from "@/lib/applications/details-input";
+import type { EmailPreview } from "@/lib/applications/timeline";
 import {
   createApplicationSchema,
   selectableStatusSchema,
@@ -49,6 +50,7 @@ import { getDb } from "@/server/db/client";
 import {
   applicationEvents,
   applications,
+  emails,
   resumeVersions,
 } from "@/server/db/schema";
 import type {
@@ -348,8 +350,8 @@ export async function deleteAllApplications(
 
 export type ApplicationWithEvents = {
   application: Application;
-  /** In the order they happened. */
-  events: ApplicationEvent[];
+  /** In the order they happened, each with its email when it came from one. */
+  events: (ApplicationEvent & { email: EmailPreview | null })[];
   /** The resume submitted with the application, if recorded. */
   resume: { id: string; name: string } | null;
   contacts: Contact[];
@@ -399,9 +401,50 @@ export async function getApplication(
       listInterviews(userId, applicationId, db),
     ]);
 
+  const messageIds = events.flatMap((event) =>
+    event.sourceType === "EMAIL" && event.sourceReference
+      ? [event.sourceReference]
+      : [],
+  );
+  const previews =
+    messageIds.length === 0
+      ? []
+      : await db
+          .select({
+            gmailMessageId: emails.gmailMessageId,
+            senderName: emails.senderName,
+            senderEmail: emails.senderEmail,
+            subject: emails.subject,
+            snippet: emails.snippet,
+            extracted: emails.extractedJson,
+          })
+          .from(emails)
+          .where(
+            and(
+              eq(emails.userId, userId),
+              inArray(emails.gmailMessageId, messageIds),
+            ),
+          );
+  const byMessage = new Map(
+    previews.map(({ extracted, ...preview }) => [
+      preview.gmailMessageId,
+      {
+        ...preview,
+        evidence:
+          typeof extracted?.evidence === "string" ? extracted.evidence : null,
+      },
+    ]),
+  );
+
   return {
     application,
-    events,
+    events: events.map((event) => ({
+      ...event,
+      email:
+        event.sourceType === "EMAIL" && event.sourceReference
+          ? (byMessage.get(event.sourceReference) ?? null)
+          : null,
+    })),
     resume: resumes[0] ?? null,
     contacts: applicationContacts,
     interviews: applicationInterviews,

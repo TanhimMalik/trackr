@@ -1,6 +1,6 @@
 # Email Pipeline
 
-> **Status:** Phase 4, in progress. The pure stages are implemented in `packages/domain/src/email` (relevance, body cleanup, rule classifier, extraction, event mapping, automation decision) with a labeled corpus, so are the Gmail connection (`/api/integrations/gmail/connect` and `/callback`, `services/gmail-connection.ts`) and **Sync now** (`services/gmail-sync.ts`, `services/email-processing.ts`), with email review in Activity → Needs review. Matching and review are part of Phase 4. The LLM fallback, measured against a labeled benchmark of real email, is Phase 5.
+> **Status:** Phase 4 is done. The pure stages are implemented in `packages/domain/src/email` (relevance, body cleanup, rule classifier, extraction, event mapping, automation decision) with a labeled corpus, so are the Gmail connection (`/api/integrations/gmail/connect` and `/callback`, `services/gmail-connection.ts`) and **Sync now** (`services/gmail-sync.ts`, `services/email-processing.ts`), with email review in Activity → Needs review and email previews in each application's timeline. Demo workspaces have a simulated inbox (`server/demo/emails.ts`, `services/demo-inbox.ts`). The LLM fallback, measured against a labeled benchmark of real email, is Phase 5.
 
 The email pipeline turns a user's Gmail inbox into application events: confirmations, assessments, recruiter contact, interview requests, offers and rejections. It is built to be cheap, deterministic where possible, and minimal in what it reads and stores.
 
@@ -40,7 +40,7 @@ Each stage is a separate, individually testable function. Stages 2, 4, 6 (rule-b
 - **Offline access:** the flow requests `access_type=offline` and `prompt=consent` to obtain a refresh token.
 - **CSRF protection:** the `state` parameter is a random value bound to an httpOnly cookie (scoped to `/api/integrations/gmail`, ten minutes) and verified on callback. The flow also uses PKCE (S256).
 - **Scope check:** Google lets people uncheck Gmail access on the consent screen. A grant without `gmail.readonly` is revoked straight away and the user is told why.
-- **Demo workspaces** can't connect Gmail: they are anonymous and deleted after 48 hours.
+- **Demo workspaces** can't connect Gmail: they are anonymous and deleted after 48 hours. Integrations shows them a simulated inbox instead: six fictional emails (an interview invite, an assessment, a rejection, a confirmation from an untracked company, a recruiter Trackr can't place, a newsletter) that go through `processIncomingEmail`, the same code sync uses from the relevance filter on. Their message ids start with `demo-`, so they never link to Gmail. The seeded demo applications also carry the emails behind their Gmail-detected events, so their timelines show previews.
 - **Storage:** tokens are encrypted with AES-256-GCM before storage, as `v1.<iv>.<ciphertext>.<tag>` with the key in `TOKEN_ENCRYPTION_KEY`. Access tokens are refreshed on demand a minute before they expire, and a rotated refresh token replaces the old one.
 - **Disconnect:** revokes the token at Google's revocation endpoint, deletes stored tokens and marks the integration `DISCONNECTED`.
 
@@ -227,7 +227,7 @@ Subjects, snippets, bodies, addresses and tokens are never logged.
 
 ## Testing
 
-- **Fixture corpus.** Anonymized real-world messages under `tests/fixtures/emails`, each labeled with expected relevance, classification, extracted fields and match target.
+- **Fixture corpus.** Fictional messages written to match real patterns, in `packages/domain/src/email/email.fixtures.ts`, each labeled with expected relevance, classification and extracted fields.
 - **Unit tests.** Relevance scoring, every rule (including the ambiguous cases above), extraction patterns, classification-to-event mapping and automation decisions.
-- **Integration tests (PGlite).** A confirmation email matches an extension-created application, an interview email updates the status, a rejection updates the status, a late confirmation does not regress Interview to Applied, and re-syncing creates no duplicates.
-- **Quality report.** `pnpm --filter @trackr/domain email:report` prints relevance accuracy and precision and recall per classification over the corpus, so changes to rules or prompts can be measured. The corpus lives in `packages/domain/src/email/email.fixtures.ts`: 32 messages written to match real ATS, recruiter and job-board mail, with fictional companies and people. It was written alongside the rules, so it is a regression baseline rather than an accuracy estimate; real messages that fool the rules should be added to it.
+- **Integration tests (PGlite).** A confirmation email matches an extension-created application, an interview email updates the status, a rejection updates the status, a late confirmation does not regress Interview to Applied, and re-syncing creates no duplicates (`tests/integration/gmail-sync.test.ts`). Each simulated demo email has the outcome it promises (`tests/integration/demo-inbox.test.ts`).
+- **Quality report.** `pnpm --filter @trackr/domain email:report` prints relevance accuracy and precision and recall per classification over the corpus, so changes to rules or prompts can be measured. The corpus has 53 messages written to match real ATS, recruiter and job-board mail, with fictional companies and people. It was written alongside the rules, so it is a regression baseline rather than an accuracy estimate; real messages that fool the rules should be added to it.

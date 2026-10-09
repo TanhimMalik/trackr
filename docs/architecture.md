@@ -92,21 +92,24 @@ Services receive the acting `userId` explicitly and scope every query by it. Aut
 
 Services are functional modules, not classes. Each owns one responsibility.
 
-| Service                | Responsibility                                                                                                                          | Phase |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| `applications`         | Create, edit, delete, list with filters, detail and board read models. Edits fields, never status.                                      | 1     |
-| `events`               | `processApplicationEvent`, `revertEvent`. The only writer of `current_status` and `last_activity_at`.                                   | 1–2   |
-| `demo-workspace`       | Seeds a realistic, current-dated workspace for demo sessions and development (two bulk inserts, same derivation rules as the processor) | 1     |
-| `analytics`            | Overview metrics, funnel, source and resume analytics. SQL aggregates plus pure domain math.                                            | 1, 8  |
-| `notifications`        | Create, list, mark read, and generate follow-up reminders idempotently.                                                                 | 2     |
-| `activity`             | Cross-application activity feed and review-item listing.                                                                                | 2, 5  |
-| `extension-auth`       | One-time connect codes, token issue, rotation and revocation.                                                                           | 3     |
-| `extension-ingestion`  | Validate submissions, normalize, deduplicate, hand off to the event processor.                                                          | 3     |
-| `matching`             | Load candidate applications, score them with the domain scorer, resolve ambiguity.                                                      | 3, 5  |
-| `review`               | Confirm, link, create, merge or dismiss review items.                                                                                   | 3, 5  |
-| `gmail`                | OAuth, token refresh, batched incremental sync.                                                                                         | 4     |
-| `email-classification` | Relevance filter, rule classifier, LLM fallback, validated results.                                                                     | 4, 6  |
-| `settings`, `privacy`  | User preferences, data export, deletion.                                                                                                | 2, 7  |
+| Service               | Responsibility                                                                                                                          | Phase |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `applications`        | Create, edit, delete, list with filters, detail and board read models. Edits fields, never status.                                      | 1     |
+| `events`              | `processApplicationEvent`, `revertEvent`. The only writer of `current_status` and `last_activity_at`.                                   | 1–2   |
+| `demo-workspace`      | Seeds a realistic, current-dated workspace for demo sessions and development (two bulk inserts, same derivation rules as the processor) | 1     |
+| `analytics`           | Overview metrics, funnel, source and resume analytics. SQL aggregates plus pure domain math.                                            | 1, 8  |
+| `notifications`       | Create, list, mark read, and generate follow-up reminders idempotently.                                                                 | 2     |
+| `activity`            | Cross-application activity feed and review-item listing.                                                                                | 2, 4  |
+| `extension-auth`      | One-time connect codes, token issue, rotation and revocation.                                                                           | 3     |
+| `extension-ingestion` | Validate submissions, normalize, deduplicate, hand off to the event processor.                                                          | 3     |
+| `matching`            | Load candidate applications, score them with the domain scorer, resolve ambiguity.                                                      | 3–4   |
+| `review`              | Confirm, link, create, merge or dismiss review items.                                                                                   | 3–4   |
+| `gmail-connection`    | OAuth, encrypted token storage and refresh, disconnect.                                                                                 | 4     |
+| `gmail-sync`          | Batched backfill and incremental sync with a lock and a resumable cursor.                                                               | 4     |
+| `email-processing`    | One message through relevance, classification, extraction and routing; shared by sync and the demo inbox.                               | 4–5   |
+| `email-routing`       | Decides whether an email updates, starts or asks about an application (`email-rematch` re-asks after each sync).                        | 4     |
+| `demo-inbox`          | Delivers the demo's sample emails through `email-processing`.                                                                           | 4     |
+| `settings`, `privacy` | User preferences, data export, deletion.                                                                                                | 2, 7  |
 
 ## Event-based tracking
 

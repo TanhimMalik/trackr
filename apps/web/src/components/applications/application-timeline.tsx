@@ -5,6 +5,7 @@ import {
   CalendarDays,
   CircleCheck,
   CircleX,
+  ExternalLink,
   FileCode2,
   Mail,
   MessageSquare,
@@ -22,8 +23,10 @@ import { DateText } from "@/components/date-text";
 import {
   describeEvent,
   eventActionFor,
+  type EmailPreview,
   type TimelineEvent,
 } from "@/lib/applications/timeline";
+import { gmailMessageUrl } from "@/lib/gmail";
 import { cn } from "@/lib/utils";
 import { APPLICATION_STATUS_LABELS } from "@trackr/domain";
 import { TimelineEventAction } from "./timeline-event-action";
@@ -83,6 +86,43 @@ export type TimelineItem = TimelineEvent & {
   eventTimestamp: Date;
 };
 
+/** The email an automatic entry came from: who sent it and what it said. */
+function EmailExcerpt({ email }: { email: EmailPreview }) {
+  const url = gmailMessageUrl(email.gmailMessageId);
+  // The evidence can be the subject itself; then the snippet says more.
+  const quote =
+    email.evidence &&
+    email.evidence.toLowerCase() !== email.subject?.toLowerCase()
+      ? email.evidence
+      : email.snippet;
+  return (
+    <div className="mt-1.5 space-y-0.5 rounded-md border bg-background px-2.5 py-2 text-[0.8125rem]">
+      <p className="flex items-baseline gap-2">
+        <span className="min-w-0 flex-1 truncate">
+          <span className="font-medium">
+            {email.senderName ?? email.senderEmail ?? "Email"}
+          </span>
+          {email.subject && (
+            <span className="text-muted-foreground"> · {email.subject}</span>
+          )}
+        </span>
+        {url && (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex shrink-0 items-center gap-1 text-primary-text underline-offset-4 hover:underline"
+          >
+            Open in Gmail
+            <ExternalLink className="size-3" aria-hidden="true" />
+          </a>
+        )}
+      </p>
+      {quote && <p className="line-clamp-2 text-muted-foreground">“{quote}”</p>}
+    </div>
+  );
+}
+
 /**
  * An application's history in the order it happened, built from its events.
  * Automatic entries say where they came from and how confident Trackr was.
@@ -127,6 +167,7 @@ export function ApplicationTimeline({ events }: { events: TimelineItem[] }) {
               {entry.detail && (
                 <p className="text-muted-foreground">{entry.detail}</p>
               )}
+              {event.email && <EmailExcerpt email={event.email} />}
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                 <span className={chip}>
                   <SourceIcon source={event.sourceType} />

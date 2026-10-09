@@ -1,4 +1,4 @@
-import { ExternalLink, Puzzle, Sparkles } from "lucide-react";
+import { ExternalLink, Inbox, Puzzle, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 import { ConnectedBrowsers } from "@/components/integrations/connected-browsers";
 import {
@@ -6,9 +6,11 @@ import {
   type GmailCardState,
 } from "@/components/integrations/gmail-card";
 import { SimulateCaptures } from "@/components/integrations/simulate-captures";
+import { SimulateEmails } from "@/components/integrations/simulate-emails";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireUser } from "@/server/auth/session";
 import { DEMO_CAPTURES } from "@/server/demo/captures";
+import { DEMO_EMAILS } from "@/server/demo/emails";
 import { googleOAuthConfig } from "@/server/env";
 import { listConnectedBrowsers } from "@/server/services/extension-auth";
 import { getGmailConnection } from "@/server/services/gmail-connection";
@@ -72,6 +74,40 @@ export default async function IntegrationsPage({
               title,
               description,
             }))}
+          />
+        </section>
+      )}
+
+      {user.isDemo && (
+        <section
+          aria-labelledby="inbox-heading"
+          className="rounded-xl border border-primary/30 bg-card"
+        >
+          <div className="flex items-start gap-3 border-b p-4">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary-text">
+              <Inbox className="size-4" aria-hidden="true" />
+            </span>
+            <div className="space-y-0.5">
+              <h2 id="inbox-heading" className="font-semibold">
+                Try Gmail sync with a sample inbox
+              </h2>
+              <p className="text-muted-foreground">
+                Deliver an email and Trackr reads it the way it reads Gmail: it
+                decides whether it&apos;s about a job, what happened, and which
+                application it belongs to.
+              </p>
+            </div>
+          </div>
+          <SimulateEmails
+            emails={DEMO_EMAILS.map(
+              ({ id, fromName, subject, body, expect }) => ({
+                id,
+                fromName,
+                subject,
+                body,
+                expect,
+              }),
+            )}
           />
         </section>
       )}
