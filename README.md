@@ -4,7 +4,7 @@ Trackr is an automatic job application tracker. Connect your browser and inbox o
 
 **Live demo:** [trackr-coral-gamma.vercel.app/demo](https://trackr-coral-gamma.vercel.app/demo) opens a private workspace with sample data. No sign-up needed.
 
-> **Status:** Phases 1–5 are built: the tracker, events and history, the browser extension, Gmail sync (the demo has a simulated inbox) and measured email classification with a Claude fallback. Next are automation controls (Phase 6). See the [delivery phases](docs/product-spec.md#17-delivery-phases).
+> **Status:** Complete for its planned scope: the tracker with an event history, the browser extension, Gmail sync with a measured Claude fallback, automation and privacy controls, and a daily scheduled sync. See the [delivery phases](docs/product-spec.md#17-delivery-phases) and [how it was built](#how-it-was-built).
 
 ## Documentation
 
@@ -22,8 +22,9 @@ Trackr is an automatic job application tracker. Connect your browser and inbox o
 - **Web:** Next.js (App Router), React, TypeScript, Tailwind CSS
 - **Data:** PostgreSQL (Supabase) with Drizzle ORM
 - **Auth:** Supabase Auth
-- **Integrations:** Chrome extension (Manifest V3), Gmail API
-- **Tooling:** pnpm workspaces, ESLint, Prettier, Vitest
+- **Integrations:** Chrome extension (Manifest V3, esbuild), Gmail API, Claude API (Haiku 5.5)
+- **Hosting:** Vercel (with Vercel Cron), Supabase
+- **Tooling:** pnpm workspaces, ESLint, Prettier, Vitest with PGlite, Playwright with axe
 
 ## Repository layout
 
@@ -121,6 +122,30 @@ The web app deploys to Vercel's free plan from this repository; no custom domain
 5. Optionally, under Settings → Functions, pick the region closest to your Supabase project.
 
 Share `https://<deployment>/demo` to open a demo workspace in one click.
+
+## How it was built
+
+**Specification first.** Before any code, the [product spec](docs/product-spec.md), [architecture](docs/architecture.md), [database](docs/database.md), [email pipeline](docs/email-pipeline.md) and [extension](docs/browser-extension.md) documents set the model: every change to an application is an append-only event, and its status is derived from them. That one decision is what makes automatic updates explainable and undoable.
+
+**Small milestones, each shippable.** The work ran as 34 milestones in 8 phases: foundation, events and history, the extension, Gmail, measured classification, controls and privacy, polish, and wrap-up. Each milestone ended with tests, type checks and lint passing and, from the first deploy on, went to production. A public demo came early, so the product could be tried at every stage without an account.
+
+**Rules first, then a model where measurements showed a gap.** Email is classified by deterministic rules, which are cheap, fast and testable. The language model was added only after a labeled benchmark of a real inbox showed where the rules fell short, and it only sees what the rules can't settle. Its answers are capped below the automatic threshold, its quoted evidence must appear in the email, and offers and rejections it finds alone always wait for the person.
+
+**A real inbox changed the design.** The first sync of a real inbox found 11 applications; after the fixes, the same 90 days produced 65. What it taught, now in [the routing rules](docs/email-pipeline.md#stage-8-automation-decision):
+
+- Patterns that only matched when the subject was the whole message, and confirmations that scored just under the bar to create an application.
+- Reading newest first meant rejections arrived before the applications they closed, so sync now reads oldest first and looks again at unresolved email after each run.
+- Each application gets one confirmation, and dates decide which application an email belongs to: an assessment after a rejection is a new application, not a reopened one.
+- Hiring platforms' names (SHL, Workable) are not companies, and job-board recommendations, card "offers" and school admissions are not job news.
+
+**Tested at every level.** Pure domain logic has unit tests (327). Services run against an in-memory Postgres (PGlite) in integration tests (399), including Gmail sync against a fake Gmail and the model fallback against a fake model. Six Playwright tests drive the demo in a real browser and scan each page with axe. The email benchmark measures the classifier on real, hand-labeled email that never leaves the machine.
+
+**Known limits.**
+
+- Gmail access runs in Google's testing mode: listed test users only, and access ends every 7 days. Opening it up needs Google's verification and a security assessment.
+- Sync is pull-based, in bounded batches, on a button and a daily schedule; there is no background queue or push notifications from Gmail.
+- The accuracy numbers come from one person's inbox, without interviews or offers in it.
+- The extension installs from the repository rather than the Chrome Web Store.
 
 ## Email classification accuracy
 

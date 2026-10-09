@@ -7,29 +7,35 @@ Related documents: [product-spec.md](product-spec.md), [database.md](database.md
 ## System overview
 
 ```
-  ┌─────────────────────┐                 ┌──────────────┐
-  │ Chrome extension    │                 │  Gmail API   │
-  │ (Manifest V3)       │                 └──────┬───────┘
-  └─────────┬───────────┘                        │ OAuth, incremental sync (pull)
-            │ HTTPS + bearer token               │
-            ▼                                    ▼
-  ┌──────────────────────────────────────────────────────────────┐
-  │ apps/web (Next.js)                                           │
-  │                                                              │
-  │   React Server Components and client components              │
-  │          │ server actions               │ route handlers     │
-  │          ▼                              ▼                    │
-  │   ┌─────────────────────── services ──────────────────────┐  │
-  │   │ applications · events · matching · email-classification │ │
-  │   │ gmail · extension · review · notifications · analytics │  │
-  │   └──────┬─────────────────────┬──────────────────┬───────┘  │
-  │          │                     │                  │          │
-  │   packages/domain        server/integrations   server/db     │
-  │   (pure rules)           (Gmail, LLM, crypto)  (Drizzle)     │
-  └──────────────────────────────────────────────────┬───────────┘
-                                                     ▼
-                              PostgreSQL (Supabase) · Supabase Auth
+ ┌──────────────────┐   ┌─────────────┐   ┌──────────────┐   ┌──────────────┐
+ │ Chrome extension │   │ Vercel Cron │   │  Gmail API   │   │  Claude API  │
+ │ (Manifest V3)    │   │ (daily)     │   │ (read-only)  │   │ (Haiku 5.5)  │
+ └────────┬─────────┘   └──────┬──────┘   └──────▲───────┘   └──────▲───────┘
+          │ HTTPS, bearer      │ CRON_SECRET     │ OAuth, pull      │ unclear email
+          │ token              │                 │ sync             │ only
+          ▼                    ▼                 │                  │
+ ┌────────────────────────────────────────────────┴──────────────────┴────────┐
+ │ apps/web (Next.js on Vercel)                                               │
+ │                                                                            │
+ │   Server Components, client components, server actions, route handlers     │
+ │                                     │                                      │
+ │   ┌──────────────────────────── services ────────────────────────────┐     │
+ │   │ applications · events · review · notifications · reminders       │     │
+ │   │ extension-ingestion · matching                                   │     │
+ │   │ gmail-sync → email-processing → email-routing (scheduled-sync)   │     │
+ │   │ settings · privacy · demo-workspace · demo-inbox                 │     │
+ │   └───────┬──────────────────────────┬───────────────────────┬───────┘     │
+ │           │                          │                       │             │
+ │   packages/domain             server/integrations       server/db          │
+ │   (pure rules: status,        (Gmail, Google OAuth,     (Drizzle)          │
+ │    matching, email rules,      Claude, logos)                              │
+ │    LLM guards, benchmark)                                                  │
+ └───────────────────────────────────────────────────────────┬────────────────┘
+                                                             ▼
+                                  PostgreSQL (Supabase, RLS on) · Supabase Auth
 ```
+
+An email's path: Gmail → relevance filter (headers only) → body read in memory → rule classifier → Claude only if the rules can't settle it → extraction → matching → routing (apply, create, ask or ignore) → the event processor → status, timeline and notifications. Only the sender, subject, snippet and findings are stored.
 
 ## Principles
 
@@ -46,26 +52,28 @@ trackr/
 ├── apps/
 │   ├── web/                               Next.js application
 │   │   ├── src/
-│   │   │   ├── app/                       routes (see "UI architecture")
+│   │   │   ├── app/                       routes, server actions, API routes (see "UI architecture")
 │   │   │   ├── components/ui/             design-system primitives
-│   │   │   ├── components/<feature>/      applications, board, timeline, overview…
+│   │   │   ├── components/<feature>/      applications, overview, activity, integrations, settings…
 │   │   │   ├── server/                    server-only code
 │   │   │   │   ├── db/                    Drizzle client, schema, migrations
-│   │   │   │   ├── auth/                  session and extension-token authentication
+│   │   │   │   ├── auth/                  sessions, demo sign-in, extension tokens
 │   │   │   │   ├── services/              business logic; the only layer that touches db
-│   │   │   │   ├── integrations/          gmail/, llm/, crypto
-│   │   │   │   └── logger.ts
-│   │   │   ├── lib/                       client-safe utilities
-│   │   │   └── env.ts                     validated environment
-│   │   ├── scripts/                       seed and maintenance scripts
-│   │   └── tests/integration/             service tests against PGlite
-│   └── extension/                         Manifest V3 extension (Phase 3)
+│   │   │   │   ├── integrations/          Gmail API and messages, Google OAuth, Claude, logos
+│   │   │   │   ├── security/              token encryption (AES-256-GCM)
+│   │   │   │   ├── demo/                  sample applications, captures and inbox
+│   │   │   │   └── env.ts                 validated environment
+│   │   │   └── lib/                       client-safe utilities
+│   │   ├── scripts/                       demo seeding and the email benchmark (export, label, run)
+│   │   ├── tests/integration/             service tests against PGlite
+│   │   └── e2e/                           Playwright tests of the demo, with axe
+│   └── extension/                         Manifest V3 extension, built with esbuild
 ├── packages/
 │   └── domain/                            pure TypeScript: types, schemas, rules
 └── docs/
 ```
 
-Internal packages are consumed as TypeScript source, so there is no build step between them. Next.js transpiles the domain package, and Vite and Vitest read it directly.
+Internal packages are consumed as TypeScript source, so there is no build step between them. Next.js transpiles the domain package, and esbuild and Vitest read it directly.
 
 ## Layering and dependency rules
 
