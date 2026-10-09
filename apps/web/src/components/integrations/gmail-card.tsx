@@ -1,10 +1,16 @@
 "use client";
 
 import type { IntegrationStatus } from "@trackr/domain";
-import { Mail, TriangleAlert, Unplug } from "lucide-react";
+import { Mail, RefreshCw, TriangleAlert, Unplug } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { disconnectGmailAction } from "@/app/(app)/integrations/actions";
+import { toast } from "sonner";
+import {
+  disconnectGmailAction,
+  restartGmailSyncAction,
+  syncGmailAction,
+} from "@/app/(app)/integrations/actions";
 import { DateText } from "@/components/date-text";
 import { ConfirmDeleteDialog } from "@/components/forms/confirm-delete-dialog";
 import { Button } from "@/components/ui/button";
@@ -18,6 +24,7 @@ export type GmailCardState =
       email: string | null;
       connectedAt: Date | null;
       lastSyncedAt: Date | null;
+      lastErrorCode: string | null;
     };
 
 const RESULT_MESSAGES: Record<
@@ -53,6 +60,24 @@ const RESULT_MESSAGES: Record<
 
 const CONNECT_HREF = "/api/integrations/gmail/connect";
 
+// About 10,000 emails per click; past that, the next click carries on.
+const MAX_BATCHES = 400;
+
+/** "Checked 120 emails: 3 updates, 1 new application, 2 to review." */
+function summarize(checked: number, outcomes: Record<string, number>) {
+  const parts = [
+    outcomes.applied &&
+      `${outcomes.applied} update${outcomes.applied === 1 ? "" : "s"}`,
+    outcomes.created &&
+      `${outcomes.created} new application${outcomes.created === 1 ? "" : "s"}`,
+    outcomes.review && `${outcomes.review} to review`,
+  ].filter(Boolean);
+  const emails = `${checked} new email${checked === 1 ? "" : "s"}`;
+  return parts.length > 0
+    ? `Checked ${emails}: ${parts.join(", ")}.`
+    : `Checked ${emails}. Nothing needed updating.`;
+}
+
 export function GmailCard({
   state,
   result,
@@ -60,8 +85,71 @@ export function GmailCard({
   state: GmailCardState;
   result: string | null;
 }) {
+  const router = useRouter();
   const [confirming, setConfirming] = useState(false);
+  const [rechecking, setRechecking] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
   const message = result ? RESULT_MESSAGES[result] : undefined;
+  const syncing = progress !== null;
+
+  /** One batch; a dropped request is retried a few times before giving up. */
+  async function syncWithRetries() {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await syncGmailAction();
+      } catch {
+        await new Promise((done) => setTimeout(done, 2000 * (attempt + 1)));
+      }
+    }
+    return null;
+  }
+
+  async function sync() {
+    setProgress(0);
+    const totals = { applied: 0, created: 0, review: 0, ignored: 0 };
+    let checked = 0;
+    let more = false;
+    try {
+      for (let batch = 0; batch < MAX_BATCHES; batch++) {
+        const outcome = await syncWithRetries();
+        if (!outcome) {
+          toast.error(
+            "Sync stopped before it finished. Click Sync now to continue.",
+          );
+          return;
+        }
+        if (!outcome.ok) {
+          toast.error(outcome.error);
+          return;
+        }
+        checked += outcome.processed;
+        for (const key of Object.keys(totals) as (keyof typeof totals)[]) {
+          totals[key] += outcome.outcomes[key];
+        }
+        setProgress(checked);
+        more = outcome.hasMore;
+        if (!more) break;
+      }
+      const summary = summarize(checked, totals);
+      toast.success(
+        more ? `${summary} More email to read: Sync now continues.` : summary,
+        {
+          ...(totals.review > 0
+            ? {
+                action: {
+                  label: "Review",
+                  onClick: () => router.push("/activity?tab=review"),
+                },
+              }
+            : {}),
+          duration: 8000,
+        },
+      );
+    } finally {
+      setProgress(null);
+      router.refresh();
+    }
+  }
 
   return (
     <section
@@ -100,15 +188,39 @@ export function GmailCard({
       <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <GmailStatus state={state} />
         {state.kind === "account" &&
-          (state.status === "CONNECTED" ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setConfirming(true)}
-            >
-              <Unplug aria-hidden="true" />
-              Disconnect
-            </Button>
+          (state.status === "CONNECTED" || state.status === "ERROR" ? (
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={sync} disabled={syncing}>
+                <RefreshCw
+                  className={syncing ? "animate-spin" : undefined}
+                  aria-hidden="true"
+                />
+                {syncing
+                  ? progress > 0
+                    ? `Checked ${progress}…`
+                    : "Checking…"
+                  : state.status === "ERROR"
+                    ? "Try again"
+                    : "Sync now"}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setRechecking(true)}
+                disabled={syncing}
+              >
+                Re-check past emails
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setConfirming(true)}
+                disabled={syncing}
+              >
+                <Unplug aria-hidden="true" />
+                Disconnect
+              </Button>
+            </div>
           ) : (
             <Button size="sm" asChild>
               {/* A full navigation: the route redirects to Google. */}
@@ -134,6 +246,20 @@ export function GmailCard({
         confirmLabel="Disconnect"
         pendingLabel="Disconnecting…"
         onConfirm={disconnectGmailAction}
+      />
+      <ConfirmDeleteDialog
+        open={rechecking}
+        onOpenChange={setRechecking}
+        title="Re-check the last 90 days?"
+        description="Trackr reads your recent email again with its latest rules. Applications and updates it already made stay as they are; emails waiting for review are looked at afresh."
+        confirmLabel="Re-check"
+        pendingLabel="Starting…"
+        destructive={false}
+        onConfirm={async () => {
+          const result = await restartGmailSyncAction();
+          if (result?.ok) void sync();
+          return result;
+        }}
       />
     </section>
   );
@@ -172,6 +298,16 @@ function GmailStatus({ state }: { state: GmailCardState }) {
           ) : null}
         </p>
       </div>
+    );
+  }
+  if (state.status === "ERROR") {
+    return (
+      <p className="flex items-start gap-2 text-warning">
+        <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+        {state.lastErrorCode === "gmail_api_disabled"
+          ? "The Gmail API isn't enabled for this app's Google Cloud project. Enable it, then try again."
+          : "The last sync failed. Try again."}
+      </p>
     );
   }
   if (state.status === "NEEDS_REAUTH") {

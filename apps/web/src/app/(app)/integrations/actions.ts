@@ -8,7 +8,22 @@ import { DEMO_CAPTURES } from "@/server/demo/captures";
 import { NotFoundError } from "@/server/services/errors";
 import { revokeExtensionSession } from "@/server/services/extension-auth";
 import { ingestExtensionSubmission } from "@/server/services/extension-ingestion";
-import { disconnectGmail } from "@/server/services/gmail-connection";
+import {
+  GmailApiDisabledError,
+  GmailTemporaryError,
+} from "@/server/integrations/gmail-api";
+import {
+  disconnectGmail,
+  GmailNotConnectedError,
+  GmailReauthRequiredError,
+} from "@/server/services/gmail-connection";
+import {
+  GmailNotConfiguredError,
+  GmailSyncBusyError,
+  restartGmailSync,
+  syncGmail,
+  type SyncResult,
+} from "@/server/services/gmail-sync";
 
 export async function disconnectBrowserAction(
   sessionId: string,
@@ -87,4 +102,91 @@ export async function disconnectGmailAction(): Promise<ApplicationFormState> {
     ok: true,
     message: "Gmail disconnected. Trackr's access was revoked.",
   };
+}
+
+export type GmailSyncState =
+  | {
+      ok: true;
+      processed: number;
+      hasMore: boolean;
+      outcomes: SyncResult["outcomes"];
+    }
+  | { ok: false; error: string };
+
+/** Reads the next batch of Gmail. The page calls it again while `hasMore`. */
+export async function syncGmailAction(): Promise<GmailSyncState> {
+  const user = await requireUser();
+  if (user.isDemo) {
+    return {
+      ok: false,
+      error: "Gmail needs a real account, not a demo workspace.",
+    };
+  }
+  try {
+    const result = await syncGmail(user.id);
+    if (!result.hasMore) revalidatePath("/", "layout");
+    return { ok: true, ...result };
+  } catch (error) {
+    revalidatePath("/integrations");
+    if (error instanceof GmailSyncBusyError) {
+      return {
+        ok: false,
+        error: "A sync is already running. Try again in a minute.",
+      };
+    }
+    if (error instanceof GmailReauthRequiredError) {
+      return {
+        ok: false,
+        error: "Google ended Trackr's access. Reconnect Gmail to keep syncing.",
+      };
+    }
+    if (error instanceof GmailApiDisabledError) {
+      return {
+        ok: false,
+        error:
+          "The Gmail API isn't enabled for this app's Google Cloud project.",
+      };
+    }
+    if (error instanceof GmailNotConnectedError) {
+      return { ok: false, error: "Gmail isn't connected." };
+    }
+    if (error instanceof GmailNotConfiguredError) {
+      return { ok: false, error: "Gmail isn't set up on this deployment." };
+    }
+    if (error instanceof GmailTemporaryError) {
+      return {
+        ok: false,
+        error: "Gmail is busy right now. Try again in a minute.",
+      };
+    }
+    console.error("gmail_sync_failed", {
+      error: error instanceof Error ? error.name : "unknown",
+    });
+    return {
+      ok: false,
+      error: "Something went wrong syncing Gmail. Try again.",
+    };
+  }
+}
+
+/** Clears undecided emails so the next sync reads the last 90 days again. */
+export async function restartGmailSyncAction(): Promise<ApplicationFormState> {
+  const user = await requireUser();
+  if (user.isDemo) return { ok: false, error: "Gmail needs a real account." };
+  try {
+    await restartGmailSync(user.id);
+  } catch (error) {
+    if (error instanceof GmailSyncBusyError) {
+      return {
+        ok: false,
+        error: "A sync is running. Try again when it finishes.",
+      };
+    }
+    if (error instanceof GmailNotConnectedError) {
+      return { ok: false, error: "Gmail isn't connected." };
+    }
+    throw error;
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, message: "Re-checking the last 90 days." };
 }

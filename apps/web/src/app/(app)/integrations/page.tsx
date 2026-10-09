@@ -37,6 +37,7 @@ export default async function IntegrationsPage({
           email: gmail?.email ?? null,
           connectedAt: gmail?.connectedAt ?? null,
           lastSyncedAt: gmail?.lastSyncedAt ?? null,
+          lastErrorCode: gmail?.lastErrorCode ?? null,
         };
 
   return (

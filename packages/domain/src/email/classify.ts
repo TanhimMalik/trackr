@@ -2,6 +2,7 @@ import type { EmailClassification } from "../enums";
 import type { EmailContent } from "./types";
 import {
   ASSESSMENT_PLATFORMS,
+  ASSESSMENT_SENDER_DOMAINS,
   ATS_SENDER_DOMAINS,
   isFromDomain,
   JOB_BOARD_SENDER_DOMAINS,
@@ -22,6 +23,8 @@ type Rule = {
   phrases: RegExp[];
   /** Progress-type news is ignored in hypothetical sentences ("if… we'll schedule"). */
   progress?: boolean;
+  /** Sentences that look like the rule but are about something else. */
+  exclude?: RegExp;
 };
 
 // In precedence order: earlier rules win when several match.
@@ -52,6 +55,8 @@ const RULES: Rule[] = [
     classification: "OFFER",
     confidence: 0.9,
     progress: true,
+    exclude:
+      /\b(financial aid|scholarship|loan|credit|card|cash ?back|points|miles|promo|discount|deal)\b/,
     phrases: [
       /\bpleased to (extend|offer) you\b/,
       /\b(extend|make) (you )?an offer\b/,
@@ -86,10 +91,14 @@ const RULES: Rule[] = [
     phrases: [
       /\bcoding (challenge|exercise|assessment)\b/,
       /\bonline assessment\b/,
-      /\btake[- ]home (assignment|exercise|project|challenge)?\b/,
-      /\btechnical assessment\b/,
-      /\bcomplete (the|this|our) assessment\b/,
+      /\btake[- ]home (assignment|exercise|project|challenge)\b/,
+      /\b(technical|skills?|online|coding|cognitive|aptitude) (assessment|test|challenge)\b/,
+      /\bassessment (for|invitation|invite|link)\b/,
+      /\binvited to (take|complete)\b.*\b(assessment|test|challenge)\b/,
+      /\bcomplete (the|this|our|your) ([\w'’-]+ ){0,2}(assessment|test|challenge)\b/,
+      /\b(hirevue|codesignal|hackerrank|codility)\b/,
     ],
+    exclude: /\b(miles|deals?|sale|shop(ping)?)\b/,
   },
   {
     classification: "NEXT_ROUND",
@@ -124,6 +133,15 @@ const RULES: Rule[] = [
       /\byour application (has been|was) (submitted|received)\b/,
       /\bapplication (received|submitted)\b/,
       /\byour application was sent to\b/,
+      /\bthank(s| you) for your interest in\b/,
+      /\bthank(s| you) for (submitting )?your application\b/,
+      /\bwe('ve| have)? (successfully )?received your\b.*\bapplication\b/,
+      /\bapplication (confirmation|received|submitted)\b/,
+      /\bsuccessfully (submitted|applied)\b/,
+      /\byour application (to|for|with) .{1,100} (has been|was) (received|submitted)\b/,
+      /\bapplication is in good hands\b/,
+      /\bkeep track of your application\b/,
+      /^indeed application: /,
     ],
   },
 ];
@@ -150,6 +168,7 @@ function firstMatch(rule: Rule, parts: string[]): string | null {
   for (const sentence of parts) {
     const lower = sentence.toLowerCase();
     if (rule.progress && HYPOTHETICAL.test(lower)) continue;
+    if (rule.exclude?.test(lower)) continue;
     if (rule.phrases.some((phrase) => phrase.test(lower))) return sentence;
   }
   return null;
@@ -158,9 +177,21 @@ function firstMatch(rule: Rule, parts: string[]): string | null {
 const quote = (sentence: string) =>
   sentence.length > 200 ? `${sentence.slice(0, 197)}…` : sentence;
 
-const isPersonalSender = (email: string) =>
-  !isFromDomain(email, [...ATS_SENDER_DOMAINS, ...JOB_BOARD_SENDER_DOMAINS]) &&
-  !NO_REPLY.test(email.split("@")[0] ?? "");
+const BULK_LABELS = [
+  "CATEGORY_PROMOTIONS",
+  "CATEGORY_SOCIAL",
+  "CATEGORY_FORUMS",
+];
+
+/** A person writing directly: not a platform, not a no-reply address, not a mailing list. */
+const isPersonalSender = (email: EmailContent) =>
+  !isFromDomain(email.fromEmail, [
+    ...ATS_SENDER_DOMAINS,
+    ...JOB_BOARD_SENDER_DOMAINS,
+  ]) &&
+  !NO_REPLY.test(email.fromEmail.split("@")[0] ?? "") &&
+  !email.hasListUnsubscribe &&
+  !email.labels.some((label) => BULK_LABELS.includes(label));
 
 /**
  * Classifies a relevant message with ordered phrase rules. The strongest
@@ -180,9 +211,10 @@ export function classifyEmail(email: EmailContent): RuleClassification {
   // Links to assessment and scheduling tools are evidence on their own.
   if (
     !matches.has("ASSESSMENT") &&
-    ASSESSMENT_PLATFORMS.some((d) => links.includes(d))
+    (ASSESSMENT_PLATFORMS.some((d) => links.includes(d)) ||
+      isFromDomain(email.fromEmail, ASSESSMENT_SENDER_DOMAINS))
   ) {
-    matches.set("ASSESSMENT", "Link to an assessment platform");
+    matches.set("ASSESSMENT", "From an assessment platform");
   }
   if (
     !matches.has("INTERVIEW_REQUEST") &&
@@ -204,7 +236,7 @@ export function classifyEmail(email: EmailContent): RuleClassification {
   if (!winner) {
     // A person at a company writing about a role, with no stronger news.
     const aboutRole = parts.find((s) => ROLE_WORDS.test(s.toLowerCase()));
-    if (isPersonalSender(email.fromEmail) && aboutRole) {
+    if (isPersonalSender(email) && aboutRole) {
       return {
         classification: "RECRUITER_CONTACT",
         confidence: 0.7,

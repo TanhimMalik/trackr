@@ -9,10 +9,9 @@ import {
   plainTextDescription,
   type ExtensionSubmission,
   type ExtensionSubmissionResponse,
-  type MatchCandidate,
   type ScoredCandidate,
 } from "@trackr/domain";
-import { and, asc, eq, or, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/server/db/client";
 import {
   applicationEvents,
@@ -23,54 +22,12 @@ import {
 import type { Application, Database } from "@/server/db/types";
 import { newApplicationValues } from "./applications";
 import { processApplicationEvent } from "./events";
+import { findMatchCandidates } from "./matching";
 
 const submissionKey = (clientSubmissionId: string) =>
   `ext:${clientSubmissionId}`;
 export const duplicateReviewKey = (clientSubmissionId: string) =>
   `dup:${clientSubmissionId}`;
-
-/** The applications a submission could belong to: same company, website or posting. */
-async function findCandidates(
-  tx: Database,
-  userId: string,
-  submission: ExtensionSubmission,
-  companyNameNorm: string,
-  companyDomain: string | null,
-): Promise<MatchCandidate[]> {
-  const rows = await tx
-    .select({
-      id: applications.id,
-      companyNameNorm: applications.companyNameNorm,
-      companyDomain: applications.companyDomain,
-      jobTitleNorm: applications.jobTitleNorm,
-      sourcePlatform: applications.sourcePlatform,
-      atsJobId: applications.atsJobId,
-      appliedAt: applications.appliedAt,
-      lastActivityAt: applications.lastActivityAt,
-    })
-    .from(applications)
-    .where(
-      and(
-        eq(applications.userId, userId),
-        or(
-          eq(applications.companyNameNorm, companyNameNorm),
-          companyDomain
-            ? eq(applications.companyDomain, companyDomain)
-            : undefined,
-          submission.atsJobId
-            ? and(
-                eq(applications.sourcePlatform, submission.platform),
-                eq(applications.atsJobId, submission.atsJobId),
-              )
-            : undefined,
-        ),
-      ),
-    );
-  return rows.map(({ appliedAt, lastActivityAt, ...row }) => ({
-    ...row,
-    activeAt: appliedAt ?? lastActivityAt,
-  }));
-}
 
 /** A repeated submission gets the answer the first one did. */
 async function previousResponse(
@@ -204,13 +161,12 @@ export async function ingestExtensionSubmission(
     const previous = await previousResponse(tx, userId, submission);
     if (previous) return previous;
 
-    const candidates = await findCandidates(
-      tx,
-      userId,
-      submission,
+    const candidates = await findMatchCandidates(tx, userId, {
       companyNameNorm,
       companyDomain,
-    );
+      platform: submission.platform,
+      atsJobId: submission.atsJobId,
+    });
     const match = matchApplication(
       {
         companyNameNorm,

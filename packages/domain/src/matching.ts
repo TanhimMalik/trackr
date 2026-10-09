@@ -1,5 +1,13 @@
 import type { SourcePlatform } from "./enums";
+import { normalizeJobTitle } from "./normalize/title";
 import { tokenize } from "./normalize/text";
+
+/**
+ * The title of an application created before anything named the role. It
+ * means "unknown", so it never counts as the same or a different role.
+ */
+export const PLACEHOLDER_JOB_TITLE = "Role not specified";
+const PLACEHOLDER_NORM = normalizeJobTitle(PLACEHOLDER_JOB_TITLE);
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -8,6 +16,7 @@ export const MATCH_WEIGHTS = {
   ATS_JOB_ID: 50,
   SAME_THREAD: 60,
   COMPANY_NAME: 40,
+  COMPANY_NAME_PARTIAL: 30,
   COMPANY_DOMAIN: 30,
   TITLE_EXACT: 30,
   TITLE_SIMILAR: 20,
@@ -22,6 +31,7 @@ export const MATCH_SIGNAL_LABELS: Record<MatchSignal, string> = {
   ATS_JOB_ID: "Same job posting",
   SAME_THREAD: "Same email thread",
   COMPANY_NAME: "Same company",
+  COMPANY_NAME_PARTIAL: "Same company, longer name",
   COMPANY_DOMAIN: "Same company website",
   TITLE_EXACT: "Same role",
   TITLE_SIMILAR: "Similar role",
@@ -89,6 +99,16 @@ function sameAtsJob(signal: IncomingSignal, candidate: MatchCandidate) {
   );
 }
 
+/**
+ * "Calibrate" and "Calibrate Health": one name is the other's leading
+ * words. Whole words only, so "Meta" never matches "Metaview".
+ */
+export function sameCompanyLongerName(a: string, b: string): boolean {
+  if (!a || !b || a === b) return false;
+  const [short, long] = a.length < b.length ? [a, b] : [b, a];
+  return long.startsWith(`${short} `);
+}
+
 /** How strongly a signal points at one application, and why. */
 export function scoreCandidate(
   signal: IncomingSignal,
@@ -102,6 +122,10 @@ export function scoreCandidate(
   }
   if (signal.companyNameNorm === candidate.companyNameNorm) {
     signals.push("COMPANY_NAME");
+  } else if (
+    sameCompanyLongerName(signal.companyNameNorm, candidate.companyNameNorm)
+  ) {
+    signals.push("COMPANY_NAME_PARTIAL");
   }
   if (
     signal.companyDomain &&
@@ -109,7 +133,11 @@ export function scoreCandidate(
   ) {
     signals.push("COMPANY_DOMAIN");
   }
-  if (signal.jobTitleNorm) {
+  if (
+    signal.jobTitleNorm &&
+    candidate.jobTitleNorm &&
+    candidate.jobTitleNorm !== PLACEHOLDER_NORM
+  ) {
     const similarity = titleSimilarity(
       signal.jobTitleNorm,
       candidate.jobTitleNorm,

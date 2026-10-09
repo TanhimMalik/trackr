@@ -20,3 +20,4 @@ export type UserSettings = typeof schema.userSettings.$inferSelect;
 export type ExtensionSession = typeof schema.extensionSessions.$inferSelect;
 export type ReviewItem = typeof schema.reviewItems.$inferSelect;
 export type Integration = typeof schema.integrations.$inferSelect;
+export type Email = typeof schema.emails.$inferSelect;

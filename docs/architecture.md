@@ -179,7 +179,7 @@ Because derivation replays events in the order they happened, an "application re
 
 `followUpReminders` in the domain package decides which applications deserve a nudge: an applied application with no activity for the user's interval (14 days by default), or an interview with no news five days after it took place. Reminders that came due more than 30 days ago are skipped. Each becomes a `FOLLOW_UP_DUE` notification whose dedupe key names the quiet stretch, so it is raised once, and any new activity starts a new stretch.
 
-Until scheduled jobs arrive (Phase 9), the app layout calls `refreshFollowUpReminders`, which checks at most once an hour per user. It claims the check with a conditional upsert of `user_settings.reminders_checked_at`, so simultaneous page loads don't repeat the work. Saving the settings clears that timestamp, so a new interval takes effect on the next page load.
+Until scheduled jobs arrive (Phase 8), the app layout calls `refreshFollowUpReminders`, which checks at most once an hour per user. It claims the check with a conditional upsert of `user_settings.reminders_checked_at`, so simultaneous page loads don't repeat the work. Saving the settings clears that timestamp, so a new interval takes effect on the next page load.
 
 ### Undo
 
@@ -222,7 +222,7 @@ Matching links an incoming signal, whether an email or an extension submission, 
 | Sender domain matches the company domain     | +10    |
 | Clearly different title at the same company  | −30    |
 
-- 80 or more is an automatic match, 50–79 a possible match, and below 50 no match. The same ATS job posting on the same platform is decisive on its own. Thresholds are constants for now and move to user settings in Phase 7.
+- 80 or more is an automatic match, 50–79 a possible match, and below 50 no match. The same ATS job posting on the same platform is decisive on its own. Thresholds are constants for now and move to user settings in Phase 6.
 - "Same role" means identical normalized titles; "similar" means at least half their words are shared; under a third shared counts as a different role.
 - If the top two candidates both clear the automatic threshold within a small margin, the decision drops to a possible match. The system never guesses between two roles at the same company.
 - Every result includes the contributing signals, so the UI can explain itself: "Matched: same company, similar title, applied 2 days earlier."
@@ -344,7 +344,7 @@ Fields that are not allowlisted are dropped, so new code cannot leak email conte
 | Integration            | Vitest + PGlite (`apps/web`) | Services against real Postgres with real migrations: create application, extension event creates application, confirmation matches, interview and rejection update status, duplicate events are no-ops, users are isolated |
 | Extension              | Vitest + DOM fixtures        | Platform detectors against saved Greenhouse, Lever and Ashby pages                                                                                                                                                         |
 | Classification quality | Labeled email fixtures       | Precision and recall of the relevance filter, classifier and matcher over time                                                                                                                                             |
-| End to end             | Playwright (Phase 9)         | The MVP acceptance flow                                                                                                                                                                                                    |
+| End to end             | Playwright (Phase 8)         | The MVP acceptance flow                                                                                                                                                                                                    |
 
 PGlite runs Postgres in-process via WebAssembly, so integration tests need no Docker or external database.
 
@@ -352,7 +352,7 @@ PGlite runs Postgres in-process via WebAssembly, so integration tests need no Do
 
 - **Local:** Next.js dev server against a hosted Supabase development project. Tests use PGlite.
 - **Production:** Vercel (free plan, `*.vercel.app` address) and Supabase, with the database reached through Supabase's transaction pooler. Migrations are generated with drizzle-kit, reviewed as SQL, and applied before deploying code that needs them. Only the landing page is open to crawlers (`robots.txt`), and shared links get a generated preview image. Setup steps are in the README.
-- **Scheduled work (Phase 9):** Vercel Cron for periodic Gmail sync and reminder generation. Until then, sync is user-triggered.
+- **Scheduled work (Phase 8):** Vercel Cron for periodic Gmail sync and reminder generation. Until then, sync is user-triggered.
 
 ## Key decisions
 

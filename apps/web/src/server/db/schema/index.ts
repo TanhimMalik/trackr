@@ -11,3 +11,4 @@ export * from "./extension-sessions";
 export * from "./rate-limit-buckets";
 export * from "./review-items";
 export * from "./integrations";
+export * from "./emails";

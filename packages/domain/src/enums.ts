@@ -178,3 +178,13 @@ export const INTEGRATION_STATUSES = [
   "DISCONNECTED",
 ] as const;
 export type IntegrationStatus = (typeof INTEGRATION_STATUSES)[number];
+
+export const EMAIL_PROCESSING_STATUSES = [
+  "MATCHED",
+  "NEEDS_REVIEW",
+  "UNMATCHED",
+  "DISMISSED",
+  "IGNORED",
+  "FAILED",
+] as const;
+export type EmailProcessingStatus = (typeof EMAIL_PROCESSING_STATUSES)[number];

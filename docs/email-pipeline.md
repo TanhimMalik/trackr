@@ -1,6 +1,6 @@
 # Email Pipeline
 
-> **Status:** Phase 4, in progress. The pure stages are implemented in `packages/domain/src/email` (relevance, body cleanup, rule classifier, extraction, event mapping, automation decision) with a labeled corpus, and so is the Gmail connection (`/api/integrations/gmail/connect` and `/callback`, `services/gmail-connection.ts`). Sync follows. Matching and review arrive in Phase 5, and the LLM fallback in Phase 6.
+> **Status:** Phase 4, in progress. The pure stages are implemented in `packages/domain/src/email` (relevance, body cleanup, rule classifier, extraction, event mapping, automation decision) with a labeled corpus, so are the Gmail connection (`/api/integrations/gmail/connect` and `/callback`, `services/gmail-connection.ts`) and **Sync now** (`services/gmail-sync.ts`, `services/email-processing.ts`), with email review in Activity → Needs review. Matching and review are part of Phase 4. The LLM fallback, measured against a labeled benchmark of real email, is Phase 5.
 
 The email pipeline turns a user's Gmail inbox into application events: confirmations, assessments, recruiter contact, interview requests, offers and rejections. It is built to be cheap, deterministic where possible, and minimal in what it reads and stores.
 
@@ -48,12 +48,14 @@ Each stage is a separate, individually testable function. Stages 2, 4, 6 (rule-b
 
 ## Sync
 
-Sync is triggered by **Sync now** and, from Phase 9, by a scheduled job. Each invocation processes a bounded batch so it fits within serverless execution limits.
+Sync is triggered by **Sync now** and, from Phase 8, by a scheduled job. Each invocation processes a bounded batch so it fits within serverless execution limits.
 
 1. **First sync (backfill).** `users.messages.list` over the last 90 days, with a coarse Gmail search query that pre-selects likely candidates by sender domain and subject keywords and excludes spam, trash and chats. The query is only a cost optimization; the relevance filter makes the actual decision.
 2. **Incremental sync.** `users.history.list` from the stored `historyId` cursor, limited to `messageAdded`. If the cursor has expired, sync falls back to a time-windowed list since `last_synced_at`.
-3. **Batches.** At most about 50 messages are processed per invocation. The cursor and `last_synced_at` are persisted after each batch, and the response reports `hasMore` so the client can continue and show progress.
-4. **Idempotency.** `UNIQUE (user_id, gmail_message_id)` on `emails` and the `email:<messageId>` event dedupe key make re-processing a no-op.
+3. **Batches.** Each call reads one page of up to 25 messages (or one page of history) and stops starting new messages after 20 seconds. The cursor, stored as JSON in `sync_cursor` (`{ mode: "backfill" | "incremental", historyId, pageToken?, after? }`), only moves past a page once all of it is done, and the response reports `hasMore` so **Sync now** keeps going and shows a running count. The backfill records the mailbox `historyId` when it starts, so mail that arrives during it is picked up incrementally afterwards.
+4. **One at a time.** A sync claims `sync_locked_until` (90 seconds) with a conditional update, so a second click or tab is told a sync is already running.
+5. **Failures.** A message that can't be processed is stored as `FAILED` with an error code and retried on the next sync. Gmail outages and rate limits end the batch without moving the cursor. A disabled Gmail API (`accessNotConfigured`) puts the integration in `ERROR` with a clear message, and **Try again** works once the API is enabled.
+6. **Idempotency.** `UNIQUE (user_id, gmail_message_id)` on `emails` and the `email:<messageId>` event dedupe key make re-processing a no-op.
 
 ## Stage 1–2: relevance filter
 
@@ -103,7 +105,7 @@ Conflict handling:
 - **Ambiguity lowers confidence.** If two incompatible classifications both have strong evidence, such as interview and rejection phrases together, confidence is lowered so the message goes to the LLM or to review.
 - **Hypotheticals don't count as progress.** Interview, assessment, next-round and offer phrases are ignored in sentences with "if", "should", "may", "once" and similar, so a confirmation that says "if your experience matches, we'll schedule an interview" stays a confirmation.
 - **Confirmations from outside an ATS** score 0.93, short of automatic, since a company's own mail is less formulaic.
-- **Below 0.95 continues.** Results below the automatic threshold are passed to the LLM (Phase 6) or, before then, become review items.
+- **Below 0.95 continues.** Results below the automatic threshold are passed to the LLM (Phase 5) or, before then, become review items.
 
 ## Stage 5: LLM classifier
 
@@ -162,7 +164,17 @@ The decision combines classification confidence, the match decision and the user
 | `AUTO_APPLY` / `APPLY_FLAGGED`  | Event created through the event processor. Email marked `MATCHED` and linked.                                                                                                 |
 | `NEEDS_REVIEW` with a candidate | `EMAIL_POSSIBLE_MATCH` or `LOW_CONFIDENCE_UPDATE` review item. Email marked `NEEDS_REVIEW`.                                                                                   |
 | No match                        | A confident application confirmation with an extracted company and title creates a new application with source EMAIL. Anything else becomes an `EMAIL_UNMATCHED` review item. |
-| `NO_UPDATE`                     | Email marked `IGNORED`.                                                                                                                                                       |
+
+Routing (`services/email-routing.ts`, shared by sync and the re-match pass) adds a few rules on top of the match score, learned from a real inbox:
+
+- **One confirmation per application.** A confirmation pairs with a matching application that has none yet. If the match already has one, it's a second application to the same company.
+- **Dates decide which application.** Progress (an assessment, an interview, an offer) dated after the matching application was rejected or withdrawn starts a new application; progress from before stays with it. A rejection dated before the match's latest progress ended an earlier application.
+- **A company-only match counts** when it's the only application at that company. Otherwise it's asked about.
+- **Confirmations, rejections and assessments** for jobs Trackr doesn't know start an application, unless they come from a school (`.edu`). The role is "Role not specified" until an email names it; matching treats that placeholder as unknown.
+- **After each sync**, emails waiting for review are routed again, oldest first, since earlier messages may have created the application they belong to.
+
+Each review item stores the event it would record, so the review card can say exactly what **Apply update** does. **Create application** starts one from the email's company and role (editable first). **Dismiss** marks the email `DISMISSED`. A personal sender is added as a recruiter contact when an update is applied.
+| `NO_UPDATE` | Email marked `IGNORED`. |
 
 Classifications map to event types in one function:
 
@@ -179,6 +191,23 @@ Classifications map to event types in one function:
 | `REJECTION`                | `REJECTION_RECEIVED`                |
 | `WITHDRAWAL`               | `APPLICATION_WITHDRAWN`             |
 | `UNKNOWN`                  | none: review or ignore              |
+
+## Measuring accuracy (Phase 5)
+
+Rules tuned against a corpus written alongside them can't prove anything; the first real inbox showed that. Phase 5 measures the pipeline on real email before and after adding the LLM fallback.
+
+**M30: labeling and the baseline.**
+
+- A local-only labeling tool lists the user's job-related messages with Trackr's current reading (relevance, classification, company, role) and lets the person confirm or correct each field.
+- Labels and message content stay on the machine, in a gitignored directory. Real email is never committed; the repository keeps only the fictional corpus and published numbers.
+- A benchmark script replays the labeled set through the pipeline and reports, per field: exact-match accuracy, precision and recall per classification, and how many messages fell below the automatic threshold. The rules alone are the baseline.
+
+**M31: the LLM fallback.**
+
+- Only messages the rules leave uncertain go to the model (Stage 5 above), with the schema, evidence check and confidence caps described there.
+- The benchmark runs again with the fallback on. The model is chosen by the numbers: a smaller model wins if its accuracy is close, since cost scales with volume.
+- The README publishes the before-and-after accuracy per field, the share of messages that needed the model, and cost and latency per thousand messages.
+- Demo workspaces never call the model; their inbox is simulated. Real accounts have per-sync and daily caps.
 
 ## Stored data
 

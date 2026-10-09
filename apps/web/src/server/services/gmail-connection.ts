@@ -46,6 +46,7 @@ export type GmailConnection = {
   email: string | null;
   connectedAt: Date;
   lastSyncedAt: Date | null;
+  lastErrorCode: string | null;
 };
 
 const gmailOf = (userId: string) =>
@@ -62,6 +63,7 @@ export async function getGmailConnection(
       email: integrations.providerAccountEmail,
       connectedAt: integrations.createdAt,
       lastSyncedAt: integrations.lastSyncedAt,
+      lastErrorCode: integrations.lastErrorCode,
     })
     .from(integrations)
     .where(gmailOf(userId));

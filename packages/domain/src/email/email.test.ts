@@ -20,7 +20,8 @@ describe.each(EMAIL_FIXTURES)("$id", ({ email, expected }) => {
       expect(result.confidence).toBeGreaterThanOrEqual(expected.confidence[0]);
       expect(result.confidence).toBeLessThanOrEqual(expected.confidence[1]);
     }
-    expect(result.evidence).toBeTruthy();
+    if (expected.classification !== "UNKNOWN")
+      expect(result.evidence).toBeTruthy();
   });
 
   it("yields the expected details", () => {

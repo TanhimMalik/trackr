@@ -23,6 +23,7 @@ export function ConfirmDeleteDialog({
   onConfirm,
   confirmLabel = "Delete",
   pendingLabel = "Deleting…",
+  destructive = true,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -31,6 +32,8 @@ export function ConfirmDeleteDialog({
   onConfirm: () => Promise<ApplicationFormState>;
   confirmLabel?: string;
   pendingLabel?: string;
+  /** False for confirmations that don't delete anything. */
+  destructive?: boolean;
 }) {
   const [deleting, startDelete] = useTransition();
 
@@ -55,7 +58,7 @@ export function ConfirmDeleteDialog({
         <AlertDialogFooter>
           <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            variant="destructive"
+            variant={destructive ? "destructive" : "default"}
             disabled={deleting}
             onClick={confirm}
           >

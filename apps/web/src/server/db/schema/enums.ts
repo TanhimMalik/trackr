@@ -4,6 +4,8 @@ import {
   APPLICATION_STATUSES,
   CLASSIFICATION_METHODS,
   CONTACT_TYPES,
+  EMAIL_CLASSIFICATIONS,
+  EMAIL_PROCESSING_STATUSES,
   EMPLOYMENT_TYPES,
   EVENT_SOURCE_TYPES,
   INTEGRATION_PROVIDERS,
@@ -84,4 +86,14 @@ export const integrationProviderEnum = pgEnum(
 export const integrationStatusEnum = pgEnum(
   "integration_status",
   INTEGRATION_STATUSES,
+);
+
+export const emailClassificationEnum = pgEnum(
+  "email_classification",
+  EMAIL_CLASSIFICATIONS,
+);
+
+export const emailProcessingStatusEnum = pgEnum(
+  "email_processing_status",
+  EMAIL_PROCESSING_STATUSES,
 );

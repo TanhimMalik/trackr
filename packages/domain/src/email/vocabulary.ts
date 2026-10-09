@@ -15,6 +15,39 @@ export const ATS_SENDER_DOMAINS = [
   "jobvite.com",
   "workablemail.com",
   "bamboohr.com",
+  // Seen in real inboxes: hiring platforms that email on employers' behalf.
+  "rippling.com",
+  "yello.co",
+  "careerparcel.com",
+  "trakstar.com",
+  "polymer.co",
+  "adp.com",
+  "successfactors.com",
+  "successfactors.eu",
+  "taleo.net",
+  "oraclecloud.com",
+  "avature.net",
+  "phenompeople.com",
+  "eightfold.ai",
+  "paradox.ai",
+  "recruitee.com",
+  "breezy.hr",
+  "jazzhr.com",
+  "applytojob.com",
+  "ultipro.com",
+  "dayforcehcm.com",
+  "brassring.com",
+];
+
+/** Assessment platforms that email invitations on employers' behalf. */
+export const ASSESSMENT_SENDER_DOMAINS = [
+  "shl.com",
+  "hirevue.com",
+  "hackerrank.com",
+  "codesignal.com",
+  "codility.com",
+  "karat.com",
+  "coderpad.io",
 ];
 
 /** Job boards whose application messages are worth reading. */
@@ -22,6 +55,15 @@ export const JOB_BOARD_SENDER_DOMAINS = [
   "linkedin.com",
   "indeed.com",
   "indeedemail.com",
+  "joinhandshake.com",
+  "dice.com",
+  "ziprecruiter.com",
+  "glassdoor.com",
+  "wellfound.com",
+  "hackajob.com",
+  "mail-hackajob.com",
+  "builtin.com",
+  "jobright.ai",
 ];
 
 export const RECRUITING_LOCAL_PARTS =
@@ -80,6 +122,13 @@ export const JOB_ALERT_PATTERNS = [
   /recommended (jobs? )?for you/i,
   /new jobs? (matching|for)/i,
   /\bjobs? digest\b/i,
+  /\bjust posted a \d+% match\b/i,
+  /\b\d+ more [\w ]*jobs\b/i,
+  /\bis hiring( an?)?\b/i,
+  /\bjobs? (were )?selected for you\b/i,
+  /\bhot jobs\b/i,
+  /\bhiring alert\b/i,
+  /\bmatching jobs\b/i,
 ];
 
 const escape = (term: string) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

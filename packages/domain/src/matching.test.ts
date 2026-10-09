@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   matchApplication,
+  sameCompanyLongerName,
   scoreCandidate,
   titleSimilarity,
   type IncomingSignal,
@@ -61,6 +62,25 @@ describe("scoreCandidate", () => {
     );
     expect(scored.signals).toContain("DIFFERENT_TITLE");
     expect(scored.score).toBe(40 - 30 + 10);
+  });
+});
+
+describe("sameCompanyLongerName", () => {
+  it("matches a name that continues with whole words", () => {
+    expect(sameCompanyLongerName("calibrate", "calibrate health")).toBe(true);
+    expect(sameCompanyLongerName("amazon web services", "amazon")).toBe(true);
+    expect(sameCompanyLongerName("meta", "metaview")).toBe(false);
+    expect(sameCompanyLongerName("stripe", "stripe")).toBe(false);
+  });
+});
+
+describe("placeholder titles", () => {
+  it("treat a role nobody has named as unknown, not different", () => {
+    const scored = scoreCandidate(
+      signal(),
+      candidate("a", { title: "Role not specified" }),
+    );
+    expect(scored.signals).toEqual(["COMPANY_NAME", "RECENT"]);
   });
 });
 

@@ -374,6 +374,236 @@ export const EMAIL_FIXTURES: EmailFixture[] = [
     expected: { relevant: true, classification: "APPLICATION_CONFIRMATION" },
   },
 
+  // Patterns from a real inbox (October 2026), with fictional companies.
+  {
+    id: "yello-applying-at",
+    email: email({
+      fromName: "Contoso Recruiting",
+      fromEmail: "noreply@yello.co",
+      subject: "Thanks for applying at Contoso",
+      body: "Hi Sam, thanks for applying! Our campus team will review your materials and reach out about next steps.",
+    }),
+    expected: {
+      relevant: true,
+      classification: "APPLICATION_CONFIRMATION",
+      companyName: "Contoso",
+    },
+  },
+  {
+    id: "workday-requisition",
+    email: email({
+      fromName: "Fabrikam",
+      fromEmail: "fabrikam@myworkday.com",
+      subject:
+        "Application Received for R-2026-10442 Associate Software Engineer - Direct College Hire",
+      body: "Thank you for applying. We have received your application and will be in touch.",
+    }),
+    expected: {
+      relevant: true,
+      classification: "APPLICATION_CONFIRMATION",
+      companyName: "Fabrikam",
+      jobTitle: "Associate Software Engineer - Direct College Hire",
+    },
+  },
+  {
+    id: "indeed-apply",
+    email: email({
+      fromName: "Indeed Apply",
+      fromEmail: "indeedapply@indeed.com",
+      subject: "Indeed Application: Junior Data Analyst",
+      body: "Your application has been submitted to Northwind Labs. Good luck!",
+    }),
+    expected: {
+      relevant: true,
+      classification: "APPLICATION_CONFIRMATION",
+      companyName: "Northwind Labs",
+      jobTitle: "Junior Data Analyst",
+    },
+  },
+  {
+    id: "linkedin-sent-to-inc",
+    email: email({
+      fromName: "LinkedIn",
+      fromEmail: "jobs-noreply@linkedin.com",
+      subject: "Sam, your application was sent to Initech, Inc",
+      body: "Your application was sent to Initech, Inc. Software Engineer, New Grad. Applied on LinkedIn.",
+    }),
+    expected: {
+      relevant: true,
+      classification: "APPLICATION_CONFIRMATION",
+      companyName: "Initech",
+    },
+  },
+  {
+    id: "greenhouse-your-application-for",
+    email: email({
+      fromName: "Tailspin",
+      fromEmail: "no-reply@us.greenhouse-mail.io",
+      subject:
+        "Your application for Software Engineer Intern 2027 (USA) at Tailspin",
+      body: "Hi Sam, thank you for your interest in Tailspin! We wanted to let you know we received your application.",
+    }),
+    expected: {
+      relevant: true,
+      classification: "APPLICATION_CONFIRMATION",
+      companyName: "Tailspin",
+      jobTitle: "Software Engineer Intern 2027 (USA)",
+    },
+  },
+  {
+    id: "assessment-invite-image-heavy",
+    email: email({
+      fromName: "Contoso",
+      fromEmail: "job@careers.contoso.example",
+      subject:
+        "Sam Lee, You're invited! Assessment for (General Hire) Software Engineer Intern - 2027 Summer - Contoso Early Careers",
+      body: "Your impact starts here",
+    }),
+    expected: {
+      relevant: true,
+      classification: "ASSESSMENT",
+      companyName: "Contoso",
+      jobTitle: "Software Engineer Intern - 2027 Summer",
+    },
+  },
+  {
+    id: "application-for-the-company",
+    email: email({
+      fromName: "Globex",
+      fromEmail: "careers@globex.example",
+      subject: "Sam, we have received your application for Globex Partners!",
+      body: "Thank you for your interest in a career at Globex Partners.",
+    }),
+    expected: {
+      relevant: true,
+      classification: "APPLICATION_CONFIRMATION",
+      companyName: "Globex Partners",
+      jobTitle: null,
+    },
+  },
+  {
+    id: "shl-skills-assessment",
+    email: email({
+      fromName: "Contoso",
+      fromEmail: "noreply@shl.com",
+      subject: "Action Required: Complete your Contoso skills assessment",
+      body: "Hello Sam, please complete your skills assessment within 5 days.",
+    }),
+    expected: {
+      relevant: true,
+      classification: "ASSESSMENT",
+      companyName: "Contoso",
+    },
+  },
+  {
+    id: "financial-aid-offer-letter",
+    email: email({
+      fromName: "Student Financial Services",
+      fromEmail: "aid@university.example",
+      subject: "Financial Aid Offer Letter",
+      body: "Your financial aid offer letter for the coming year is ready to view. Review your offer in the student portal.",
+    }),
+    expected: { relevant: true, classification: "UNKNOWN" },
+  },
+  {
+    id: "quora-digest-position",
+    email: email({
+      fromName: "Quora Digest",
+      fromEmail: "digest-noreply@quora.com",
+      subject:
+        "Is it ok to ask your manager about their position on remote work?",
+      body: "Top answer: it depends on your role and the position your company takes. Read more answers.",
+      hasListUnsubscribe: true,
+    }),
+    expected: { relevant: true, classification: "UNKNOWN" },
+  },
+
+  {
+    id: "adp-hr-team-at",
+    email: email({
+      fromName: null,
+      fromEmail: "noreply@adp.com",
+      subject: "Thank you for your application, Sam",
+      body: "Disclaimer: This email has been sent by the HR team at Northwind Credit Union using ADP services. Dear Sam, Thank you for taking the time to submit your application for the Desktop Technician Level 2 position.",
+    }),
+    expected: {
+      relevant: true,
+      classification: "APPLICATION_CONFIRMATION",
+      companyName: "Northwind Credit Union",
+      jobTitle: "Desktop Technician Level 2",
+    },
+  },
+  {
+    id: "lowercase-brand",
+    email: email({
+      fromEmail: "notifications@careerparcel.com",
+      subject: "fabrikamtech: Application",
+      body: "Hi Sam, Thank you for applying to fabrikamtech. We appreciate your interest in joining us. Your application has been received and will be reviewed shortly.",
+    }),
+    expected: {
+      relevant: true,
+      classification: "APPLICATION_CONFIRMATION",
+      companyName: "fabrikamtech",
+    },
+  },
+  {
+    id: "workday-tenant-sender",
+    email: email({
+      fromEmail: "contosoair@myworkday.com",
+      subject: "Thank You for Applying",
+      body: "Hello, Thank you for your application! We've received your information for the position of Fullstack Software Engineer Intern (Undergraduate) Our Recruiting Team is currently reviewing your profile.",
+    }),
+    expected: {
+      relevant: true,
+      classification: "APPLICATION_CONFIRMATION",
+      companyName: "Contosoair",
+      jobTitle: "Fullstack Software Engineer Intern (Undergraduate)",
+    },
+  },
+  {
+    id: "early-careers-positions",
+    email: email({
+      fromName: "Contoso",
+      fromEmail: "careers@contoso.example",
+      subject: "Update from Contoso Early Careers positions",
+      body: "Thank you for your interest in Contoso Early Careers positions. Unfortunately, we will not be moving forward with your application.",
+    }),
+    expected: {
+      relevant: true,
+      classification: "REJECTION",
+      companyName: "Contoso",
+    },
+  },
+
+  {
+    id: "platform-signs-its-own-name",
+    email: email({
+      fromName: "SHL",
+      fromEmail: "noreply@shl.com",
+      subject: "Reminder: Complete your Contoso skills assessment",
+      body: "Hello Sam, this is a reminder to complete your skills assessment for Contoso.",
+    }),
+    expected: {
+      relevant: true,
+      classification: "ASSESSMENT",
+      companyName: "Contoso",
+    },
+  },
+  {
+    id: "workday-notification-suffix",
+    email: email({
+      fromName: "Fabrikam University Workday Notification",
+      fromEmail: "fabrikam@myworkday.com",
+      subject: "Update on Your Application",
+      body: "Thank you for your interest. Unfortunately, we have decided to move forward with other candidates.",
+    }),
+    expected: {
+      relevant: true,
+      classification: "REJECTION",
+      companyName: "Fabrikam University",
+    },
+  },
+
   // Not job applications
   {
     id: "linkedin-job-alert",
@@ -430,6 +660,42 @@ export const EMAIL_FIXTURES: EmailFixture[] = [
       fromEmail: "notifications@github.com",
       subject: "Your role in the acme organization changed",
       body: "You are now an owner of the acme organization.",
+    }),
+    expected: { relevant: false },
+  },
+  {
+    id: "airline-take-home-promo",
+    email: email({
+      fromName: "SkyMiles",
+      fromEmail: "offers@mail.airline.example",
+      subject: "Exclusive offers from our members' choice finalists",
+      body: "Take home a prize: see the winners and finalists and enjoy partner offers.",
+      labels: ["CATEGORY_PROMOTIONS"],
+      hasListUnsubscribe: true,
+    }),
+    expected: { relevant: false },
+  },
+  {
+    id: "jobright-match-alert",
+    email: email({
+      fromName: "Jobright",
+      fromEmail: "alerts@jobright.ai",
+      subject:
+        "Contoso just posted a 94% match Software Engineer Intern role 20 minutes ago",
+      body: "Apply directly from this email. Your match score is based on your resume.",
+      labels: ["CATEGORY_UPDATES"],
+      hasListUnsubscribe: true,
+    }),
+    expected: { relevant: false },
+  },
+  {
+    id: "linkedin-is-hiring",
+    email: email({
+      fromName: "LinkedIn",
+      fromEmail: "jobs-listings@linkedin.com",
+      subject: "Northwind Labs is hiring a Software Engineer",
+      body: "See this role and 12 more jobs that match your preferences.",
+      hasListUnsubscribe: true,
     }),
     expected: { relevant: false },
   },

@@ -4,7 +4,7 @@ Trackr is an automatic job application tracker. Connect your browser and inbox o
 
 **Live demo:** [trackr-coral-gamma.vercel.app/demo](https://trackr-coral-gamma.vercel.app/demo) opens a private workspace with sample data. No sign-up needed.
 
-> **Status:** Phase 1 (Foundation) is live. The browser extension and Gmail integration are next. See the [delivery phases](docs/product-spec.md#17-delivery-phases).
+> **Status:** Phases 1–3 are live: the tracker, events and history, and the browser extension. Gmail sync (Phase 4) is in progress, followed by measured email classification with an LLM fallback (Phase 5). See the [delivery phases](docs/product-spec.md#17-delivery-phases).
 
 ## Documentation
 

@@ -26,6 +26,8 @@ export const integrations = pgTable(
     // Gmail's historyId, for incremental sync.
     syncCursor: text("sync_cursor"),
     lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    // Held while a sync batch runs, so two can't overlap.
+    syncLockedUntil: timestamp("sync_locked_until", { withTimezone: true }),
     lastErrorCode: text("last_error_code"),
     lastErrorAt: timestamp("last_error_at", { withTimezone: true }),
     createdAt: createdAt(),

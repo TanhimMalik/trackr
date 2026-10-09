@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { applications } from "./applications";
 import { createdAt } from "./columns";
+import { emails } from "./emails";
 import {
   reviewItemKindEnum,
   reviewItemStateEnum,
@@ -20,7 +21,7 @@ import { users } from "./users";
 
 /**
  * One queue for everything Trackr isn't sure about, such as a submission that
- * may duplicate an application. Email-related columns join with Gmail.
+ * may duplicate an application, or an email Trackr couldn't place.
  */
 export const reviewItems = pgTable(
   "review_items",
@@ -38,6 +39,9 @@ export const reviewItems = pgTable(
       () => applications.id,
       { onDelete: "set null" },
     ),
+    emailId: uuid("email_id").references(() => emails.id, {
+      onDelete: "cascade",
+    }),
     // Validated event input to record if the item is confirmed.
     proposedEvent: jsonb("proposed_event").$type<Record<string, unknown>>(),
     matchScore: integer("match_score"),
