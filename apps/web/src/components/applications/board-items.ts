@@ -13,6 +13,7 @@ export function toBoardItem(application: BoardApplication): BoardItem {
     appliedAt: application.appliedAt,
     createdAt: application.createdAt,
     signal: application.signal,
+    nextInterviewAt: application.nextInterviewAt,
     defaults: formDefaultsFor(application),
   };
 }

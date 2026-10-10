@@ -193,7 +193,7 @@ export async function syncGmailAction(): Promise<GmailSyncState> {
       return { ok: false, error: "Gmail isn't connected." };
     }
     if (error instanceof GmailNotConfiguredError) {
-      return { ok: false, error: "Gmail isn't set up on this deployment." };
+      return { ok: false, error: "Gmail isn't available on this site yet." };
     }
     if (error instanceof GmailTemporaryError) {
       return {

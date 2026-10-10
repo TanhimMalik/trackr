@@ -4,7 +4,9 @@ import { ApplicationDetailSkeleton } from "@/components/applications/application
 export default function ApplicationDrawerLoading() {
   return (
     <ApplicationDrawer>
-      <ApplicationDetailSkeleton />
+      <div className="pt-6">
+        <ApplicationDetailSkeleton />
+      </div>
     </ApplicationDrawer>
   );
 }

@@ -252,6 +252,7 @@ export function CommandPalette() {
           onValueChange={setSelected}
         >
           <CommandInput
+            aria-label="Search applications, pages and actions"
             placeholder="Search applications, pages and actions…"
             value={search}
             onValueChange={setSearch}

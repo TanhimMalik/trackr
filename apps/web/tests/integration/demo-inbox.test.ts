@@ -81,7 +81,11 @@ describe("demo inbox", () => {
       .select()
       .from(reviewItems)
       .where(eq(reviewItems.userId, userId));
-    expect(items.map((item) => item.kind)).toEqual(["EMAIL_UNMATCHED"]);
+    // The seeded one, and this one.
+    expect(items.map((item) => item.kind)).toEqual([
+      "EMAIL_UNMATCHED",
+      "EMAIL_UNMATCHED",
+    ]);
   });
 
   it("ignores a newsletter", async () => {
@@ -122,11 +126,20 @@ describe("demo inbox", () => {
       .select()
       .from(reviewItems)
       .where(eq(reviewItems.userId, userId));
-    expect(items).toHaveLength(0);
+    // Back to the one the sample data starts with.
+    expect(items).toHaveLength(1);
   });
 });
 
 describe("seeded demo emails", () => {
+  it("starts with one email waiting for review", async () => {
+    const items = await testDb.db
+      .select()
+      .from(reviewItems)
+      .where(eq(reviewItems.userId, userId));
+    expect(items).toMatchObject([{ kind: "EMAIL_UNMATCHED", state: "OPEN" }]);
+  });
+
   it("gives every email event an email to preview", async () => {
     const [cloudflare] = await testDb.db
       .select({ id: applications.id })

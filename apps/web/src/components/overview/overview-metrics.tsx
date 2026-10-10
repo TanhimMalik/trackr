@@ -14,7 +14,10 @@ const grid = "grid gap-4 sm:grid-cols-2 xl:grid-cols-4";
 const recentNote = ({ recent }: CountMetric) =>
   recent === 0 ? "None in the last 30 days" : `${recent} in the last 30 days`;
 
-/** Applications, interviews, response rate and offers, with their trends. */
+/**
+ * All-time totals (saved jobs aren't counted as sent), each with what
+ * happened in the last 30 days. The funnel below follows a cohort instead.
+ */
 export async function OverviewMetrics({
   analytics,
 }: {
@@ -27,7 +30,7 @@ export async function OverviewMetrics({
     <section aria-label="Summary" className={grid}>
       <MetricCard
         icon={<BriefcaseBusiness aria-hidden="true" />}
-        label="Applications"
+        label="Applications sent"
         value={String(applications.total)}
         change={countChange(applications)}
         note={recentNote(applications)}
@@ -36,7 +39,7 @@ export async function OverviewMetrics({
       />
       <MetricCard
         icon={<CalendarDays aria-hidden="true" />}
-        label="Interviews"
+        label="Reached interview"
         value={String(interviews.total)}
         change={countChange(interviews)}
         note={recentNote(interviews)}
@@ -48,7 +51,7 @@ export async function OverviewMetrics({
         label="Response rate"
         value={formatPercent(responseRate.value)}
         change={rateChange(responseRate)}
-        note="vs. 30 days ago"
+        note="of applications sent, vs. 30 days ago"
         trend={responseRate.trend}
         trendLabel="Response rate at the end of each of the last 12 weeks"
       />

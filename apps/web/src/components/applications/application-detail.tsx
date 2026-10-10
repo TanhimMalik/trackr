@@ -8,6 +8,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DateText } from "@/components/date-text";
 import { formatSalary } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { requireUser } from "@/server/auth/session";
 import { getApplication } from "@/server/services/applications";
 import { NotFoundError } from "@/server/services/errors";
@@ -18,6 +19,7 @@ import { ApplicationInterviews } from "./application-interviews";
 import { ApplicationTimeline } from "./application-timeline";
 import { CompanyAvatar } from "./company-avatar";
 import { formDefaultsFor } from "./form-defaults";
+import { StatusBadge } from "./status-badge";
 
 function Fact({
   label,
@@ -86,8 +88,17 @@ export async function ApplicationDetail({
 
   return (
     <article className="flex flex-col gap-6">
-      <header className="flex flex-col gap-4">
-        <div className="flex items-start gap-3">
+      {/* Laid out as the article's own children, so the title row can stay
+          stuck for the whole scroll, not just while the header is in view. */}
+      <header className="contents">
+        <div
+          className={cn(
+            "-mb-2 flex items-start gap-3",
+            // In the drawer, who this is stays in view while scrolling.
+            variant === "drawer" &&
+              "sticky top-0 z-10 -mx-6 border-b bg-background px-6 pt-6 pr-14 pb-3",
+          )}
+        >
           <CompanyAvatar
             name={application.companyName}
             domain={application.companyDomain}
@@ -101,6 +112,12 @@ export async function ApplicationDetail({
               {application.jobTitle}
             </p>
           </div>
+          {variant === "drawer" && (
+            <StatusBadge
+              status={application.currentStatus}
+              className="mt-1 shrink-0"
+            />
+          )}
         </div>
         <ApplicationDetailActions
           applicationId={application.id}

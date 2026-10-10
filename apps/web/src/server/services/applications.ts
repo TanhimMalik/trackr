@@ -51,6 +51,7 @@ import {
   applicationEvents,
   applications,
   emails,
+  interviews,
   resumeVersions,
 } from "@/server/db/schema";
 import type {
@@ -649,6 +650,8 @@ export async function countApplications(
 export type BoardApplication = Application & {
   /** The one-line summary shown on the card. */
   signal: CardSignal | null;
+  /** The next scheduled interview still to come, if any. */
+  nextInterviewAt: Date | null;
 };
 
 /**
@@ -673,7 +676,7 @@ export async function listBoardApplications(
     isNull(applicationEvents.revertedAt),
   );
 
-  const [latestSignals, origins] = await Promise.all([
+  const [latestSignals, origins, upcoming] = await Promise.all([
     db
       .selectDistinctOn([applicationEvents.applicationId], {
         applicationId: applicationEvents.applicationId,
@@ -704,7 +707,28 @@ export async function listBoardApplications(
         asc(applicationEvents.eventTimestamp),
         asc(applicationEvents.createdAt),
       ),
+    db
+      .selectDistinctOn([interviews.applicationId], {
+        applicationId: interviews.applicationId,
+        scheduledAt: interviews.scheduledAt,
+      })
+      .from(interviews)
+      .where(
+        and(
+          eq(interviews.userId, userId),
+          inArray(
+            interviews.applicationId,
+            rows.map((row) => row.id),
+          ),
+          eq(interviews.status, "SCHEDULED"),
+          gte(interviews.scheduledAt, now),
+        ),
+      )
+      .orderBy(interviews.applicationId, asc(interviews.scheduledAt)),
   ]);
+  const nextById = new Map(
+    upcoming.map((row) => [row.applicationId, row.scheduledAt]),
+  );
 
   const latestById = new Map(
     latestSignals.map((row) => [row.applicationId, row]),
@@ -715,6 +739,7 @@ export async function listBoardApplications(
     const latest = latestById.get(row.id);
     return {
       ...row,
+      nextInterviewAt: nextById.get(row.id) ?? null,
       signal: cardSignal({
         latestSignalEvent: latest
           ? {

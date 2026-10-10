@@ -64,7 +64,8 @@ export default async function IntegrationsPage({
               </h2>
               <p className="text-muted-foreground">
                 Each one sends a sample application through the same pipeline
-                the extension uses: matching, duplicate checks and all.
+                the extension uses: matching, duplicate checks and all. It
+                changes this demo&apos;s data; Reset data puts it back.
               </p>
             </div>
           </div>
@@ -92,9 +93,10 @@ export default async function IntegrationsPage({
                 Try Gmail sync with a sample inbox
               </h2>
               <p className="text-muted-foreground">
-                Deliver an email and Trackr reads it the way it reads Gmail: it
-                decides whether it&apos;s about a job, what happened, and which
-                application it belongs to.
+                Deliver a sample email and Trackr reads it the way it reads
+                Gmail: it decides whether it&apos;s about a job, what happened,
+                and which application it belongs to. It changes this demo&apos;s
+                data; Reset data puts it back.
               </p>
             </div>
           </div>

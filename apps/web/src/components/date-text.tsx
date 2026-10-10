@@ -41,9 +41,12 @@ export function DateText({
 /** A date and time in the viewer's time zone ("Thu, Oct 9 · 2:00 PM"). */
 export function DateTimeText({
   date,
+  withZone = false,
   className,
 }: {
   date: Date;
+  /** Name the zone, for times people attend ("10:00 AM EDT"). */
+  withZone?: boolean;
   className?: string;
 }) {
   const mounted = useMounted();
@@ -53,7 +56,10 @@ export function DateTimeText({
       className={className}
       suppressHydrationWarning
     >
-      {formatDateTime(date, { timeZone: mounted ? undefined : "UTC" })}
+      {formatDateTime(date, {
+        timeZone: mounted ? undefined : "UTC",
+        withZone,
+      })}
     </time>
   );
 }

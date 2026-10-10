@@ -68,41 +68,51 @@ export function FunnelCard({
           {FUNNEL_PERIODS[period].label.toLowerCase()}.
         </p>
       ) : (
-        <ol className="grid flex-1 grid-cols-4 gap-3 pt-1">
-          {stages.map((stage, index) => {
-            const share = stage.value / max;
-            return (
-              <li key={stage.label} className="flex flex-col items-center">
-                <span className="sr-only">
-                  {`${stage.label}: ${stage.value}, ${formatPercent(share)} of applications`}
-                </span>
-                <span aria-hidden="true" className="font-semibold tabular-nums">
-                  {stage.value}
-                </span>
-                <div className="mt-1.5 flex h-28 w-full items-end justify-center">
-                  <div
+        <>
+          <p className="-mt-1 mb-3 text-[0.8125rem] text-muted-foreground">
+            {period === "all"
+              ? "Every application sent, and how far each has got."
+              : `Applications sent in the ${FUNNEL_PERIODS[period].label.toLowerCase()}, and how far they've got so far.`}
+          </p>
+          <ol className="grid flex-1 grid-cols-4 gap-3 pt-1">
+            {stages.map((stage, index) => {
+              const share = stage.value / max;
+              return (
+                <li key={stage.label} className="flex flex-col items-center">
+                  <span className="sr-only">
+                    {`${stage.label}: ${stage.value}, ${formatPercent(share)} of applications`}
+                  </span>
+                  <span
                     aria-hidden="true"
-                    className={cn(
-                      "w-full max-w-14 rounded-md bg-primary",
-                      BAR_OPACITY[index],
-                    )}
-                    // A sliver stays visible at zero so the column reads as empty.
-                    style={{ height: `max(${share * 100}%, 2px)` }}
-                  />
-                </div>
-                <span aria-hidden="true" className="mt-2 text-xs font-medium">
-                  {stage.label}
-                </span>
-                <span
-                  aria-hidden="true"
-                  className="text-xs text-muted-foreground tabular-nums"
-                >
-                  {formatPercent(share)}
-                </span>
-              </li>
-            );
-          })}
-        </ol>
+                    className="font-semibold tabular-nums"
+                  >
+                    {stage.value}
+                  </span>
+                  <div className="mt-1.5 flex h-28 w-full items-end justify-center">
+                    <div
+                      aria-hidden="true"
+                      className={cn(
+                        "w-full max-w-14 rounded-md bg-primary",
+                        BAR_OPACITY[index],
+                      )}
+                      // A sliver stays visible at zero so the column reads as empty.
+                      style={{ height: `max(${share * 100}%, 2px)` }}
+                    />
+                  </div>
+                  <span aria-hidden="true" className="mt-2 text-xs font-medium">
+                    {stage.label}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="text-xs text-muted-foreground tabular-nums"
+                  >
+                    {formatPercent(share)}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </>
       )}
     </SectionCard>
   );

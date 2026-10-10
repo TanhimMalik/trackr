@@ -22,10 +22,17 @@ function yearIn(date: Date, timeZone?: string): string {
   );
 }
 
-/** "Thu, Oct 9 · 2:00 PM", with the year when it isn't the current one. */
+/**
+ * "Thu, Oct 9 · 2:00 PM", with the year when it isn't the current one, and
+ * the zone ("2:00 PM EDT") when `withZone` is set, for times people attend.
+ */
 export function formatDateTime(
   date: Date,
-  { now = new Date(), timeZone }: { now?: Date; timeZone?: string } = {},
+  {
+    now = new Date(),
+    timeZone,
+    withZone = false,
+  }: { now?: Date; timeZone?: string; withZone?: boolean } = {},
 ): string {
   const sameYear = yearIn(date, timeZone) === yearIn(now, timeZone);
   const day = new Intl.DateTimeFormat("en-US", {
@@ -38,6 +45,7 @@ export function formatDateTime(
   const time = new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
+    ...(withZone ? { timeZoneName: "short" as const } : {}),
     timeZone,
   }).format(date);
   return `${day} · ${time}`;
@@ -105,4 +113,21 @@ export function formatSalary(
   if (min !== null) return `From ${compactMoney(min, code)}`;
   if (max !== null) return `Up to ${compactMoney(max, code)}`;
   return null;
+}
+
+/** "45 min", "1 hr", "1 hr 30 min", "4 hr". */
+export function formatDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest} min`;
+  return rest === 0 ? `${hours} hr` : `${hours} hr ${rest} min`;
+}
+
+/** The viewer's time zone as a short name ("EDT"), for labels next to times. */
+export function localZoneName(date = new Date()): string {
+  return (
+    new Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
+      .formatToParts(date)
+      .find((part) => part.type === "timeZoneName")?.value ?? "local time"
+  );
 }

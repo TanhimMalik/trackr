@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatDateTime,
+  formatDuration,
   formatRelativeTime,
   formatSalary,
   formatShortDate,
@@ -113,5 +114,26 @@ describe("formatDateTime", () => {
         timeZone: "UTC",
       }),
     ).toBe("Mon, Jan 4, 2027 · 3:30 PM");
+  });
+});
+
+describe("formatDuration", () => {
+  it("reads like people say it", () => {
+    expect(formatDuration(45)).toBe("45 min");
+    expect(formatDuration(60)).toBe("1 hr");
+    expect(formatDuration(90)).toBe("1 hr 30 min");
+    expect(formatDuration(240)).toBe("4 hr");
+  });
+});
+
+describe("formatDateTime with a zone", () => {
+  it("names the zone for times people attend", () => {
+    expect(
+      formatDateTime(new Date("2026-10-14T14:00:00Z"), {
+        now: new Date("2026-10-09T12:00:00Z"),
+        timeZone: "America/New_York",
+        withZone: true,
+      }),
+    ).toBe("Wed, Oct 14 · 10:00 AM EDT");
   });
 });

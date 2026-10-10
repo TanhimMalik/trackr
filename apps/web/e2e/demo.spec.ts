@@ -28,6 +28,9 @@ test("the demo opens on a populated overview", async () => {
       name: /Good (morning|afternoon|evening)/,
     }),
   ).toBeVisible();
+  // What to do next comes first, including the email Trackr asks about.
+  await expect(page.getByRole("heading", { name: "Up next" })).toBeVisible();
+  await expect(page.getByText("1 item to review")).toBeVisible();
   await expectAccessible(page);
 });
 
@@ -51,6 +54,22 @@ test("the board shows every stage and opens an application", async () => {
   await expect(page.getByRole("heading", { name: "Stripe" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible();
   await expectAccessible(page);
+});
+
+test("the interview filter matches the board's interview column", async () => {
+  await page.goto("/applications", { waitUntil: "networkidle" });
+  const column = page.getByRole("region", { name: /^Interview, / });
+  const onBoard = (await column.getAttribute("aria-label"))!;
+  await page.getByRole("button", { name: /^Status/ }).click();
+  await page
+    .getByRole("menuitemcheckbox", { name: /^Interview/ })
+    .first()
+    .click();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: /Status · Interview/ }),
+  ).toBeVisible();
+  await expect(page.getByRole("region", { name: onBoard })).toBeVisible();
 });
 
 test("an application can be moved with the keyboard", async () => {

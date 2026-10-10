@@ -50,7 +50,7 @@ const RESULT_MESSAGES: Record<
   },
   unavailable: {
     tone: "error",
-    text: "Gmail isn't set up on this deployment.",
+    text: "Gmail isn't available on this site yet.",
   },
   demo: {
     tone: "error",
@@ -166,8 +166,10 @@ export function GmailCard({
           </h2>
           <p className="text-muted-foreground">
             Reads confirmations, interview invites and rejections to update
-            applications for you. Access is read-only; Trackr keeps the sender,
-            subject and what it found, never the message itself.
+            applications for you. Access is read-only. For job email, Trackr
+            keeps the sender, subject, Gmail&apos;s short preview and what it
+            found; it never stores the full message, and keeps nothing but an id
+            for other email.
           </p>
         </div>
       </div>
@@ -269,7 +271,7 @@ function GmailStatus({ state }: { state: GmailCardState }) {
   if (state.kind === "unavailable") {
     return (
       <p className="text-muted-foreground">
-        Gmail isn&apos;t set up on this deployment.
+        Gmail isn&apos;t available on this site yet.
       </p>
     );
   }

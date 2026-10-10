@@ -22,11 +22,13 @@ import {
   OverviewMetrics,
   OverviewMetricsSkeleton,
 } from "@/components/overview/overview-metrics";
+import { UpNext, UpNextSkeleton } from "@/components/overview/up-next";
 import {
   RecentAutomation,
   RecentAutomationSkeleton,
 } from "@/components/overview/recent-automation";
 import { requireUser } from "@/server/auth/session";
+import { getAgenda } from "@/server/services/agenda";
 import { getOverviewAnalytics } from "@/server/services/analytics";
 import { countApplications } from "@/server/services/applications";
 
@@ -59,6 +61,11 @@ export default async function OverviewPage({
   return (
     <div className="flex flex-col gap-6">
       <Greeting name={user.name} />
+
+      {/* What to do next comes before how it's going. */}
+      <Suspense fallback={<UpNextSkeleton />}>
+        <UpNext agenda={getAgenda(user.id)} />
+      </Suspense>
 
       <Suspense fallback={<OverviewMetricsSkeleton />}>
         <OverviewMetrics analytics={analytics} />
@@ -97,7 +104,7 @@ export default async function OverviewPage({
         <Suspense fallback={<OverviewFunnelSkeleton />}>
           <OverviewFunnel analytics={analytics} />
         </Suspense>
-        <IntegrationsCard />
+        <IntegrationsCard userId={user.id} isDemo={user.isDemo} />
       </div>
     </div>
   );

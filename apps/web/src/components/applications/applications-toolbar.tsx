@@ -4,6 +4,8 @@ import {
   APPLICATION_SOURCE_LABELS,
   APPLICATION_SOURCES,
   APPLICATION_STATUS_LABELS,
+  BOARD_COLUMNS,
+  type ApplicationStatus,
 } from "@trackr/domain";
 import { ArrowUpDown, ChevronDown, Search, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -15,6 +17,7 @@ import {
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -41,6 +44,30 @@ function toggle<T>(values: T[], value: T, checked: boolean): T[] {
 }
 
 /** A menu trigger; extra props come from the menu (handlers, ARIA, ref). */
+// The status filter follows the board: one choice per stage, and the
+// statuses inside a stage (Interview: screen, interview, final round).
+const STAGES = BOARD_COLUMNS.map((column) => ({
+  id: column.id,
+  label: column.label,
+  statuses: column.statuses.filter((status): status is SelectableStatus =>
+    (SELECTABLE_STATUSES as readonly ApplicationStatus[]).includes(status),
+  ),
+}));
+type SelectableStatus = (typeof SELECTABLE_STATUSES)[number];
+const inStage = (stage: (typeof STAGES)[number], status: ApplicationStatus) =>
+  (stage.statuses as readonly ApplicationStatus[]).includes(status);
+
+/** "Interview" for a whole stage, "Final round" for one status, else none. */
+function statusSummary(selected: readonly ApplicationStatus[]) {
+  if (selected.length === 1) return APPLICATION_STATUS_LABELS[selected[0]!];
+  const stage = STAGES.find(
+    (candidate) =>
+      candidate.statuses.length === selected.length &&
+      candidate.statuses.every((status) => selected.includes(status)),
+  );
+  return stage?.label;
+}
+
 function FilterButton({
   label,
   count,
@@ -147,24 +174,81 @@ export function ApplicationsToolbar({
         <div className="flex flex-wrap items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <FilterButton label="Status" count={filters.statuses.length} />
+              <FilterButton
+                label="Status"
+                value={statusSummary(filters.statuses)}
+                count={
+                  statusSummary(filters.statuses)
+                    ? undefined
+                    : filters.statuses.length
+                }
+              />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
-              {SELECTABLE_STATUSES.map((status) => (
-                <DropdownMenuCheckboxItem
-                  key={status}
-                  checked={filters.statuses.includes(status)}
-                  onSelect={(event) => event.preventDefault()}
-                  onCheckedChange={(checked) =>
-                    apply({
-                      statuses: toggle(filters.statuses, status, checked),
-                    })
-                  }
-                >
-                  <StatusDot status={status} />
-                  {APPLICATION_STATUS_LABELS[status]}
-                </DropdownMenuCheckboxItem>
-              ))}
+            <DropdownMenuContent align="start" className="w-52">
+              {STAGES.map((stage, index) => {
+                const chosen = stage.statuses.filter((status) =>
+                  filters.statuses.includes(status),
+                );
+                const all = chosen.length === stage.statuses.length;
+                return (
+                  <div key={stage.id}>
+                    {index > 0 && stage.statuses.length > 1 && (
+                      <DropdownMenuSeparator />
+                    )}
+                    <DropdownMenuCheckboxItem
+                      checked={
+                        all ? true : chosen.length ? "indeterminate" : false
+                      }
+                      onSelect={(event) => event.preventDefault()}
+                      onCheckedChange={() =>
+                        apply({
+                          statuses: all
+                            ? filters.statuses.filter(
+                                (status) => !inStage(stage, status),
+                              )
+                            : [
+                                ...filters.statuses.filter(
+                                  (status) => !inStage(stage, status),
+                                ),
+                                ...stage.statuses,
+                              ],
+                        })
+                      }
+                    >
+                      <StatusDot status={stage.statuses[0]!} />
+                      {stage.label}
+                      {stage.statuses.length > 1 && (
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          all
+                        </span>
+                      )}
+                    </DropdownMenuCheckboxItem>
+                    {stage.statuses.length > 1 &&
+                      stage.statuses.map((status) => (
+                        <DropdownMenuCheckboxItem
+                          key={status}
+                          className="pl-10"
+                          checked={filters.statuses.includes(status)}
+                          onSelect={(event) => event.preventDefault()}
+                          onCheckedChange={(checked) =>
+                            apply({
+                              statuses: toggle(
+                                filters.statuses,
+                                status,
+                                checked,
+                              ),
+                            })
+                          }
+                        >
+                          {APPLICATION_STATUS_LABELS[status]}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    {stage.statuses.length > 1 && index < STAGES.length - 1 && (
+                      <DropdownMenuSeparator />
+                    )}
+                  </div>
+                );
+              })}
             </DropdownMenuContent>
           </DropdownMenu>
 

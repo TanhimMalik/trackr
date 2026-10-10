@@ -47,6 +47,7 @@ import {
 import { NO_SELECTION } from "@/lib/applications/form-data";
 import { cn } from "@/lib/utils";
 import type { Contact, Interview } from "@/server/db/types";
+import { formatDuration, localZoneName } from "@/lib/format";
 
 // Static class names so Tailwind can see them.
 const STATUS_DOT: Record<InterviewStatus, string> = {
@@ -122,7 +123,9 @@ function InterviewRow({
   const [pending, startTransition] = useTransition();
   const title = INTERVIEW_TYPE_LABELS[interview.interviewType];
   const details = [
-    interview.durationMinutes ? `${interview.durationMinutes} min` : null,
+    interview.durationMinutes
+      ? formatDuration(interview.durationMinutes)
+      : null,
     interview.location,
     contactName ? `with ${contactName}` : null,
   ].filter(Boolean);
@@ -172,7 +175,7 @@ function InterviewRow({
         </div>
         <p className="text-muted-foreground">
           {interview.scheduledAt ? (
-            <DateTimeText date={interview.scheduledAt} />
+            <DateTimeText date={interview.scheduledAt} withZone />
           ) : (
             "Time to be confirmed"
           )}
@@ -329,7 +332,7 @@ function InterviewForm({
       <FormField
         label="Date and time"
         error={errors.scheduledAt}
-        hint="Leave empty if it isn't set yet."
+        hint={`In your time zone (${localZoneName()}). Leave empty if it isn't set yet.`}
       >
         {(control) => (
           <Input

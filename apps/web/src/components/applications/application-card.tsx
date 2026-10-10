@@ -5,7 +5,8 @@ import {
   type CardSignal,
 } from "@trackr/domain";
 import Link from "next/link";
-import { DateText } from "@/components/date-text";
+import { CalendarClock } from "lucide-react";
+import { DateText, DateTimeText } from "@/components/date-text";
 import { cn } from "@/lib/utils";
 import type { ApplicationFormDefaults } from "./application-form";
 import { CompanyAvatar } from "./company-avatar";
@@ -22,6 +23,8 @@ export type BoardItem = {
   appliedAt: Date | null;
   createdAt: Date;
   signal: CardSignal | null;
+  /** The next scheduled interview still to come. */
+  nextInterviewAt?: Date | null;
   defaults: ApplicationFormDefaults;
 };
 
@@ -94,6 +97,13 @@ export function ApplicationCard({
           {saved ? "Saved " : "Applied "}
           <DateText date={saved ? item.createdAt : item.appliedAt!} />
         </p>
+        {item.nextInterviewAt && (
+          <p className="flex items-center gap-1.5 font-medium text-foreground/80">
+            <CalendarClock className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="sr-only">Next interview:</span>
+            <DateTimeText date={item.nextInterviewAt} withZone />
+          </p>
+        )}
         {item.signal && <SignalLine signal={item.signal} />}
         {/* Skip the status when the signal already says it ("Final round"). */}
         {showStatus &&

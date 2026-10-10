@@ -19,13 +19,16 @@ export function ApplicationDrawer({ children }: { children: React.ReactNode }) {
     <Sheet open onOpenChange={(open) => !open && router.back()}>
       <SheetContent
         side="right"
-        className="gap-0 overflow-y-auto p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-[46rem]"
+        className="gap-0 overflow-hidden p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-[46rem]"
       >
         <SheetTitle className="sr-only">Application details</SheetTitle>
         <SheetDescription className="sr-only">
           Details and activity for this application.
         </SheetDescription>
-        <div className="px-6 pt-6 pb-10">{children}</div>
+        {/* The content scrolls, not the sheet, so the close button stays put. */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-10">
+          {children}
+        </div>
       </SheetContent>
     </Sheet>
   );

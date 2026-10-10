@@ -25,8 +25,9 @@ import {
   type DemoEvent,
   type DemoInterview,
 } from "@/server/demo/applications";
-import { seedEmailFor } from "@/server/demo/emails";
+import { DEMO_EMAILS, seedEmailFor } from "@/server/demo/emails";
 import { deleteAllApplications, newApplicationValues } from "./applications";
+import { deliverDemoEmail } from "./demo-inbox";
 import { validateEventInput } from "./events";
 import { eventDedupeKey } from "./notifications";
 import { generateFollowUpReminders } from "./reminders";
@@ -268,7 +269,7 @@ export async function seedDemoWorkspace(
     planApplication(userId, demo, now),
   );
 
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const [existing] = await tx
       .select({ id: applications.id })
       .from(applications)
@@ -309,6 +310,21 @@ export async function seedDemoWorkspace(
       notifications: demoNotifications.length + reminders,
     };
   });
+
+  // One email Trackr wasn't sure about, so the review queue has something
+  // to show; it goes through the real pipeline, as the sample inbox does.
+  const recruiter = DEMO_EMAILS.find((email) => email.id === "recruiter");
+  if (recruiter) {
+    const { outcome } = await deliverDemoEmail(
+      userId,
+      recruiter,
+      { now: new Date(now.getTime() - DAY_MS) },
+      db,
+    );
+    // Asking about it also posted a notification.
+    if (outcome === "review") result.notifications++;
+  }
+  return result;
 }
 
 /** Puts a demo workspace back to its starting sample data. */

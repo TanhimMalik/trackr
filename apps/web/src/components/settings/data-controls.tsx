@@ -65,7 +65,7 @@ export function DataControls({
       </Row>
       <Row
         title="Delete email data"
-        description="Removes the senders, subjects and snippets Trackr kept from Gmail, and the emails waiting for review. Applications and their history stay."
+        description="Removes the senders, subjects and short previews Trackr kept from Gmail, and the emails waiting for review. Applications and their history stay."
       >
         <Button
           variant="outline"

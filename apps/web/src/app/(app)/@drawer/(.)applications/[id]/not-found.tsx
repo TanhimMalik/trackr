@@ -4,7 +4,9 @@ import { ApplicationNotFound } from "@/components/applications/application-not-f
 export default function ApplicationDrawerNotFound() {
   return (
     <ApplicationDrawer>
-      <ApplicationNotFound />
+      <div className="pt-6">
+        <ApplicationNotFound />
+      </div>
     </ApplicationDrawer>
   );
 }
