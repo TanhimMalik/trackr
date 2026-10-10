@@ -143,7 +143,7 @@ function logProcessed(fields: Record<string, unknown>) {
 /** Shown until an email names the role; a later email can fill it in. */
 export const PLACEHOLDER_TITLE = PLACEHOLDER_JOB_TITLE;
 
-export async function createApplicationFromDetails(
+async function createApplicationFromDetails(
   tx: Database,
   userId: string,
   details: Pick<
@@ -169,7 +169,7 @@ export async function createApplicationFromDetails(
 }
 
 /** Fills in the role on an application created before any email named it. */
-export async function fillPlaceholderTitle(
+async function fillPlaceholderTitle(
   tx: Database,
   applicationId: string,
   jobTitle: string | null,

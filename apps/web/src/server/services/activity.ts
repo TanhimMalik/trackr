@@ -16,7 +16,7 @@ export type ActivityItem = ApplicationEvent & {
 };
 
 /** How many events the Activity page shows at a time. */
-export const ACTIVITY_PAGE_SIZE = 50;
+const ACTIVITY_PAGE_SIZE = 50;
 
 function sourceCondition(source: ActivitySource): SQL | undefined {
   if (source === "automatic") return ne(applicationEvents.sourceType, "MANUAL");

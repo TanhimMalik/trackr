@@ -452,7 +452,7 @@ export async function applyEmailReview(
   });
 }
 
-export const newApplicationFromEmailSchema = z.object({
+const newApplicationFromEmailSchema = z.object({
   companyName: z.string().trim().min(1, "Enter the company.").max(200),
   jobTitle: z.string().trim().min(1, "Enter the role.").max(200),
 });

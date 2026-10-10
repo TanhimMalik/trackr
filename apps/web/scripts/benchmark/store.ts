@@ -23,7 +23,7 @@ const LABELS = `${BENCHMARK_DIR}labels.json`;
 
 export type StoredLabel = EmailLabel & { labeledAt: string; notes?: string };
 
-export function ensureBenchmarkDir() {
+function ensureBenchmarkDir() {
   mkdirSync(BENCHMARK_DIR, { recursive: true, mode: 0o700 });
 }
 

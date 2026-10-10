@@ -20,7 +20,7 @@ export class InvalidGrantError extends Error {
   }
 }
 
-export class GoogleOAuthError extends Error {
+class GoogleOAuthError extends Error {
   constructor(readonly status: number) {
     super(`Google token request failed (${status})`);
     this.name = "GoogleOAuthError";

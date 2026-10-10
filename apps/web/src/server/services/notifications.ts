@@ -11,7 +11,7 @@ import type {
 import { assertId } from "./ids";
 
 /** How many notifications the notification center shows. */
-export const NOTIFICATION_LIST_LIMIT = 30;
+const NOTIFICATION_LIST_LIMIT = 30;
 
 export type NotificationItem = Pick<
   Notification,

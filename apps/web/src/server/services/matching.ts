@@ -43,7 +43,7 @@ export async function findMatchCandidates(
     query.companyNameNorm
       ? or(
           eq(applications.companyNameNorm, query.companyNameNorm),
-          // "Calibrate" and "Calibrate Health", either way round.
+          // "Fabrikam" and "Fabrikam Health", either way round.
           like(
             applications.companyNameNorm,
             `${escapeLike(query.companyNameNorm)} %`,

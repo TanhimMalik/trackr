@@ -87,7 +87,7 @@ const dayKeyFormat = (timeZone: string | undefined) =>
   });
 
 /** "2026-10-07": the calendar day a moment falls on in a time zone. */
-export function dayKey(date: Date, timeZone?: string): string {
+function dayKey(date: Date, timeZone?: string): string {
   return dayKeyFormat(timeZone).format(date);
 }
 

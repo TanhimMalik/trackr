@@ -22,12 +22,12 @@ export type ExtractedDetails = {
   isFinalRound: boolean;
 };
 
-// Display-name noise around the company: "Datadog Hiring Team", "TikTok Early Careers".
+// Display-name noise around the company: "Datadog Hiring Team", "Northwind Early Careers".
 const NAME_SUFFIX =
   /\s*(\b(early careers?|university recruiting|campus recruiting|hiring|recruiting|recruitment|talent( acquisition)?|careers?|jobs|people|team|hr|workday|notifications?)\b\s*)+$/i;
-// "Careers | Alice + Olivia".
+// "Careers | Tailspin + Co".
 const NAME_PREFIX = /^(careers?|jobs|recruiting|hiring)\s*[|:–-]\s*/i;
-// "DecisionPoint @ icims", "Acme via Greenhouse".
+// "Contoso @ icims", "Acme via Greenhouse".
 const NAME_VIA = /\s+(via|@)\s+\S+.*$/i;
 const LEGAL_SUFFIX = /,?\s+(inc|llc|ltd|corp|co)\.?$/i;
 
@@ -87,7 +87,7 @@ const COMPANY_PATTERNS = [
     "m",
   ),
   new RegExp(String.raw`\b${kw("assessment for")} ${COMPANY}${END}`, "m"),
-  // Lowercase brands: "Thank you for applying to mthree."
+  // Lowercase brands: "Thank you for applying to lumen."
   /\b[Aa]pplying to ([a-z][\w&'’-]{1,30})(?=[!.,])/m,
 ];
 
@@ -102,7 +102,7 @@ const TITLE = String.raw`([A-Z][\w,/&+#().'’ -]{2,80}?)`;
 // Where a title ends: "position", "at Company", "job was submitted", punctuation.
 const TITLE_END = String.raw`(?= ${kw("position", "role", "opening")}\b| ${kw("at", "with")} | (?:job )?(?:was|has been|is)\b|[!.]|\s*$)`;
 const TITLE_PATTERNS = [
-  // "Assessment for (General Hire) Software Engineer Intern (…)-2027 Summer - TikTok Early Careers"
+  // "Assessment for (General Hire) Software Engineer Intern (…)-2027 Summer - Northwind Early Careers"
   new RegExp(
     String.raw`\b${kw("assessment for", "invitation for", "interview for")} (?:\([^)]*\)\s*)?(.+?)(?:\s+[-–—]\s+[^-–—]*)?\s*$`,
     "m",
@@ -178,7 +178,7 @@ function cleanCompany(name: string | null | undefined): string | null {
     : null;
 }
 
-/** "southwestairlines@myworkday.com" → "Southwestairlines"; generic senders → null. */
+/** "wingtiptoys@myworkday.com" → "Wingtiptoys"; generic senders → null. */
 function workdayTenant(email: string): string | null {
   const local = email.split("@")[0] ?? "";
   if (

@@ -12,9 +12,9 @@ const MINUTE_MS = 60 * SECOND_MS;
 const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
 
-export const CONNECT_CODE_TTL_MS = 60 * SECOND_MS;
-export const ACCESS_TOKEN_TTL_MS = HOUR_MS;
-export const REFRESH_TOKEN_TTL_MS = 30 * DAY_MS;
+const CONNECT_CODE_TTL_MS = 60 * SECOND_MS;
+const ACCESS_TOKEN_TTL_MS = HOUR_MS;
+const REFRESH_TOKEN_TTL_MS = 30 * DAY_MS;
 // `last_used_at` is only written when it is at least this stale.
 const LAST_USED_PRECISION_MS = 5 * MINUTE_MS;
 
@@ -30,7 +30,7 @@ const secret = (prefix: string) =>
   `${prefix}_${randomBytes(32).toString("base64url")}`;
 
 /** Secrets are random and long, so a fast hash is enough to keep them unreadable at rest. */
-export const hashSecret = (value: string) =>
+const hashSecret = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
 export type ExtensionTokens = {

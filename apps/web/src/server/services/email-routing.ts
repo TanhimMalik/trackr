@@ -75,7 +75,7 @@ const fromSchool = (email: string) => /\.edu$/i.test(email);
  * rejection (so the history is complete), or progress such as an
  * assessment, from a company or hiring platform rather than a school.
  */
-export function canStartApplication(signal: EmailSignal): boolean {
+function canStartApplication(signal: EmailSignal): boolean {
   if (!signal.companyName || fromSchool(signal.fromEmail)) return false;
   switch (signal.classification) {
     case "APPLICATION_CONFIRMATION":

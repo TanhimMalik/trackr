@@ -22,7 +22,7 @@ export type GmailMessage = {
   payload?: GmailPart;
 };
 
-export const header = (message: GmailMessage, name: string): string | null =>
+const header = (message: GmailMessage, name: string): string | null =>
   message.payload?.headers?.find(
     (h) => h.name.toLowerCase() === name.toLowerCase(),
   )?.value ?? null;

@@ -33,7 +33,7 @@ import { TimelineEventAction } from "./timeline-event-action";
 
 const iconProps = { className: "size-3.5", "aria-hidden": true };
 
-export function EventIcon({ type }: { type: ApplicationEventType }) {
+function EventIcon({ type }: { type: ApplicationEventType }) {
   switch (type) {
     case "JOB_SAVED":
       return <Bookmark {...iconProps} />;

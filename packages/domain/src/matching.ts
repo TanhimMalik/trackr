@@ -100,7 +100,7 @@ function sameAtsJob(signal: IncomingSignal, candidate: MatchCandidate) {
 }
 
 /**
- * "Calibrate" and "Calibrate Health": one name is the other's leading
+ * "Fabrikam" and "Fabrikam Health": one name is the other's leading
  * words. Whole words only, so "Meta" never matches "Metaview".
  */
 export function sameCompanyLongerName(a: string, b: string): boolean {

@@ -12,7 +12,7 @@ import type { Database } from "@/server/db/types";
 
 const HOUR_MS = 60 * 60 * 1000;
 /** How often reminders are looked for while someone is using Trackr. */
-export const REMINDER_CHECK_INTERVAL_MS = HOUR_MS;
+const REMINDER_CHECK_INTERVAL_MS = HOUR_MS;
 
 /**
  * Writes a notification for every follow-up that is due. Safe to run any

@@ -37,7 +37,7 @@ import {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** How far back the first sync reads. */
-export const BACKFILL_DAYS = 90;
+const BACKFILL_DAYS = 90;
 const BATCH_SIZE = 25;
 // Stop starting new messages after this, to stay well inside serverless limits.
 const TIME_BUDGET_MS = 20_000;

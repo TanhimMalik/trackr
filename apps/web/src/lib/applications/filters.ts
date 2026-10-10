@@ -13,7 +13,7 @@ export const SORT_OPTIONS = {
   status: "Status",
 } as const;
 export type ApplicationSort = keyof typeof SORT_OPTIONS;
-export const DEFAULT_SORT: ApplicationSort = "updated";
+const DEFAULT_SORT: ApplicationSort = "updated";
 
 export const APPLIED_WITHIN_OPTIONS = {
   "7": "Last 7 days",

@@ -26,7 +26,7 @@ import { findMatchCandidates } from "./matching";
 
 const submissionKey = (clientSubmissionId: string) =>
   `ext:${clientSubmissionId}`;
-export const duplicateReviewKey = (clientSubmissionId: string) =>
+const duplicateReviewKey = (clientSubmissionId: string) =>
   `dup:${clientSubmissionId}`;
 
 /** A repeated submission gets the answer the first one did. */

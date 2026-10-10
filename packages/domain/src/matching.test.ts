@@ -67,7 +67,7 @@ describe("scoreCandidate", () => {
 
 describe("sameCompanyLongerName", () => {
   it("matches a name that continues with whole words", () => {
-    expect(sameCompanyLongerName("calibrate", "calibrate health")).toBe(true);
+    expect(sameCompanyLongerName("fabrikam", "fabrikam health")).toBe(true);
     expect(sameCompanyLongerName("amazon web services", "amazon")).toBe(true);
     expect(sameCompanyLongerName("meta", "metaview")).toBe(false);
     expect(sameCompanyLongerName("stripe", "stripe")).toBe(false);
