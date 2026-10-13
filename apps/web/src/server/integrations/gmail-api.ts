@@ -34,6 +34,14 @@ export class GmailHistoryExpiredError extends Error {
   }
 }
 
+/** The message is gone: deleted, or a draft or chat that no longer exists. */
+export class GmailMessageNotFoundError extends Error {
+  constructor() {
+    super("The Gmail message no longer exists");
+    this.name = "GmailMessageNotFoundError";
+  }
+}
+
 /** Rate limits, outages and timeouts: try again later. */
 export class GmailTemporaryError extends Error {
   constructor(
@@ -102,6 +110,8 @@ export function gmailClient(
     }
     if (response.status === 404 && path === "/history")
       throw new GmailHistoryExpiredError();
+    if (response.status === 404 && path.startsWith("/messages/"))
+      throw new GmailMessageNotFoundError();
     throw new GmailTemporaryError(response.status, reason);
   }
 

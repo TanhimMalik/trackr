@@ -70,7 +70,8 @@ function summarize(checked: number, outcomes: Record<string, number>) {
       `${outcomes.applied} update${outcomes.applied === 1 ? "" : "s"}`,
     outcomes.created &&
       `${outcomes.created} new application${outcomes.created === 1 ? "" : "s"}`,
-    outcomes.review && `${outcomes.review} to review`,
+    // Settling reviews from an earlier sync can take this below zero.
+    (outcomes.review ?? 0) > 0 && `${outcomes.review} to review`,
   ].filter(Boolean);
   const emails = `${checked} new email${checked === 1 ? "" : "s"}`;
   return parts.length > 0

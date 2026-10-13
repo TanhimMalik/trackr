@@ -116,9 +116,12 @@ function fakeGmail({
   disabled = false,
   mailbox = MAILBOX,
   rateLimitOnce = false,
+  deleted = [],
 }: {
   disabled?: boolean;
   mailbox?: Mail[];
+  /** Listed by Gmail, but gone by the time Trackr reads them. */
+  deleted?: string[];
   /** Gmail signals rate limits as 429, or as 403 with a reason. */
   rateLimitOnce?: false | 429 | 403;
 } = {}) {
@@ -149,9 +152,9 @@ function fakeGmail({
     if (path === "/profile") return json({ historyId: "1000" });
     if (path === "/messages") {
       return json({
-        messages: mailbox.map((mail) => ({
-          id: mail.id,
-          threadId: `t-${mail.id}`,
+        messages: [...mailbox.map((mail) => mail.id), ...deleted].map((id) => ({
+          id,
+          threadId: `t-${id}`,
         })),
       });
     }
@@ -293,6 +296,18 @@ describe("syncGmail", () => {
       mode: "incremental",
       historyId: "1001",
     });
+  });
+
+  it("skips a message deleted after Gmail listed it", async () => {
+    const gmail = fakeGmail({ deleted: ["m-gone"] });
+    const result = await syncGmail(
+      userId,
+      { fetchImpl: gmail.fetchImpl, now },
+      testDb.db,
+    );
+    expect(result).toMatchObject({ processed: 5, hasMore: false });
+    const rows = await emailRows();
+    expect(rows.map((row) => row.gmailMessageId)).not.toContain("m-gone");
   });
 
   it("runs one sync at a time", async () => {

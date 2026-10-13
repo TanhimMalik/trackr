@@ -31,7 +31,10 @@ import {
   LlmUnavailableError,
   type EmailLlm,
 } from "@/server/integrations/anthropic";
-import type { GmailClient } from "@/server/integrations/gmail-api";
+import {
+  GmailMessageNotFoundError,
+  type GmailClient,
+} from "@/server/integrations/gmail-api";
 import {
   receivedAt,
   toEmailContent,
@@ -206,20 +209,30 @@ export async function processGmailMessage(
     );
   if (existing && existing.status !== "FAILED") return "skipped";
 
-  const message = await client.metadata(ref.id);
-  const { outcome } = await processIncomingEmail(
-    db,
-    context,
-    {
-      ref,
-      receivedAt: receivedAt(message),
-      metadata: toEmailMetadata(message),
-      loadContent: async (metadata) =>
-        toEmailContent(await client.full(ref.id), metadata),
-    },
-    existing?.id,
-  );
-  return outcome;
+  try {
+    const message = await client.metadata(ref.id);
+    const { outcome } = await processIncomingEmail(
+      db,
+      context,
+      {
+        ref,
+        receivedAt: receivedAt(message),
+        metadata: toEmailMetadata(message),
+        loadContent: async (metadata) =>
+          toEmailContent(await client.full(ref.id), metadata),
+      },
+      existing?.id,
+    );
+    return outcome;
+  } catch (error) {
+    // Deleted after Gmail listed it: there is nothing left to read. Nothing
+    // is written before the message is read, so skipping leaves no trace.
+    if (error instanceof GmailMessageNotFoundError) {
+      if (existing) await db.delete(emails).where(eq(emails.id, existing.id));
+      return "skipped";
+    }
+    throw error;
+  }
 }
 
 /**
