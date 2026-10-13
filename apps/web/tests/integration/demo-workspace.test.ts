@@ -1,17 +1,26 @@
 import { boardColumnForStatus } from "@trackr/domain";
 import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { applicationEvents, applications, users } from "@/server/db/schema";
+import {
+  applicationEvents,
+  applications,
+  emails,
+  users,
+} from "@/server/db/schema";
 import {
   countApplications,
   createApplication,
+  newApplicationValues,
   getApplication,
   listApplications,
 } from "@/server/services/applications";
 import {
   deleteDemoWorkspace,
   deleteExpiredDemoWorkspaces,
+  DEMO_APPLICATION_LIMIT,
+  DEMO_EMAIL_LIMIT,
   DEMO_LIFETIME_HOURS,
+  demoSimulationBlocked,
   resetDemoWorkspace,
   seedDemoWorkspace,
   WorkspaceNotEmptyError,
@@ -236,6 +245,52 @@ describe("resetDemoWorkspace", () => {
     );
     expect(names).not.toContain("Acme");
     expect(names).toHaveLength(DEMO_APPLICATIONS.length);
+  });
+});
+
+describe("demoSimulationBlocked", () => {
+  it("allows samples in a fresh demo", async () => {
+    await seedDemoWorkspace(userId, { now }, testDb.db);
+    expect(await demoSimulationBlocked(userId, { now }, testDb.db)).toBeNull();
+  });
+
+  it("stops at the application limit", async () => {
+    await testDb.db.insert(applications).values(
+      Array.from({ length: DEMO_APPLICATION_LIMIT }, (_, i) =>
+        newApplicationValues(userId, {
+          companyName: `Company ${i}`,
+          jobTitle: "Engineer",
+          status: "APPLIED",
+        }),
+      ),
+    );
+    expect(await demoSimulationBlocked(userId, { now }, testDb.db)).toMatch(
+      /up to 100 applications/,
+    );
+  });
+
+  it("stops at the email limit", async () => {
+    await testDb.db.insert(emails).values(
+      Array.from({ length: DEMO_EMAIL_LIMIT }, (_, i) => ({
+        userId,
+        gmailMessageId: `demo-${i}`,
+        gmailThreadId: `demo-${i}`,
+        receivedAt: now,
+        processingStatus: "IGNORED" as const,
+      })),
+    );
+    expect(await demoSimulationBlocked(userId, { now }, testDb.db)).toMatch(
+      /up to 200 emails/,
+    );
+  });
+
+  it("slows down a burst of samples", async () => {
+    const results = [];
+    for (let i = 0; i < 31; i++) {
+      results.push(await demoSimulationBlocked(userId, { now }, testDb.db));
+    }
+    expect(results.slice(0, 30).every((result) => result === null)).toBe(true);
+    expect(results[30]).toMatch(/Try again in a few minutes/);
   });
 });
 

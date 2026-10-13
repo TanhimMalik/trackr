@@ -26,10 +26,15 @@ import {
   type DemoInterview,
 } from "@/server/demo/applications";
 import { DEMO_EMAILS, seedEmailFor } from "@/server/demo/emails";
-import { deleteAllApplications, newApplicationValues } from "./applications";
+import {
+  countApplications,
+  deleteAllApplications,
+  newApplicationValues,
+} from "./applications";
 import { deliverDemoEmail } from "./demo-inbox";
 import { validateEventInput } from "./events";
 import { eventDedupeKey } from "./notifications";
+import { consumeRateLimit } from "./rate-limit";
 import { generateFollowUpReminders } from "./reminders";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -39,6 +44,12 @@ const DAY_MS = 24 * HOUR_MS;
 export const DEMO_LIFETIME_HOURS = 48;
 /** The most applications a demo workspace may hold. */
 export const DEMO_APPLICATION_LIMIT = 100;
+/** The most emails a demo workspace may hold, sample deliveries included. */
+export const DEMO_EMAIL_LIMIT = 200;
+// Sample emails and captures in a short window: plenty for a visitor,
+// too few for a script to fill the database.
+const DEMO_SIMULATION_LIMIT = 30;
+const DEMO_SIMULATION_WINDOW_MS = 10 * 60 * 1000;
 
 // Gmail-detected events are recorded a few minutes after the email arrived.
 const EMAIL_DETECTION_DELAY_MS = 3 * 60 * 1000;
@@ -325,6 +336,40 @@ export async function seedDemoWorkspace(
     if (outcome === "review") result.notifications++;
   }
   return result;
+}
+
+/**
+ * Why a demo can't run another sample email or capture right now, or null
+ * when it can. Each one can add rows, so each counts against the limits.
+ */
+export async function demoSimulationBlocked(
+  userId: string,
+  { now = new Date() }: { now?: Date } = {},
+  db: Database = getDb(),
+): Promise<string | null> {
+  const rate = await consumeRateLimit(
+    `demo-simulation:${userId}`,
+    {
+      limit: DEMO_SIMULATION_LIMIT,
+      windowMs: DEMO_SIMULATION_WINDOW_MS,
+      now,
+    },
+    db,
+  );
+  if (!rate.allowed) {
+    return "That's a lot of samples at once. Try again in a few minutes.";
+  }
+  if ((await countApplications(userId, db)) >= DEMO_APPLICATION_LIMIT) {
+    return `Demo workspaces hold up to ${DEMO_APPLICATION_LIMIT} applications. Reset data to start over.`;
+  }
+  const [mail] = await db
+    .select({ total: count() })
+    .from(emails)
+    .where(eq(emails.userId, userId));
+  if ((mail?.total ?? 0) >= DEMO_EMAIL_LIMIT) {
+    return `Demo workspaces hold up to ${DEMO_EMAIL_LIMIT} emails. Reset data to start over.`;
+  }
+  return null;
 }
 
 /** Puts a demo workspace back to its starting sample data. */

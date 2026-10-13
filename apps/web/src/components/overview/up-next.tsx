@@ -70,8 +70,7 @@ export async function UpNext({ agenda }: { agenda: Promise<Agenda> }) {
                 Follow up with {followUp.companyName}
               </span>
               <span className="block text-[0.8125rem] text-muted-foreground">
-                No reply yet · reminded{" "}
-                <DateText date={followUp.remindedAt} relative />
+                No reply yet · due <DateText date={followUp.dueAt} relative />
               </span>
             </Row>
           ))}

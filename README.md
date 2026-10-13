@@ -1,5 +1,7 @@
 # Trackr
 
+[![CI](https://github.com/TanhimMalik/trackr/actions/workflows/ci.yml/badge.svg)](https://github.com/TanhimMalik/trackr/actions/workflows/ci.yml)
+
 Trackr is an automatic job application tracker. Connect your browser and inbox once, and your job search organizes itself: applications are captured when you submit them, recruiting emails are classified and matched to the right application, and statuses update with a full, explainable history.
 
 **Live demo:** [trackr-coral-gamma.vercel.app/demo](https://trackr-coral-gamma.vercel.app/demo) opens a private workspace with sample data. No sign-up needed.

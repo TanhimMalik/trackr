@@ -29,6 +29,7 @@ import {
   type EmailLlmPolicy,
   type MessageOutcome,
 } from "./email-processing";
+import { retryLlmFailures } from "./email-llm-retry";
 import { rematchEmailReviews } from "./email-rematch";
 import {
   getGmailAccessToken,
@@ -150,6 +151,45 @@ async function llmPolicy(
     );
   let remaining = LLM_DAILY_LIMIT - (used?.n ?? 0);
   return { classify, allow: async () => remaining-- > 0 };
+}
+
+/**
+ * Once caught up, asks the model again about emails it couldn't read
+ * earlier. Best effort: a failure here waits for the next sync.
+ */
+async function retryModel(
+  {
+    db,
+    client,
+    ...context
+  }: {
+    db: Database;
+    client: GmailClient;
+    userId: string;
+    integrationId: string;
+    llm: EmailLlmPolicy;
+  },
+  {
+    now,
+    deadline,
+    outcomes,
+  }: { now: Date; deadline: number; outcomes: SyncResult["outcomes"] },
+) {
+  try {
+    const retries = await retryLlmFailures(db, client, context, {
+      now,
+      deadline,
+    });
+    for (const { before, outcome } of retries) {
+      if (outcome === "applied" || outcome === "created") outcomes[outcome]++;
+      if (before === "NEEDS_REVIEW" && outcome !== "review") outcomes.review--;
+      if (before !== "NEEDS_REVIEW" && outcome === "review") outcomes.review++;
+    }
+  } catch (error) {
+    console.error("email_llm_retry_failed", {
+      error: error instanceof Error ? error.name : "unknown",
+    });
+  }
 }
 
 /**
@@ -311,6 +351,16 @@ export async function syncGmail(
 
     // Only move past a page once all of it is done; repeats are skipped.
     const next = finished ? page.next : cursor;
+    const hasMore = !finished || Boolean(next.pageToken);
+    if (!hasMore) {
+      policy ??= llm ? await llmPolicy(userId, llm, now, db) : null;
+      if (policy) {
+        await retryModel(
+          { db, client, userId, integrationId: claimed.id, llm: policy },
+          { now, deadline: started + timeBudgetMs, outcomes },
+        );
+      }
+    }
     await release({
       status: "CONNECTED",
       syncCursor: JSON.stringify(next),
@@ -318,7 +368,6 @@ export async function syncGmail(
       lastErrorCode: null,
       lastErrorAt: null,
     });
-    const hasMore = !finished || Boolean(next.pageToken);
     if (!hasMore) {
       // Emails read before their application existed get another look.
       const rematched = await rematchEmailReviews(userId, db);

@@ -12,6 +12,7 @@ import { requireUser } from "@/server/auth/session";
 import { DEMO_CAPTURES } from "@/server/demo/captures";
 import { DEMO_EMAILS } from "@/server/demo/emails";
 import { googleOAuthConfig } from "@/server/env";
+import { countLlmRetries } from "@/server/services/email-llm-retry";
 import { listConnectedBrowsers } from "@/server/services/extension-auth";
 import { getGmailConnection } from "@/server/services/gmail-connection";
 
@@ -24,9 +25,10 @@ export default async function IntegrationsPage({
   searchParams,
 }: PageProps<"/integrations">) {
   const user = await requireUser();
-  const [browsers, gmail, params] = await Promise.all([
+  const [browsers, gmail, modelRetries, params] = await Promise.all([
     listConnectedBrowsers(user.id),
     getGmailConnection(user.id),
+    user.isDemo ? 0 : countLlmRetries(user.id),
     searchParams,
   ]);
   const gmailState: GmailCardState = !googleOAuthConfig()
@@ -40,6 +42,7 @@ export default async function IntegrationsPage({
           connectedAt: gmail?.connectedAt ?? null,
           lastSyncedAt: gmail?.lastSyncedAt ?? null,
           lastErrorCode: gmail?.lastErrorCode ?? null,
+          modelRetries,
         };
 
   return (

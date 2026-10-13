@@ -1,10 +1,12 @@
 import "server-only";
 import type { InterviewType } from "@trackr/domain";
-import { and, asc, desc, eq, gte, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, eq, gte } from "drizzle-orm";
 import { getDb } from "@/server/db/client";
-import { applications, interviews, notifications } from "@/server/db/schema";
+import { applications, interviews } from "@/server/db/schema";
 import type { Database } from "@/server/db/types";
+import { dueFollowUps } from "./reminders";
 import { countOpenReviewItems } from "./review";
+import { getFollowUpSettings } from "./settings";
 
 type AgendaApplication = {
   applicationId: string;
@@ -19,8 +21,8 @@ export type Agenda = {
     at: Date;
     interviewType: InterviewType;
   })[];
-  /** Applications whose follow-up reminder hasn't been read. */
-  followUps: (AgendaApplication & { remindedAt: Date })[];
+  /** Applications due a follow-up, most recently due first. */
+  followUps: (AgendaApplication & { dueAt: Date })[];
   /** Emails and possible duplicates waiting for a decision. */
   reviews: number;
 };
@@ -56,25 +58,27 @@ export async function getAgenda(
       )
       .orderBy(asc(interviews.scheduledAt))
       .limit(limit),
-    db
-      .select({ ...application, remindedAt: notifications.createdAt })
-      .from(notifications)
-      .innerJoin(applications, eq(applications.id, notifications.applicationId))
-      .where(
-        and(
-          eq(notifications.userId, userId),
-          eq(notifications.type, "FOLLOW_UP_DUE"),
-          isNull(notifications.readAt),
-          isNotNull(notifications.applicationId),
-        ),
-      )
-      .orderBy(desc(notifications.createdAt))
-      .limit(limit),
+    // From the applications, not the notifications: reading a reminder
+    // doesn't mean the follow-up happened.
+    getFollowUpSettings(userId, db).then(async ({ enabled, afterDays }) =>
+      enabled ? dueFollowUps(userId, { now, afterDays }, db) : [],
+    ),
     countOpenReviewItems(userId, db),
   ]);
   return {
     interviews: upcoming.map((row) => ({ ...row, at: row.at! })),
-    followUps,
+    followUps: followUps
+      .sort((a, b) => b.dueAt.getTime() - a.dueAt.getTime())
+      .slice(0, limit)
+      .map(
+        ({ applicationId, companyName, companyDomain, jobTitle, dueAt }) => ({
+          applicationId,
+          companyName,
+          companyDomain,
+          jobTitle,
+          dueAt,
+        }),
+      ),
     reviews,
   };
 }

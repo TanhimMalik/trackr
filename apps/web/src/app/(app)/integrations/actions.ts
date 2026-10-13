@@ -14,6 +14,7 @@ import {
   GmailTemporaryError,
 } from "@/server/integrations/gmail-api";
 import { deliverDemoEmail } from "@/server/services/demo-inbox";
+import { demoSimulationBlocked } from "@/server/services/demo-workspace";
 import type { MessageOutcome } from "@/server/services/email-processing";
 import {
   disconnectGmail,
@@ -74,6 +75,8 @@ export async function simulateCaptureAction(
   if (!user.isDemo || !capture) {
     return { ok: false, error: "Simulated captures are only in the demo." };
   }
+  const blocked = await demoSimulationBlocked(user.id);
+  if (blocked) return { ok: false, error: blocked };
 
   const { applicationId, outcome } = await ingestExtensionSubmission(user.id, {
     clientSubmissionId: crypto.randomUUID(),
@@ -121,6 +124,8 @@ export async function simulateEmailAction(
   if (!user.isDemo || !email) {
     return { ok: false, error: "The simulated inbox is only in the demo." };
   }
+  const blocked = await demoSimulationBlocked(user.id);
+  if (blocked) return { ok: false, error: blocked };
 
   const { outcome, applicationId } = await deliverDemoEmail(user.id, email);
   revalidatePath("/", "layout");

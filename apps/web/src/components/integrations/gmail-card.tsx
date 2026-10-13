@@ -25,6 +25,8 @@ export type GmailCardState =
       connectedAt: Date | null;
       lastSyncedAt: Date | null;
       lastErrorCode: string | null;
+      /** Emails the model couldn't read, waiting to be asked again. */
+      modelRetries: number;
     };
 
 const RESULT_MESSAGES: Record<
@@ -301,6 +303,28 @@ function GmailStatus({ state }: { state: GmailCardState }) {
             </>
           ) : null}
         </p>
+        {state.lastErrorCode === "gmail_unavailable" && (
+          <p className="flex items-start gap-1.5 text-[0.8125rem] text-warning">
+            <TriangleAlert
+              className="mt-0.5 size-3.5 shrink-0"
+              aria-hidden="true"
+            />
+            The last sync couldn&apos;t finish because Gmail didn&apos;t
+            respond. Sync now tries again.
+          </p>
+        )}
+        {state.modelRetries > 0 && (
+          <p className="flex items-start gap-1.5 text-[0.8125rem] text-warning">
+            <TriangleAlert
+              className="mt-0.5 size-3.5 shrink-0"
+              aria-hidden="true"
+            />
+            Claude couldn&apos;t read {state.modelRetries} email
+            {state.modelRetries === 1 ? "" : "s"}. The rules handled{" "}
+            {state.modelRetries === 1 ? "it" : "them"} for now, and the next
+            sync asks again.
+          </p>
+        )}
       </div>
     );
   }

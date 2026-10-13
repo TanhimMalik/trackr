@@ -57,6 +57,8 @@ export type IncomingEmail = {
   metadata: Omit<EmailMetadata, "knownThread" | "knownContact">;
   /** Reads the body. Called only when the message looks job-related. */
   loadContent: (metadata: EmailMetadata) => Promise<EmailContent>;
+  /** Model calls that already failed for this message, when retrying. */
+  llmAttempts?: number;
 };
 
 /**
@@ -242,7 +244,13 @@ export async function processGmailMessage(
 export async function processIncomingEmail(
   db: Database,
   { userId, integrationId, llm }: ProcessingContext,
-  { ref, receivedAt: received, metadata: headers, loadContent }: IncomingEmail,
+  {
+    ref,
+    receivedAt: received,
+    metadata: headers,
+    loadContent,
+    llmAttempts = 0,
+  }: IncomingEmail,
   replacesId?: string,
 ): Promise<EmailOutcome> {
   const started = Date.now();
@@ -346,9 +354,9 @@ export async function processIncomingEmail(
       };
       method = "LLM";
     } catch (error) {
-      // The rules' answer stands; Re-check past emails tries again later.
+      // The rules' answer stands; a later sync asks the model again.
       if (!(error instanceof LlmUnavailableError)) throw error;
-      llmUsage = { error: error.code };
+      llmUsage = { error: error.code, attempts: llmAttempts + 1 };
     }
   }
   const eventType = CLASSIFICATION_EVENTS[rule.classification];
@@ -494,6 +502,7 @@ export async function processIncomingEmail(
     classification: rule.classification,
     confidence: rule.confidence,
     method,
+    llmError: (llmUsage?.error as string | undefined) ?? null,
     matchDecision: outcome.match?.decision ?? null,
     outcome: outcome.outcome,
     applicationId: outcome.applicationId,

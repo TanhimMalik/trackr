@@ -1,5 +1,9 @@
 import "server-only";
-import { followUpReminders, type ReminderCandidate } from "@trackr/domain";
+import {
+  followUpReminders,
+  type FollowUpReminder,
+  type ReminderCandidate,
+} from "@trackr/domain";
 import { and, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { getDb } from "@/server/db/client";
 import {
@@ -14,24 +18,26 @@ const HOUR_MS = 60 * 60 * 1000;
 /** How often reminders are looked for while someone is using Trackr. */
 const REMINDER_CHECK_INTERVAL_MS = HOUR_MS;
 
+export type DueFollowUp = FollowUpReminder & {
+  companyName: string;
+  companyDomain: string | null;
+  jobTitle: string;
+};
+
 /**
- * Writes a notification for every follow-up that is due. Safe to run any
- * number of times: each quiet stretch is reminded about once.
- * `readBefore` files reminders that came due before it as already read.
+ * The follow-ups due right now, worked out from the applications
+ * themselves: following up, or any other news, ends one.
  */
-export async function generateFollowUpReminders(
+export async function dueFollowUps(
   userId: string,
-  {
-    now = new Date(),
-    afterDays,
-    readBefore,
-  }: { now?: Date; afterDays: number; readBefore?: Date },
+  { now = new Date(), afterDays }: { now?: Date; afterDays: number },
   db: Database = getDb(),
-): Promise<number> {
+): Promise<DueFollowUp[]> {
   const waiting = await db
     .select({
       id: applications.id,
       companyName: applications.companyName,
+      companyDomain: applications.companyDomain,
       jobTitle: applications.jobTitle,
       status: applications.currentStatus,
       lastActivityAt: applications.lastActivityAt,
@@ -47,7 +53,7 @@ export async function generateFollowUpReminders(
         ]),
       ),
     );
-  if (waiting.length === 0) return 0;
+  if (waiting.length === 0) return [];
 
   // The latest interview per application that wasn't canceled.
   const latest = await db
@@ -76,10 +82,34 @@ export async function generateFollowUpReminders(
     ...application,
     latestInterview: latestInterview.get(application.id) ?? null,
   }));
-  const reminders = followUpReminders(candidates, { afterDays }, now);
+  const byId = new Map(
+    waiting.map((application) => [application.id, application]),
+  );
+  return followUpReminders(candidates, { afterDays }, now).map((reminder) => {
+    const { companyName, companyDomain, jobTitle } = byId.get(
+      reminder.applicationId,
+    )!;
+    return { ...reminder, companyName, companyDomain, jobTitle };
+  });
+}
+
+/**
+ * Writes a notification for every follow-up that is due. Safe to run any
+ * number of times: each quiet stretch is reminded about once.
+ * `readBefore` files reminders that came due before it as already read.
+ */
+export async function generateFollowUpReminders(
+  userId: string,
+  {
+    now = new Date(),
+    afterDays,
+    readBefore,
+  }: { now?: Date; afterDays: number; readBefore?: Date },
+  db: Database = getDb(),
+): Promise<number> {
+  const reminders = await dueFollowUps(userId, { now, afterDays }, db);
   if (reminders.length === 0) return 0;
 
-  const jobTitles = new Map(waiting.map((a) => [a.id, a.jobTitle]));
   const inserted = await db
     .insert(notifications)
     .values(
@@ -88,7 +118,7 @@ export async function generateFollowUpReminders(
         applicationId: reminder.applicationId,
         type: "FOLLOW_UP_DUE" as const,
         title: reminder.title,
-        body: jobTitles.get(reminder.applicationId) ?? null,
+        body: reminder.jobTitle,
         dedupeKey: reminder.dedupeKey,
         createdAt: reminder.dueAt,
         readAt:

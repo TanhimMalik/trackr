@@ -13,6 +13,7 @@ import {
   applications,
   emails,
   integrations,
+  notifications,
   reviewItems,
 } from "@/server/db/schema";
 import {
@@ -34,6 +35,7 @@ import {
 } from "@/server/services/review";
 import { saveGmailConnection } from "@/server/services/gmail-connection";
 import { syncAllGmail } from "@/server/services/scheduled-sync";
+import { countLlmRetries } from "@/server/services/email-llm-retry";
 import { rematchEmailReviews } from "@/server/services/email-rematch";
 import { routeEmail, type EmailSignal } from "@/server/services/email-routing";
 import {
@@ -881,8 +883,125 @@ describe("the model fallback", () => {
     expect(await stored("m-unclear")).toMatchObject({
       classificationMethod: "RULES",
       processingStatus: "UNMATCHED",
-      extractedJson: expect.objectContaining({ llm: { error: "api_529" } }),
+      extractedJson: expect.objectContaining({
+        llm: { error: "api_529", attempts: 1 },
+      }),
     });
+  });
+
+  const unavailable = (): EmailLlm =>
+    vi.fn(async () => {
+      throw new LlmUnavailableError("api_401");
+    });
+
+  it("asks the model again on the next sync", async () => {
+    const failing = unavailable();
+    await sync(failing);
+    expect(failing).toHaveBeenCalledTimes(1);
+    expect(await countLlmRetries(userId, { now }, testDb.db)).toBe(1);
+
+    const llm = answer({});
+    const result = await syncGmail(
+      userId,
+      {
+        fetchImpl: fakeGmail({ mailbox: [UNCLEAR, MAILBOX[0]!] }).fetchImpl,
+        now: new Date(),
+        llm,
+      },
+      testDb.db,
+    );
+    expect(llm).toHaveBeenCalledTimes(1);
+    expect(result.outcomes.review).toBe(1);
+    expect(await stored("m-unclear")).toMatchObject({
+      classificationMethod: "LLM",
+      processingStatus: "NEEDS_REVIEW",
+    });
+    expect(await countLlmRetries(userId, { now }, testDb.db)).toBe(0);
+  });
+
+  it("replaces a waiting review instead of adding a second one", async () => {
+    await sync(unavailable());
+    const email = await stored("m-unclear");
+    await testDb.db
+      .update(emails)
+      .set({ processingStatus: "NEEDS_REVIEW" })
+      .where(eq(emails.id, email.id));
+    const [review] = await testDb.db
+      .insert(reviewItems)
+      .values({
+        userId,
+        kind: "EMAIL_UNMATCHED",
+        emailId: email.id,
+        dedupeKey: "email:m-unclear",
+      })
+      .returning();
+    await testDb.db.insert(notifications).values({
+      userId,
+      type: "REVIEW_NEEDED",
+      title: "Check an email from Fabrikam",
+      dedupeKey: `review:${review!.id}`,
+    });
+
+    await syncGmail(
+      userId,
+      {
+        fetchImpl: fakeGmail({ mailbox: [UNCLEAR, MAILBOX[0]!] }).fetchImpl,
+        now: new Date(),
+        llm: answer({}),
+      },
+      testDb.db,
+    );
+    expect(await stored("m-unclear")).toMatchObject({
+      classificationMethod: "LLM",
+    });
+    const reviews = await testDb.db
+      .select()
+      .from(reviewItems)
+      .where(eq(reviewItems.userId, userId));
+    expect(reviews).toHaveLength(1);
+    const alerts = await testDb.db
+      .select()
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.userId, userId),
+          eq(notifications.type, "REVIEW_NEEDED"),
+        ),
+      );
+    expect(alerts.map((alert) => alert.dedupeKey)).toEqual([
+      `review:${reviews[0]!.id}`,
+    ]);
+  });
+
+  it("gives up after three failed attempts", async () => {
+    for (let i = 0; i < 3; i++) {
+      await syncGmail(
+        userId,
+        {
+          fetchImpl: fakeGmail({ mailbox: [UNCLEAR, MAILBOX[0]!] }).fetchImpl,
+          now: new Date(),
+          llm: unavailable(),
+        },
+        testDb.db,
+      );
+    }
+    expect(await stored("m-unclear")).toMatchObject({
+      extractedJson: expect.objectContaining({
+        llm: { error: "api_401", attempts: 3 },
+      }),
+    });
+    expect(await countLlmRetries(userId, { now }, testDb.db)).toBe(0);
+    const llm = answer({});
+    await syncGmail(
+      userId,
+      {
+        fetchImpl: fakeGmail({ mailbox: [UNCLEAR, MAILBOX[0]!] }).fetchImpl,
+        now: new Date(),
+        llm,
+      },
+      testDb.db,
+    );
+    expect(llm).not.toHaveBeenCalled();
   });
 
   it("stops calling the model at the daily limit", async () => {
