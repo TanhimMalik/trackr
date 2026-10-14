@@ -24,12 +24,14 @@ export type ExtractedDetails = {
 
 // Display-name noise around the company: "Datadog Hiring Team", "Northwind Early Careers".
 const NAME_SUFFIX =
-  /\s*(\b(early careers?|university recruiting|campus recruiting|hiring|recruiting|recruitment|talent( acquisition)?|careers?|jobs|people|team|hr|workday|notifications?)\b\s*)+$/i;
+  /\s*(\b(early careers?|university recruiting|campus recruiting|hiring|recruiting|recruitment|talent( acquisition)?|careers?|jobs|people|team|hr|human resources|workday|notifications?)\b\s*)+$/i;
 // "Careers | Tailspin + Co".
 const NAME_PREFIX = /^(careers?|jobs|recruiting|hiring)\s*[|:–-]\s*/i;
 // "Contoso @ icims", "Acme via Greenhouse".
 const NAME_VIA = /\s+(via|@)\s+\S+.*$/i;
-const LEGAL_SUFFIX = /,?\s+(inc|llc|ltd|corp|co)\.?$/i;
+const LEGAL_SUFFIX = /,?\s+(&\s+)?(inc|llc|ltd|corp|co)\.?$/i;
+// "HackerRank for Contoso": a platform sending for an employer.
+const NAME_FOR = /^\S+\s+for\s+(.+)$/i;
 
 // Joining words match in either case ("Application With"), but the captured
 // company or title must start with a capital letter.
@@ -258,7 +260,8 @@ export function extractEmailDetails(email: EmailContent): ExtractedDetails {
   // A person's name isn't a company, and neither is a job board's.
   // A hiring platform signing with its own name ("SHL", "Workable") isn't the employer.
   const platformBrand = senderDomain(email.fromEmail).split(".")[0] ?? "";
-  const displayName = cleanCompany(email.fromName);
+  const onBehalf = fromAts ? email.fromName?.match(NAME_FOR)?.[1] : undefined;
+  const displayName = cleanCompany(onBehalf ?? email.fromName);
   const fromName =
     personal ||
     fromBoard ||

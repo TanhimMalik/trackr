@@ -1,5 +1,9 @@
 import "server-only";
-import type { MatchCandidate, SourcePlatform } from "@trackr/domain";
+import {
+  compactName,
+  type MatchCandidate,
+  type SourcePlatform,
+} from "@trackr/domain";
 import { and, eq, inArray, isNotNull, like, or, sql } from "drizzle-orm";
 import { applications, emails } from "@/server/db/schema";
 import type { Database } from "@/server/db/types";
@@ -49,6 +53,8 @@ export async function findMatchCandidates(
             `${escapeLike(query.companyNameNorm)} %`,
           ),
           sql`${query.companyNameNorm} like ${applications.companyNameNorm} || ' %'`,
+          // Written run together: "JPMorganChase" and "JPMorgan Chase".
+          sql`replace(${applications.companyNameNorm}, ' ', '') = ${compactName(query.companyNameNorm)}`,
         )
       : undefined,
     query.companyDomain

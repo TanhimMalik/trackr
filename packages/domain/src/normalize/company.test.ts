@@ -10,6 +10,7 @@ describe("normalizeCompanyName", () => {
     ["Acme Corp.", "acme"],
     ["Spotify AB", "spotify"],
     ["Société Générale S.A.", "societe generale"],
+    ["JPMorgan Chase & Co.", "jpmorgan chase"],
   ])("removes legal suffixes and formatting: %s", (input, expected) => {
     expect(normalizeCompanyName(input)).toBe(expected);
   });

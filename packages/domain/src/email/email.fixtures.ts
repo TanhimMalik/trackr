@@ -36,6 +36,21 @@ const email = (
 export const EMAIL_FIXTURES: EmailFixture[] = [
   // Application confirmations
   {
+    // Oracle's recruiting cloud sends in the employer's name.
+    id: "oracle-recruiting-confirmation",
+    email: email({
+      fromName: "Northwind Bank & Co. Human Resources",
+      fromEmail: "northwind@workflow.mail.us2.cloud.oracle.com",
+      subject: "We received your job application (Job Number: 210012345)",
+      body: "Dear Sam,\n\nThank you for your interest in the Software Engineer Program. We received your job application and will review it.\n\nNorthwind Bank & Co. Talent Acquisition",
+    }),
+    expected: {
+      relevant: true,
+      classification: "APPLICATION_CONFIRMATION",
+      companyName: "Northwind Bank",
+    },
+  },
+  {
     // Says what happens if it doesn't work out; still only a confirmation.
     id: "confirmation-with-if-not-selected",
     email: email({
@@ -227,6 +242,38 @@ export const EMAIL_FIXTURES: EmailFixture[] = [
       snippet: "Hi Sam, please use the link below to continue. codesignal.com",
     }),
     expected: { relevant: true, classification: "ASSESSMENT" },
+  },
+
+  {
+    // The platform sends for the employer and says so in its name.
+    id: "assessment-platform-invitation",
+    email: email({
+      fromName: "HackerRank for NorthwindBank",
+      fromEmail: "support@hackerrankforwork.com",
+      subject:
+        "Your HackerRank NorthwindBank – Software Engineer Program – Campus Hiring Invitation",
+      body: "Hi Sam,\n\nNorthwindBank has invited you to take the Software Engineer Program test. You'll have 90 minutes once you begin.\n\nThis invite expires in 5 days.",
+      snippet:
+        "Hi Sam, NorthwindBank has invited you to take the Software Engineer Program test. Thank you for your interest in the position.",
+    }),
+    expected: {
+      relevant: true,
+      classification: "ASSESSMENT",
+      companyName: "NorthwindBank",
+    },
+  },
+  {
+    // The assessment platform's own newsletter.
+    id: "assessment-platform-marketing",
+    email: email({
+      fromName: "HackerRank",
+      fromEmail: "news@hackerrank.com",
+      subject: "Ace your next interview with these 5 challenges",
+      body: "Practice the questions top companies ask in a technical interview.",
+      labels: ["INBOX", "CATEGORY_PROMOTIONS"],
+      hasListUnsubscribe: true,
+    }),
+    expected: { relevant: false },
   },
 
   // Interview requests and confirmations

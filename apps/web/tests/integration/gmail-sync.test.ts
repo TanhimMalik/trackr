@@ -725,6 +725,41 @@ describe("routing rules", () => {
       apps.find((app) => app.companyName === "Fabrikam")!.currentStatus,
     ).toBe("ASSESSMENT");
   });
+
+  it("matches an assessment platform writing the company run together", async () => {
+    await createApplication(
+      userId,
+      {
+        companyName: "Northwind Bank & Co.",
+        jobTitle: "Software Engineer Program",
+        appliedAt: daysAgo(2),
+      },
+      testDb.db,
+    );
+    const mailbox: Mail[] = [
+      {
+        id: "r-hackerrank",
+        from: "HackerRank for NorthwindBank <support@hackerrankforwork.com>",
+        subject: "Your HackerRank NorthwindBank – Campus Hiring Invitation",
+        body: "Hi Sam, NorthwindBank has invited you to take a test for the position. You'll have 90 minutes.",
+      },
+    ];
+    const result = await syncGmail(
+      userId,
+      { fetchImpl: fakeGmail({ mailbox }).fetchImpl, now },
+      testDb.db,
+    );
+
+    expect(result.outcomes.applied).toBe(1);
+    const apps = await testDb.db
+      .select()
+      .from(applications)
+      .where(eq(applications.userId, userId));
+    expect(
+      apps.find((app) => app.companyName === "Northwind Bank & Co.")!
+        .currentStatus,
+    ).toBe("ASSESSMENT");
+  });
 });
 
 describe("routing by date", () => {

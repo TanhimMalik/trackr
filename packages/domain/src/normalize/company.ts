@@ -80,6 +80,10 @@ export function normalizeCompanyName(name: string): string {
       changed = true;
     } else if (tokens.length > 1 && LEGAL_SUFFIXES.has(tokens.at(-1)!)) {
       tokens = tokens.slice(0, -1);
+      // "Chase & Co." leaves an "and" behind.
+      if (tokens.length > 1 && tokens.at(-1) === "and") {
+        tokens = tokens.slice(0, -1);
+      }
       changed = true;
     }
   }

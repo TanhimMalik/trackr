@@ -3,6 +3,7 @@ import {
   anyTerm,
   APPLICATION_TERMS,
   ASSESSMENT_PLATFORMS,
+  ASSESSMENT_SENDER_DOMAINS,
   ATS_SENDER_DOMAINS,
   isFromDomain,
   APPLICATION_UPDATE_SUBJECT,
@@ -20,6 +21,7 @@ export type RelevanceSignal =
   | "KNOWN_THREAD"
   | "KNOWN_CONTACT"
   | "ATS_SENDER"
+  | "ASSESSMENT_SENDER"
   | "JOB_BOARD_SENDER"
   | "RECRUITING_SENDER"
   | "SUBJECT_VOCABULARY"
@@ -61,7 +63,13 @@ export function scoreRelevance(email: EmailMetadata): Relevance {
   if (email.knownThread) signals.KNOWN_THREAD = 3;
   if (email.knownContact) signals.KNOWN_CONTACT = 3;
   if (isFromDomain(email.fromEmail, ATS_SENDER_DOMAINS)) signals.ATS_SENDER = 3;
-  else if (isFromDomain(email.fromEmail, JOB_BOARD_SENDER_DOMAINS)) {
+  // Invitations from assessment platforms; their own marketing lands in Promotions.
+  else if (
+    isFromDomain(email.fromEmail, ASSESSMENT_SENDER_DOMAINS) &&
+    !email.labels.includes("CATEGORY_PROMOTIONS")
+  ) {
+    signals.ASSESSMENT_SENDER = 3;
+  } else if (isFromDomain(email.fromEmail, JOB_BOARD_SENDER_DOMAINS)) {
     signals.JOB_BOARD_SENDER = 2;
   }
   if (RECRUITING_LOCAL_PARTS.test(localPart)) signals.RECRUITING_SENDER = 1;

@@ -26,6 +26,8 @@ export const ATS_SENDER_DOMAINS = [
   "successfactors.eu",
   "taleo.net",
   "oraclecloud.com",
+  // Oracle Recruiting Cloud sends as workflow.mail.<region>.cloud.oracle.com.
+  "cloud.oracle.com",
   "avature.net",
   "phenompeople.com",
   "eightfold.ai",
@@ -44,10 +46,16 @@ export const ASSESSMENT_SENDER_DOMAINS = [
   "shl.com",
   "hirevue.com",
   "hackerrank.com",
+  "hackerrankforwork.com",
   "codesignal.com",
   "codility.com",
   "karat.com",
   "coderpad.io",
+  "testgorilla.com",
+  "pymetrics.ai",
+  "harver.com",
+  "modernhire.com",
+  "criteriacorp.com",
 ];
 
 /** Job boards whose application messages are worth reading. */

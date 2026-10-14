@@ -55,6 +55,16 @@ describe("scoreCandidate", () => {
     });
   });
 
+  it("sees a name written run together as the same company", () => {
+    const scored = scoreCandidate(
+      signal({ companyNameNorm: normalizeCompanyName("NorthwindBank") }),
+      candidate("a", {
+        companyNameNorm: normalizeCompanyName("Northwind Bank & Co."),
+      }),
+    );
+    expect(scored.signals).toContain("COMPANY_NAME");
+  });
+
   it("counts against a clearly different role at the same company", () => {
     const scored = scoreCandidate(
       signal(),

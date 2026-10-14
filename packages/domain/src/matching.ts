@@ -109,6 +109,9 @@ export function sameCompanyLongerName(a: string, b: string): boolean {
   return long.startsWith(`${short} `);
 }
 
+/** A normalized company name without spaces, for names written run together. */
+export const compactName = (norm: string) => norm.replace(/ /g, "");
+
 /** How strongly a signal points at one application, and why. */
 export function scoreCandidate(
   signal: IncomingSignal,
@@ -120,7 +123,13 @@ export function scoreCandidate(
   if (signal.threadId && candidate.threadIds?.includes(signal.threadId)) {
     signals.push("SAME_THREAD");
   }
-  if (signal.companyNameNorm === candidate.companyNameNorm) {
+  if (
+    signal.companyNameNorm === candidate.companyNameNorm ||
+    // "JPMorganChase" and "JPMorgan Chase".
+    (signal.companyNameNorm !== "" &&
+      compactName(signal.companyNameNorm) ===
+        compactName(candidate.companyNameNorm))
+  ) {
     signals.push("COMPANY_NAME");
   } else if (
     sameCompanyLongerName(signal.companyNameNorm, candidate.companyNameNorm)
