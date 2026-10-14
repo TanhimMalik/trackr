@@ -23,6 +23,20 @@ describe("buildSubmission", () => {
     });
   });
 
+  it("sends the description, trimmed to what the API accepts", () => {
+    const payload = buildSubmission(
+      {
+        companyName: "Acme",
+        jobTitle: "Engineer",
+        jobUrl: "https://acme.example/jobs/1",
+        description: "x".repeat(60_000),
+      },
+      "POPUP",
+    );
+    expect(payload.description).toHaveLength(50_000);
+    expect(extensionSubmissionSchema.safeParse(payload).success).toBe(true);
+  });
+
   it("works out the platform for a job tracked from any page", () => {
     expect(
       buildSubmission(
@@ -49,6 +63,33 @@ describe("retryDelayMs", () => {
 });
 
 describe("guessJobFromPage", () => {
+  it("prefers the posting the page describes in structured data", () => {
+    expect(
+      guessJobFromPage({
+        url: "https://jobs.example.com/view/42?ref=feed",
+        title: "Jobs | Example",
+        ogTitle: null,
+        siteName: "Example Jobs",
+        jsonLd: [
+          "not json",
+          JSON.stringify({
+            "@type": "JobPosting",
+            title: "Data Analyst",
+            hiringOrganization: { name: "Contoso" },
+            jobLocationType: "TELECOMMUTE",
+            description: "<p>Own our reporting &amp; dashboards.</p>",
+          }),
+        ],
+      }),
+    ).toEqual({
+      companyName: "Contoso",
+      jobTitle: "Data Analyst",
+      jobUrl: "https://jobs.example.com/view/42",
+      location: "Remote",
+      description: "Own our reporting & dashboards.",
+    });
+  });
+
   it("splits a typical careers page title", () => {
     expect(
       guessJobFromPage({

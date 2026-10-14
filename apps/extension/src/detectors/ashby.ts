@@ -40,6 +40,7 @@ export const ashby: PlatformDetector = {
       jobUrl: `https://jobs.ashbyhq.com/${slug}/${postingId}`,
       atsJobId: postingId!.toLowerCase(),
       location: structured?.location ?? null,
+      description: structured?.description ?? null,
     };
   },
 

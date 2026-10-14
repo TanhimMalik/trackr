@@ -8,12 +8,16 @@ export type JobContext = {
   jobUrl: string;
   atsJobId: string | null;
   location: string | null;
+  /** The posting's text, when the page shows it. */
+  description: string | null;
   capturedAt: string;
 };
 
-/** The popup's editable fields. */
+/** The popup's editable fields, and what came with the job. */
 export type JobDraft = Pick<JobContext, "companyName" | "jobTitle" | "jobUrl"> &
-  Partial<Pick<JobContext, "platform" | "atsJobId" | "location">>;
+  Partial<
+    Pick<JobContext, "platform" | "atsJobId" | "location" | "description">
+  >;
 
 export type Account = {
   email: string | null;

@@ -1,5 +1,6 @@
 import {
   companyFromSlug,
+  descriptionOf,
   findStructuredJob,
   textOf,
   visibleText,
@@ -42,6 +43,12 @@ export const lever: PlatformDetector = {
       location:
         structured?.location ??
         textOf(document, ".posting-categories .location"),
+      description:
+        structured?.description ??
+        descriptionOf(document, [
+          ".section-wrapper.page-full-width",
+          '[data-qa="job-description"]',
+        ]),
     };
   },
 

@@ -1,9 +1,13 @@
+import { plainTextDescription } from "@trackr/domain";
+
 /** The parts of a schema.org JobPosting the extension uses. */
 export type StructuredJob = {
   title: string | null;
   companyName: string | null;
   location: string | null;
   identifier: string | null;
+  /** Plain text; postings give it as HTML. */
+  description: string | null;
 };
 
 type Json = Record<string, unknown>;
@@ -54,15 +58,12 @@ function locationOf(node: Json): string | null {
   return node.jobLocationType === "TELECOMMUTE" ? "Remote" : null;
 }
 
-/** Reads the first schema.org JobPosting embedded in the page as JSON-LD. */
-export function findStructuredJob(document: Document): StructuredJob | null {
-  const scripts = document.querySelectorAll<HTMLScriptElement>(
-    'script[type="application/ld+json"]',
-  );
-  for (const script of scripts) {
+/** The first schema.org JobPosting in a set of JSON-LD blocks. */
+export function structuredJobFromJson(blocks: string[]): StructuredJob | null {
+  for (const block of blocks) {
     let data: unknown;
     try {
-      data = JSON.parse(script.textContent ?? "");
+      data = JSON.parse(block);
     } catch {
       continue;
     }
@@ -70,6 +71,7 @@ export function findStructuredJob(document: Document): StructuredJob | null {
       if (!isJobPosting(node)) continue;
       const organization = node.hiringOrganization;
       const identifier = node.identifier;
+      const description = text(node.description);
       return {
         title: text(node.title),
         companyName: isObject(organization)
@@ -79,8 +81,34 @@ export function findStructuredJob(document: Document): StructuredJob | null {
         identifier: isObject(identifier)
           ? text(identifier.value)
           : text(identifier),
+        description: description
+          ? plainTextDescription(description) || null
+          : null,
       };
     }
+  }
+  return null;
+}
+
+/** Reads the first schema.org JobPosting embedded in the page as JSON-LD. */
+export function findStructuredJob(document: Document): StructuredJob | null {
+  const scripts = document.querySelectorAll<HTMLScriptElement>(
+    'script[type="application/ld+json"]',
+  );
+  return structuredJobFromJson(
+    [...scripts].map((script) => script.textContent ?? ""),
+  );
+}
+
+/** The job description in the first matching element, as plain text. */
+export function descriptionOf(
+  document: Document,
+  selectors: string[],
+): string | null {
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    const description = element ? plainTextDescription(element.innerHTML) : "";
+    if (description.length >= 40) return description;
   }
   return null;
 }

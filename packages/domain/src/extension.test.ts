@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { extensionSubmissionSchema, plainTextDescription } from "./extension";
+import { extensionSubmissionSchema } from "./extension";
+import { plainTextDescription } from "./normalize/description";
 
 const valid = {
   clientSubmissionId: "2c6c3f1e-8d1a-4b6e-9f1a-1d2c3b4a5f60",

@@ -11,8 +11,18 @@ export type Tracked = { applicationId: string; outcome: SubmissionOutcome };
 // Per-tab state lives in session storage: cleared when the browser closes,
 // and only readable by the extension itself.
 
+/**
+ * Remembers the job on this tab. Application pages often leave out the
+ * description the posting showed, so a known one is kept for the same job.
+ */
 export async function saveJob(tabId: number, job: JobContext): Promise<void> {
-  await chrome.storage.session.set({ [jobKey(tabId)]: job });
+  const previous = job.description ? null : await getJob(tabId);
+  const description =
+    job.description ??
+    (previous?.jobUrl === job.jobUrl ? previous.description : null);
+  await chrome.storage.session.set({
+    [jobKey(tabId)]: { ...job, description },
+  });
 }
 
 /** The job captured earlier in this tab, if it is recent enough. */

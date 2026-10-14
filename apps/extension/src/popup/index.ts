@@ -90,6 +90,11 @@ async function readPage(tabId: number): Promise<JobDraft | null> {
           title: document.title,
           ogTitle: meta("og:title"),
           siteName: meta("og:site_name"),
+          jsonLd: [
+            ...document.querySelectorAll('script[type="application/ld+json"]'),
+          ]
+            .map((script) => (script.textContent ?? "").slice(0, 200_000))
+            .slice(0, 10),
         };
       },
     });

@@ -10,6 +10,7 @@ export * from "./normalize/company";
 export * from "./normalize/title";
 export * from "./normalize/url";
 export * from "./normalize/text";
+export * from "./normalize/description";
 export * from "./platform";
 export * from "./notifications";
 export * from "./reminders";

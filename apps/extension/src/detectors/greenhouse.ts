@@ -1,5 +1,6 @@
 import {
   companyFromSlug,
+  descriptionOf,
   findStructuredJob,
   metaContent,
   textOf,
@@ -68,6 +69,9 @@ export const greenhouse: PlatformDetector = {
         structured?.location ??
         textOf(document, ".job__location") ??
         textOf(document, ".location"),
+      description:
+        structured?.description ??
+        descriptionOf(document, [".job__description", "#content"]),
     };
   },
 

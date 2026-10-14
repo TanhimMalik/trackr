@@ -39,6 +39,7 @@ describe("greenhouse", () => {
       jobUrl: "https://job-boards.greenhouse.io/northwindlabs/jobs/4012345",
       atsJobId: "4012345",
       location: "Remote, Canada",
+      description: "Thank you for applying to roles that fit you.",
     });
   });
 
@@ -102,6 +103,9 @@ describe("lever", () => {
       jobUrl: `https://jobs.lever.co/fabrikam/${LEVER_ID}`,
       atsJobId: LEVER_ID,
       location: "Toronto; Montreal",
+      // The posting's HTML, as plain text.
+      description:
+        "Build the APIs behind payouts & refunds.\n3+ years with Go or TypeScript",
     });
   });
 
@@ -145,6 +149,8 @@ describe("ashby", () => {
       jobUrl: postingUrl.href,
       atsJobId: ASHBY_ID,
       location: "New York City, NY",
+      description:
+        "About the role\nDesign the tools our support team uses every day.",
     });
   });
 

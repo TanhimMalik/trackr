@@ -3,7 +3,11 @@ import {
   type CaptureMode,
   type ExtensionSubmissionPayload,
 } from "@trackr/domain";
+import { structuredJobFromJson } from "../detectors/structured-data";
 import type { JobDraft } from "./types";
+
+// Trackr turns away longer ones; the requirements come well before this.
+const MAX_DESCRIPTION = 50_000;
 
 /** The report sent to Trackr for a job, captured automatically or from the popup. */
 export function buildSubmission(
@@ -23,6 +27,7 @@ export function buildSubmission(
     jobUrl: job.jobUrl.trim(),
     atsJobId: job.atsJobId ?? null,
     location: job.location ?? null,
+    description: job.description?.slice(0, MAX_DESCRIPTION) || null,
     submittedAt: now.toISOString(),
   };
 }
@@ -45,6 +50,8 @@ export type PageMetadata = {
   title: string;
   ogTitle: string | null;
   siteName: string | null;
+  /** The page's JSON-LD blocks; many job sites describe the posting in one. */
+  jsonLd?: string[];
 };
 
 const SEPARATORS = /\s+[|–—-]\s+|\s+@\s+|\s+at\s+/;
@@ -61,6 +68,17 @@ export function guessJobFromPage(page: PageMetadata): JobDraft | null {
     return null;
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+
+  const structured = structuredJobFromJson(page.jsonLd ?? []);
+  if (structured?.title && structured.companyName) {
+    return {
+      companyName: structured.companyName,
+      jobTitle: structured.title,
+      jobUrl: `${url.origin}${url.pathname}`,
+      location: structured.location,
+      description: structured.description,
+    };
+  }
 
   const heading = (page.ogTitle ?? page.title).trim();
   const [first, second] = heading.split(SEPARATORS).map((part) => part.trim());
