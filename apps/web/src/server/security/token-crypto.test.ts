@@ -18,7 +18,8 @@ describe("token encryption", () => {
   it("rejects tampering and the wrong key", () => {
     const stored = encryptSecret("ya29.secret-token", key);
     const [version, iv, ciphertext, tag] = stored.split(".");
-    const flipped = `${ciphertext!.slice(0, -2)}${ciphertext!.endsWith("A") ? "B" : "A"}${ciphertext!.slice(-1)}`;
+    // A different first character, which always changes the bytes.
+    const flipped = `${ciphertext!.startsWith("A") ? "B" : "A"}${ciphertext!.slice(1)}`;
 
     expect(() =>
       decryptSecret([version, iv, flipped, tag].join("."), key),
