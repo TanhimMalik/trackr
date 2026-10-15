@@ -1,9 +1,11 @@
+import { after } from "next/server";
 import { ZodError } from "zod";
 import {
   extensionError,
   requireExtensionSession,
 } from "@/server/auth/extension";
 import { ingestExtensionSubmission } from "@/server/services/extension-ingestion";
+import { scoreApplicationQuietly } from "@/server/services/fit";
 
 /** Reports an application the extension saw submitted, or one tracked from its popup. */
 export async function POST(request: Request) {
@@ -13,6 +15,8 @@ export async function POST(request: Request) {
   const payload = await request.json().catch(() => null);
   try {
     const result = await ingestExtensionSubmission(auth.userId, payload);
+    // Scores the job against the resume profile, when there is one.
+    after(() => scoreApplicationQuietly(auth.userId, result.applicationId));
     return Response.json(result, {
       status: result.outcome === "MATCHED_EXISTING" ? 200 : 201,
       headers: { "Cache-Control": "no-store" },

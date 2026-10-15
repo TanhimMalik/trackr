@@ -24,6 +24,12 @@ import {
 } from "@/server/services/contacts";
 import { DuplicateContactError, NotFoundError } from "@/server/services/errors";
 import {
+  FitLimitError,
+  FitUnavailableError,
+  scoreApplication,
+} from "@/server/services/fit";
+import { LlmUnavailableError } from "@/server/integrations/anthropic";
+import {
   createInterview,
   deleteInterview,
   setInterviewStatus,
@@ -207,5 +213,43 @@ export async function deleteInterviewAction(
     return { ok: true, message: "Interview removed." };
   } catch (error) {
     return failure(error, "This interview no longer exists.");
+  }
+}
+
+/** Scores how well the job fits the person's resume profile, now. */
+export async function scoreFitAction(
+  applicationId: string,
+): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  const user = await requireUser();
+  if (user.isDemo) {
+    return {
+      ok: false,
+      error: "Scoring new jobs needs an account. The saved jobs show examples.",
+    };
+  }
+  try {
+    const fit = await scoreApplication(user.id, applicationId);
+    if (!fit) {
+      return {
+        ok: false,
+        error: "Add the job description and your resume first.",
+      };
+    }
+    revalidatePath("/", "layout");
+    return { ok: true, message: `Scored ${fit.score} out of 100.` };
+  } catch (error) {
+    if (error instanceof FitLimitError) {
+      return { ok: false, error: "That's the scoring limit for today." };
+    }
+    if (error instanceof FitUnavailableError) {
+      return { ok: false, error: "Fit scoring isn't set up on this site." };
+    }
+    if (error instanceof LlmUnavailableError) {
+      return { ok: false, error: "Claude didn't answer. Try again shortly." };
+    }
+    if (error instanceof NotFoundError) {
+      return { ok: false, error: "This application no longer exists." };
+    }
+    throw error;
   }
 }

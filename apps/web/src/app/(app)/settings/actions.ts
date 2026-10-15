@@ -6,6 +6,10 @@ import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { requireUser } from "@/server/auth/session";
 import { endSupabaseSession } from "@/server/auth/supabase";
+import {
+  deleteResumeProfile,
+  updateFitPreferences,
+} from "@/server/services/fit";
 import { deleteAccount, deleteEmailData } from "@/server/services/privacy";
 import {
   setAutoTrackSupportedSites,
@@ -121,4 +125,38 @@ export async function deleteAccountAction(
   }
   await endSupabaseSession();
   redirect("/?account=deleted");
+}
+
+export type ActionResult =
+  { ok: true; message: string } | { ok: false; error: string };
+
+/** Saves where and how the person wants to work, used in the location and pay part of fit. */
+export async function updateFitPreferencesAction(
+  input: unknown,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  try {
+    await updateFitPreferences(user.id, input);
+    revalidatePath("/", "layout");
+    return {
+      ok: true,
+      message: "Saved. Scores update the next time each one is checked.",
+    };
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return { ok: false, error: "Check the salary: whole numbers only." };
+    }
+    return { ok: false, error: "Add your resume first." };
+  }
+}
+
+/** Forgets the resume profile and every fit score made from it. */
+export async function deleteResumeProfileAction(): Promise<ActionResult> {
+  const user = await requireUser();
+  if (user.isDemo) {
+    return { ok: false, error: "The demo's sample resume stays in place." };
+  }
+  await deleteResumeProfile(user.id);
+  revalidatePath("/", "layout");
+  return { ok: true, message: "Your resume profile and fit scores are gone." };
 }

@@ -1,6 +1,7 @@
 export * from "./enums";
 export * from "./users";
 export * from "./resume-versions";
+export * from "./resume-profiles";
 export * from "./applications";
 export * from "./application-events";
 export * from "./contacts";

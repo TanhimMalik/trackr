@@ -61,17 +61,30 @@ export function tokenEncryptionKey(): Buffer {
   return result.data;
 }
 
-export type EmailLlmConfig = { apiKey: string; model: string };
+export type LlmConfig = { apiKey: string; model: string };
 
 /**
  * The model that reads emails the rules can't settle, or null when this
  * deployment has no key. Optional: without it, Gmail sync runs on rules alone.
  */
-export function emailLlmConfig(): EmailLlmConfig | null {
+export function emailLlmConfig(): LlmConfig | null {
   const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
   if (!apiKey) return null;
   return {
     apiKey,
     model: process.env.EMAIL_LLM_MODEL?.trim() || "claude-haiku-5-5",
+  };
+}
+
+/**
+ * The model that reads resumes and scores job fit, or null without a key.
+ * Optional: without it, fit scoring is off.
+ */
+export function fitLlmConfig(): LlmConfig | null {
+  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  if (!apiKey) return null;
+  return {
+    apiKey,
+    model: process.env.FIT_LLM_MODEL?.trim() || "claude-haiku-5-5",
   };
 }

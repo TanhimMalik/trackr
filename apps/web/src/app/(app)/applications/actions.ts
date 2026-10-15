@@ -5,6 +5,7 @@ import {
   type ApplicationStatus,
 } from "@trackr/domain";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { ZodError } from "zod";
 import { applicationFormValues } from "@/lib/applications/form-data";
 import {
@@ -24,6 +25,7 @@ import {
 } from "@/server/services/applications";
 import { DEMO_APPLICATION_LIMIT } from "@/server/services/demo-workspace";
 import { LastEventError, NotFoundError } from "@/server/services/errors";
+import { scoreApplicationQuietly } from "@/server/services/fit";
 import {
   restoreEvent,
   revertEvent,
@@ -81,6 +83,9 @@ export async function createApplicationAction(
   }
   try {
     const application = await createApplication(user.id, parsed.data);
+    if (application.jobDescription && !user.isDemo) {
+      after(() => scoreApplicationQuietly(user.id, application.id));
+    }
     revalidateApplications();
     return { ok: true, message: `Added ${application.companyName}.` };
   } catch (error) {
@@ -105,6 +110,10 @@ export async function updateApplicationAction(
       applicationId,
       parsed.data,
     );
+    // A new description cleared the old score.
+    if (application.jobDescription && !application.fit && !user.isDemo) {
+      after(() => scoreApplicationQuietly(user.id, application.id));
+    }
     revalidateApplications();
     return { ok: true, message: `Saved ${application.companyName}.` };
   } catch (error) {

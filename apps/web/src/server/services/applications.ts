@@ -281,6 +281,13 @@ export async function updateApplication(
         patch.jobUrl !== undefined ? patch.jobUrl : existing.jobUrl,
       );
   }
+  // A fit judged a different posting no longer applies.
+  if (
+    patch.jobDescription !== undefined &&
+    patch.jobDescription !== existing.jobDescription
+  ) {
+    Object.assign(values, { fitScore: null, fit: null, fitScoredAt: null });
+  }
 
   const [updated] = await db
     .update(applications)

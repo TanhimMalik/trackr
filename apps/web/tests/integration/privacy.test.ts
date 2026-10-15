@@ -117,6 +117,7 @@ describe("exportUserData", () => {
         accountEmail: "sam@gmail.com",
       }),
     ]);
+    expect(data.resumeProfile).toBeNull();
     const text = JSON.stringify(data);
     expect(text).not.toContain("secret-access-token");
     expect(text).not.toContain("secret-refresh-token");

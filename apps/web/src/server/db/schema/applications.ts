@@ -4,6 +4,7 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -11,6 +12,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { StoredFit } from "@/server/fit/types";
 import { createdAt, updatedAt } from "./columns";
 import {
   applicationSourceEnum,
@@ -64,6 +66,12 @@ export const applications = pgTable(
       { onDelete: "set null" },
     ),
     notes: text("notes"),
+
+    // How well the job fits the person's resume profile; cleared when the
+    // description changes, stale when the profile is newer than the score.
+    fitScore: integer("fit_score"),
+    fit: jsonb("fit").$type<StoredFit>(),
+    fitScoredAt: timestamp("fit_scored_at", { withTimezone: true }),
 
     createdAt: createdAt(),
     updatedAt: updatedAt(),

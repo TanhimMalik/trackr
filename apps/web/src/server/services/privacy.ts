@@ -10,6 +10,7 @@ import {
   integrations,
   interviews,
   notifications,
+  resumeProfiles,
   resumeVersions,
   reviewItems,
   userSettings,
@@ -43,6 +44,7 @@ export async function exportUserData(
     integrationRows,
     sessionRows,
     resumeRows,
+    profileRows,
   ] = await Promise.all([
     db
       .select({
@@ -95,6 +97,15 @@ export async function exportUserData(
       .from(extensionSessions)
       .where(own(extensionSessions)),
     db.select().from(resumeVersions).where(own(resumeVersions)),
+    db
+      .select({
+        profile: resumeProfiles.profile,
+        preferences: resumeProfiles.preferences,
+        sourceFilename: resumeProfiles.sourceFilename,
+        updatedAt: resumeProfiles.updatedAt,
+      })
+      .from(resumeProfiles)
+      .where(own(resumeProfiles)),
   ]);
   return {
     exportedAt: now.toISOString(),
@@ -111,6 +122,8 @@ export async function exportUserData(
     integrations: integrationRows,
     browserExtensions: sessionRows,
     resumeVersions: resumeRows,
+    // What Claude read from the resume; fit scores are on each application.
+    resumeProfile: profileRows[0] ?? null,
   };
 }
 

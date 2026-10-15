@@ -105,6 +105,7 @@ describe("database schema", () => {
       "interviews",
       "notifications",
       "rate_limit_buckets",
+      "resume_profiles",
       "resume_versions",
       "review_items",
       "user_settings",

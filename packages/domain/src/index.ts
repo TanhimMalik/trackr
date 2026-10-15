@@ -17,3 +17,4 @@ export * from "./reminders";
 export * from "./matching";
 export * from "./extension";
 export * from "./email";
+export * from "./fit";
