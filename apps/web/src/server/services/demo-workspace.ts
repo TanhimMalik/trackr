@@ -1,7 +1,10 @@
 import "server-only";
 import {
+  computeFit,
   DEFAULT_FOLLOW_UP_AFTER_DAYS,
   deriveApplicationState,
+  FIT_PROMPT_VERSION,
+  fitPostingText,
   notificationForEvent,
   type InterviewType,
   type StatusEvent,
@@ -16,6 +19,7 @@ import {
   emails,
   interviews,
   notifications,
+  resumeProfiles,
   users,
 } from "@/server/db/schema";
 import type { Database } from "@/server/db/types";
@@ -26,6 +30,12 @@ import {
   type DemoInterview,
 } from "@/server/demo/applications";
 import { DEMO_EMAILS, seedEmailFor } from "@/server/demo/emails";
+import {
+  DEMO_FIT_PREFERENCES,
+  DEMO_RESUME_PROFILE,
+  type DemoFit,
+} from "@/server/demo/fit";
+import type { StoredFit } from "@/server/fit/types";
 import {
   countApplications,
   deleteAllApplications,
@@ -86,9 +96,38 @@ function interviewTime(interview: DemoInterview, now: Date): Date {
   return date;
 }
 
+/** A saved job's fit, worked out from its ratings the way a real score is. */
+function demoFitColumns(
+  data: { companyName: string; jobTitle: string; location?: string | null },
+  demoFit: DemoFit,
+  now: Date,
+) {
+  const posting = {
+    companyName: data.companyName,
+    jobTitle: data.jobTitle,
+    location: data.location ?? null,
+    description: demoFit.description,
+  };
+  const fit: StoredFit = {
+    ...computeFit(demoFit.ratings, fitPostingText(posting)),
+    model: "claude-haiku-5-5",
+    promptVersion: FIT_PROMPT_VERSION,
+    costUsd: 0,
+  };
+  return { fitScore: fit.score, fit, fitScoredAt: now };
+}
+
 function planApplication(userId: string, demo: DemoApplication, now: Date) {
-  const { events: demoEvents, contacts: demoContacts = [], ...fields } = demo;
-  const data = createApplicationSchema.parse(fields);
+  const {
+    events: demoEvents,
+    contacts: demoContacts = [],
+    fit: demoFit,
+    ...fields
+  } = demo;
+  const data = createApplicationSchema.parse({
+    ...fields,
+    jobDescription: demoFit?.description,
+  });
   const applicationId = crypto.randomUUID();
 
   const contacts = demoContacts.map((contact) => ({
@@ -240,6 +279,7 @@ function planApplication(userId: string, demo: DemoApplication, now: Date) {
       appliedAt: state.appliedAt,
       lastActivityAt: state.lastActivityAt ?? now,
       createdAt: events[0]?.recordedAt ?? now,
+      ...(demoFit ? demoFitColumns(data, demoFit, now) : {}),
     },
     events: events.map(({ id, input, recordedAt }) => ({
       id,
@@ -288,6 +328,18 @@ export async function seedDemoWorkspace(
       .limit(1);
     if (existing) throw new WorkspaceNotEmptyError();
 
+    // Scored just after the sample resume was read, so the scores are current.
+    const profile = {
+      profile: DEMO_RESUME_PROFILE,
+      preferences: DEMO_FIT_PREFERENCES,
+      sourceFilename: null,
+      model: null,
+      updatedAt: new Date(now.getTime() - HOUR_MS),
+    };
+    await tx
+      .insert(resumeProfiles)
+      .values({ userId, ...profile })
+      .onConflictDoUpdate({ target: resumeProfiles.userId, set: profile });
     await tx.insert(applications).values(plans.map((plan) => plan.application));
     const events = plans.flatMap((plan) => plan.events);
     await tx.insert(applicationEvents).values(events);

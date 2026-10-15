@@ -127,8 +127,21 @@ test("a simulated capture adds a new application", async () => {
   await expect(page.getByRole("region", { name: /^Applied, 1/ })).toBeVisible();
 });
 
+test("saved jobs show how well they fit the sample resume", async () => {
+  await page.goto("/applications?q=supabase");
+  await expect(page.getByText("Fit 95")).toBeVisible();
+  await page.getByRole("link", { name: "Supabase" }).click();
+  await expect(page.getByRole("heading", { name: "Fit" })).toBeVisible();
+  await expect(page.getByText("Strong fit · 95")).toBeVisible();
+  await expect(
+    page.getByText("“Strong TypeScript and SQL skills”"),
+  ).toBeVisible();
+  await expectAccessible(page);
+});
+
 test("settings save and are accessible", async () => {
   await page.goto("/settings");
+  await expect(page.getByText("Junior full-stack engineer")).toBeVisible();
   await expectAccessible(page);
   const auto = page.getByRole("switch", {
     name: "Update applications automatically",

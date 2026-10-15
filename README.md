@@ -17,6 +17,7 @@ Trackr is an automatic job application tracker. Connect your browser and inbox o
 | [Database](docs/database.md)                   | Schema, enums, constraints, migrations and retention                     |
 | [Email pipeline](docs/email-pipeline.md)       | Gmail sync, relevance filtering, classification and automation decisions |
 | [Browser extension](docs/browser-extension.md) | Extension architecture, platform detectors, authentication and API       |
+| [Job fit scoring](docs/fit-scoring.md)         | Resume profile, the scoring rubric, its limits and cost                  |
 | [Design system](docs/design-system.md)         | Visual language, layout, components and accessibility                    |
 
 ## Tech stack

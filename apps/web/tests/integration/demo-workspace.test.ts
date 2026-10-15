@@ -25,6 +25,7 @@ import {
   seedDemoWorkspace,
   WorkspaceNotEmptyError,
 } from "@/server/services/demo-workspace";
+import { fitIsCurrent, getResumeProfile } from "@/server/services/fit";
 import { upsertUser, userExists } from "@/server/services/users";
 import { recomputeApplicationState } from "@/server/services/events";
 import { DEMO_APPLICATIONS } from "@/server/demo/applications";
@@ -190,6 +191,38 @@ async function createDemoUser(createdAt = now) {
   await seedDemoWorkspace(id, { now }, testDb.db);
   return id;
 }
+
+describe("seedDemoWorkspace fit", () => {
+  it("adds a sample resume and scores the saved jobs against it", async () => {
+    await seedDemoWorkspace(userId, { now }, testDb.db);
+    const profile = await getResumeProfile(userId, testDb.db);
+    expect(profile?.profile.headline).toBe("Junior full-stack engineer");
+
+    const rows = await listApplications(userId, {}, testDb.db);
+    const scored = rows.filter((row) => row.fit !== null);
+    expect(
+      Object.fromEntries(
+        scored.map((row) => [row.companyName, [row.fitScore, row.fit!.label]]),
+      ),
+    ).toEqual({
+      Supabase: [95, "STRONG"],
+      Twilio: [63, "POSSIBLE"],
+      Snowflake: [37, "STRETCH"],
+    });
+    for (const row of scored) {
+      // Every quote is the posting's own words, and the score is current.
+      for (const criterion of row.fit!.criteria) {
+        expect(
+          criterion.evidence,
+          `${row.companyName} ${criterion.key}`,
+        ).not.toBeNull();
+      }
+      expect(fitIsCurrent(row.fit, row.fitScoredAt, profile!.updatedAt)).toBe(
+        true,
+      );
+    }
+  });
+});
 
 describe("seedDemoWorkspace contacts and interviews", () => {
   it("adds contacts and the interviews scheduled events set up", async () => {

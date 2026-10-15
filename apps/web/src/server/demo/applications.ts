@@ -5,6 +5,7 @@ import {
   type ContactType,
 } from "@trackr/domain";
 import type { CreateApplicationInput } from "@/lib/applications/input";
+import { SNOWFLAKE_FIT, SUPABASE_FIT, TWILIO_FIT, type DemoFit } from "./fit";
 
 /** An interview a demo "interview scheduled" event sets up. */
 export type DemoInterview = {
@@ -44,7 +45,12 @@ export type DemoEvent = {
 export type DemoApplication = Omit<
   CreateApplicationInput,
   "status" | "appliedAt"
-> & { events: DemoEvent[]; contacts?: DemoContact[] };
+> & {
+  events: DemoEvent[];
+  contacts?: DemoContact[];
+  /** A posting and its fit ratings, for saved jobs. */
+  fit?: DemoFit;
+};
 
 /** Captured by the extension on submission, then confirmed by email minutes later. */
 const capturedAndConfirmed = (day: number, hour = 14): DemoEvent[] => [
@@ -442,6 +448,33 @@ export const DEMO_APPLICATIONS: DemoApplication[] = [
     source: "HANDSHAKE",
     sourcePlatform: "OTHER",
     events: [{ type: "JOB_SAVED", day: 2, hour: 21, via: "manual" }],
+    fit: SNOWFLAKE_FIT,
+  },
+  {
+    companyName: "Supabase",
+    companyWebsite: "supabase.com",
+    jobTitle: "Software Engineer, Backend",
+    jobUrl: "https://jobs.ashbyhq.com/supabase",
+    location: "Remote (US)",
+    employmentType: "FULL_TIME",
+    ...usd(130_000, 160_000),
+    source: "COMPANY_SITE",
+    sourcePlatform: "ASHBY",
+    events: [{ type: "JOB_SAVED", day: 1, hour: 18, via: "manual" }],
+    fit: SUPABASE_FIT,
+  },
+  {
+    companyName: "Twilio",
+    companyWebsite: "twilio.com",
+    jobTitle: "Software Engineer II, Billing",
+    jobUrl: "https://job-boards.greenhouse.io/twilio",
+    location: "Remote (US)",
+    employmentType: "FULL_TIME",
+    ...usd(140_000, 175_000),
+    source: "LINKEDIN",
+    sourcePlatform: "GREENHOUSE",
+    events: [{ type: "JOB_SAVED", day: 3, hour: 20, via: "manual" }],
+    fit: TWILIO_FIT,
   },
 ];
 

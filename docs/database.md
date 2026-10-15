@@ -90,6 +90,9 @@ Preferences, one row per user, created the first time one is saved or needed. Co
 | `last_activity_at`  | timestamptz                         | Not null. Derived from the latest active event.            |
 | `resume_version_id` | uuid → `resume_versions` (set null) |                                                            |
 | `notes`             | text                                |                                                            |
+| `fit_score`         | integer                             | 0–100, from the fit in `fit`; null until scored            |
+| `fit`               | jsonb                               | The scored breakdown, model and prompt version             |
+| `fit_scored_at`     | timestamptz                         | Stale when older than the resume profile                   |
 | `created_at`        | timestamptz                         |                                                            |
 | `updated_at`        | timestamptz                         |                                                            |
 
@@ -240,6 +243,20 @@ Constraint: `UNIQUE (application_id, email)`.
 | `original_filename` | text                     |                                                          |
 | `created_at`        | timestamptz              |                                                          |
 
+### `resume_profiles`
+
+What Claude read from the person's resume, and their own preferences. The file itself is never stored. See [Job fit scoring](fit-scoring.md).
+
+| Column            | Type                        | Notes                                                   |
+| ----------------- | --------------------------- | ------------------------------------------------------- |
+| `user_id`         | uuid PK → `users` (cascade) | One profile per user                                    |
+| `profile`         | jsonb                       | Headline, seniority, skills with evidence, domains      |
+| `preferences`     | jsonb                       | Locations, work mode and lowest salary, set by the user |
+| `source_filename` | text                        | The uploaded file's name, for display                   |
+| `model`           | text                        | The model that read it                                  |
+| `created_at`      | timestamptz                 |                                                         |
+| `updated_at`      | timestamptz                 | Fit scores older than this are stale                    |
+
 ### `integrations`
 
 | Column                    | Type                     | Notes                         |
@@ -330,9 +347,9 @@ users ─┬─< applications ─┬─< application_events >─ emails
 | 1     | `users`, `applications`, `application_events`, `resume_versions` |
 | 2     | `user_settings`, `contacts`, `interviews`, `notifications`       |
 | 3     | `extension_sessions`, `rate_limit_buckets`, `review_items`       |
-| 3     | `extension_sessions`, `review_items`, `rate_limit_buckets`       |
 | 4     | `integrations`, `emails`, plus `application_events.email_id`     |
 | 5     | New `review_item_kind` values for email review                   |
+| 6     | `resume_profiles`, plus the `applications.fit*` columns          |
 
 ## Migrations
 
