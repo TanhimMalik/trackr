@@ -4,8 +4,11 @@ import { AutoTrackSetting } from "@/components/settings/auto-track-setting";
 import { DataControls } from "@/components/settings/data-controls";
 import { EmailAutomationSettings } from "@/components/settings/email-automation-settings";
 import { FollowUpSettings } from "@/components/settings/follow-up-settings";
+import { ResumeProfileSettings } from "@/components/settings/resume-profile";
 import { ThemeSelect } from "@/components/settings/theme-select";
 import { requireUser } from "@/server/auth/session";
+import { fitLlmConfig } from "@/server/env";
+import { getResumeProfile } from "@/server/services/fit";
 import {
   getAutoTrackSupportedSites,
   getEmailAutomation,
@@ -16,10 +19,11 @@ export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const user = await requireUser();
-  const [followUp, autoTrack, automation] = await Promise.all([
+  const [followUp, autoTrack, automation, resume] = await Promise.all([
     getFollowUpSettings(user.id),
     getAutoTrackSupportedSites(user.id),
     getEmailAutomation(user.id),
+    getResumeProfile(user.id),
   ]);
 
   return (
@@ -48,6 +52,26 @@ export default async function SettingsPage() {
             <dd>{user.email ?? "—"}</dd>
           </div>
         </dl>
+      </section>
+
+      <section
+        aria-labelledby="resume-heading"
+        className="rounded-xl border bg-card"
+      >
+        <div className="space-y-0.5 border-b p-4">
+          <h2 id="resume-heading" className="font-semibold">
+            Resume
+          </h2>
+          <p className="text-muted-foreground">
+            Trackr scores how well each job fits you: skills, seniority,
+            industry, and location and pay.
+          </p>
+        </div>
+        <ResumeProfileSettings
+          record={resume}
+          isDemo={user.isDemo}
+          available={fitLlmConfig() !== null}
+        />
       </section>
 
       <section className="rounded-xl border bg-card">

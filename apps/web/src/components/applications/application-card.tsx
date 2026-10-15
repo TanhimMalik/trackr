@@ -10,6 +10,7 @@ import { DateText, DateTimeText } from "@/components/date-text";
 import { cn } from "@/lib/utils";
 import type { ApplicationFormDefaults } from "./application-form";
 import { CompanyAvatar } from "./company-avatar";
+import { FitBadge } from "./fit-badge";
 import { SignalLine } from "./signal-line";
 import { StatusBadge } from "./status-badge";
 
@@ -25,6 +26,8 @@ export type BoardItem = {
   signal: CardSignal | null;
   /** The next scheduled interview still to come. */
   nextInterviewAt?: Date | null;
+  /** How well the job fits the resume profile, when scored. */
+  fitScore?: number | null;
   defaults: ApplicationFormDefaults;
 };
 
@@ -93,10 +96,13 @@ export function ApplicationCard({
         )}
       </div>
       <div className="mt-2 space-y-1 pl-[2.625rem] text-xs text-muted-foreground">
-        <p className="tabular-nums">
-          {saved ? "Saved " : "Applied "}
-          <DateText date={saved ? item.createdAt : item.appliedAt!} />
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="tabular-nums">
+            {saved ? "Saved " : "Applied "}
+            <DateText date={saved ? item.createdAt : item.appliedAt!} />
+          </p>
+          {item.fitScore != null && <FitBadge score={item.fitScore} compact />}
+        </div>
         {item.nextInterviewAt && (
           <p className="flex items-center gap-1.5 font-medium text-foreground/80">
             <CalendarClock className="size-3.5 shrink-0" aria-hidden="true" />

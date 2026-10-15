@@ -92,7 +92,9 @@ export function ApplicationsTable({
                 <ApplicationRowActions
                   applicationId={application.id}
                   status={application.currentStatus}
-                  defaults={formDefaultsFor(application)}
+                  defaults={formDefaultsFor(application, {
+                    description: false,
+                  })}
                 />
               </TableCell>
             </TableRow>

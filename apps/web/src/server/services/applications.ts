@@ -568,6 +568,10 @@ const ORDER_BY: Record<ApplicationSort, SQL[]> = {
   oldest: [sql`${applications.appliedAt} asc nulls last`],
   company: [asc(applications.companyNameNorm), asc(applications.jobTitleNorm)],
   status: [STATUS_ORDER, desc(applications.lastActivityAt)],
+  fit: [
+    sql`${applications.fitScore} desc nulls last`,
+    desc(applications.lastActivityAt),
+  ],
 };
 
 /** The user's applications matching the filters, in the requested order. */

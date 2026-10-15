@@ -39,6 +39,8 @@ export type ApplicationFormDefaults = {
   salaryCurrency: string | null;
   source: string | null;
   sourcePlatform: string | null;
+  /** Absent: the form leaves the description as it is. */
+  jobDescription?: string | null;
   notes: string | null;
 };
 
@@ -253,6 +255,25 @@ export function ApplicationForm({
             ...optionsFrom(SOURCE_PLATFORMS, SOURCE_PLATFORM_LABELS),
           ]}
         />
+
+        {(mode === "create" || defaults?.jobDescription !== undefined) && (
+          <FormField
+            label="Job description"
+            hint="Paste the posting to see how well it fits your resume."
+            error={errors.jobDescription}
+            className="sm:col-span-2"
+          >
+            {(control) => (
+              <Textarea
+                {...control}
+                name="jobDescription"
+                rows={4}
+                maxLength={50_000}
+                defaultValue={defaults?.jobDescription ?? ""}
+              />
+            )}
+          </FormField>
+        )}
 
         <FormField label="Notes" error={errors.notes} className="sm:col-span-2">
           {(control) => (

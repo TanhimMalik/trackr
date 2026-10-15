@@ -10,11 +10,14 @@ import { DateText } from "@/components/date-text";
 import { formatSalary } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { requireUser } from "@/server/auth/session";
+import { fitLlmConfig } from "@/server/env";
 import { getApplication } from "@/server/services/applications";
 import { NotFoundError } from "@/server/services/errors";
+import { fitIsCurrent, getResumeProfile } from "@/server/services/fit";
 import { openReviewItemsFor } from "@/server/services/review";
 import { ApplicationContacts } from "./application-contacts";
 import { ApplicationDetailActions } from "./application-detail-actions";
+import { ApplicationFit } from "./application-fit";
 import { ApplicationInterviews } from "./application-interviews";
 import { ApplicationTimeline } from "./application-timeline";
 import { CompanyAvatar } from "./company-avatar";
@@ -72,14 +75,15 @@ export async function ApplicationDetail({
   variant: "drawer" | "page";
 }) {
   const user = await requireUser();
-  const [detail, reviews] = await Promise.all([
+  const [detail, reviews, resume] = await Promise.all([
     getApplication(user.id, applicationId).catch((error: unknown) => {
       if (error instanceof NotFoundError) notFound();
       throw error;
     }),
     openReviewItemsFor(user.id, applicationId),
+    getResumeProfile(user.id),
   ]);
-  const { application, events, resume, contacts, interviews } = detail;
+  const { application, events, contacts, interviews } = detail;
   const salary = formatSalary(
     application.salaryMin,
     application.salaryMax,
@@ -184,9 +188,23 @@ export async function ApplicationDetail({
               </ExternalLink>
             )}
           </Fact>
-          <Fact label="Resume">{resume?.name}</Fact>
+          <Fact label="Resume">{detail.resume?.name}</Fact>
         </dl>
       </section>
+
+      <ApplicationFit
+        applicationId={application.id}
+        fit={application.fit}
+        scoredAt={application.fitScoredAt}
+        current={fitIsCurrent(
+          application.fit,
+          application.fitScoredAt,
+          resume?.updatedAt ?? null,
+        )}
+        description={application.jobDescription}
+        hasProfile={resume !== null}
+        canScore={!user.isDemo && fitLlmConfig() !== null}
+      />
 
       <ApplicationInterviews
         applicationId={application.id}

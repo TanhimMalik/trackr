@@ -54,6 +54,7 @@ export function applicationFormValues(formData: FormData) {
     salaryCurrency: hasSalary ? optional(formData, "salaryCurrency") : null,
     source: optional(formData, "source"),
     sourcePlatform: optional(formData, "sourcePlatform"),
+    jobDescription: optional(formData, "jobDescription"),
     notes: optional(formData, "notes"),
     // Only present on the create form.
     status: optional(formData, "status") ?? undefined,

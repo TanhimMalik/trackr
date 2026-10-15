@@ -14,6 +14,7 @@ export function toBoardItem(application: BoardApplication): BoardItem {
     createdAt: application.createdAt,
     signal: application.signal,
     nextInterviewAt: application.nextInterviewAt,
-    defaults: formDefaultsFor(application),
+    fitScore: application.fitScore,
+    defaults: formDefaultsFor(application, { description: false }),
   };
 }

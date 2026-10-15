@@ -11,6 +11,7 @@ export const SORT_OPTIONS = {
   oldest: "Oldest applied",
   company: "Company A–Z",
   status: "Status",
+  fit: "Best fit",
 } as const;
 export type ApplicationSort = keyof typeof SORT_OPTIONS;
 const DEFAULT_SORT: ApplicationSort = "updated";
