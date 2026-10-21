@@ -9,36 +9,43 @@ Initial platforms: **Greenhouse, Lever and Ashby.** Workday follows later.
 ## Architecture
 
 ```
-┌──────────────────────────────────────────┐
-│ Trackr                       ● Connected │
-├──────────────────────────────────────────┤
-│ Company   [ Example Corp               ] │
-│ Role      [ Software Engineer          ] │
-│ URL       [ boards.greenhouse…         ] │
-│                                          │
-│ [ Track application ] [ Save for later ] │
-│                                          │
-│ Open dashboard ↗                         │
-└──────────────────────────────────────────┘
+┌───────────────────────────── Chrome (Manifest V3) ─────────────────────────────┐
+│                                                                                │
+│  Content script (job boards)         Service worker               Popup        │
+│  ┌──────────────────────────┐  msg  ┌───────────────────────┐ msg ┌──────────┐ │
+│  │ detector.extractJob()    │ ────► │ job context store     │ ◄──►│ plain TS │ │
+│  │ detector.confirmation()  │       │ (storage.session)     │     │ and CSS  │ │
+│  └──────────────────────────┘       │ API client + tokens   │     └──────────┘ │
+│                                     │ (storage.local)       │                  │
+│  Reader (injected on triage)        │ outbox + retry        │                  │
+│  ┌──────────────────────────┐ ◄──── │ (alarms)              │                  │
+│  │ readJob(): open tabs     │       │ triage runner         │                  │
+│  └──────────────────────────┘       └───────────┬───────────┘                  │
+└─────────────────────────────────────────────────┼──────────────────────────────┘
+                                                  │ HTTPS, bearer token
+                                                  ▼
+                                    Trackr API  /api/extension/*
 ```
 
 - **Content scripts** run only on supported job-board domains. They read the page and send messages to the service worker. They never call the Trackr API directly, because content scripts operate under the page's origin.
 - **The service worker** owns the job context store, the API client, token storage, and an outbox that retries failed submissions with `chrome.alarms`.
-- **The popup** shows connection status and the detected job, and provides the manual tracking fallback.
+- **The popup** shows connection status and the detected job, provides the manual tracking fallback, and runs tab triage.
+- **The reader** is a small script injected into open tabs only when the person triages them. It reads the posting a tab shows and returns it; it sends nothing itself.
 - **Shared contracts:** the submission payload schema and enums come from `packages/domain`, so the extension and the API validate against the same definitions.
 
-Built with TypeScript and esbuild (`apps/extension/build.mjs`, one bundle per context: an ES module service worker, and classic scripts for the content script and popup). The popup is plain TypeScript and CSS, a few kilobytes, rather than React. Shared types and schemas come from `packages/domain`, which is marked side-effect free so bundles include only what they use.
+Built with TypeScript and esbuild (`apps/extension/build.mjs`, one bundle per context: an ES module service worker, and classic scripts for the content script, the reader and the popup). The popup is plain TypeScript and CSS, a few kilobytes, rather than React. Shared types and schemas come from `packages/domain`, which is marked side-effect free so bundles include only what they use.
 
 ## Permissions
 
-| Permission                                     | Why                                                                                 |
-| ---------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `storage`                                      | Job context (session storage), tokens and the outbox (local storage)                |
-| `alarms`                                       | Retry queued submissions after failures                                             |
-| `activeTab`, `scripting`                       | Let the popup read the title and metadata of the page it was opened on, to pre-fill |
-| Content scripts on the supported job boards    | Read job pages and recognize submitted applications                                 |
-| Host access for the Trackr origin              | Call the API from the service worker                                                |
-| `externally_connectable` for the Trackr origin | Receive the one-time connect code from the authorization page                       |
+| Permission                                     | Why                                                                                                             |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `storage`                                      | Job context (session storage), tokens and the outbox (local storage)                                            |
+| `alarms`                                       | Retry queued submissions after failures                                                                         |
+| `activeTab`, `scripting`                       | Let the popup read the title and metadata of the page it was opened on, to pre-fill                             |
+| Content scripts on the supported job boards    | Read job pages and recognize submitted applications                                                             |
+| Host access for the Trackr origin              | Call the API from the service worker                                                                            |
+| Optional host access to all http(s) sites      | Read the postings open in a window when the person triages it; asked for on first use, removable from the popup |
+| `externally_connectable` for the Trackr origin | Receive the one-time connect code from the authorization page                                                   |
 
 Single-page navigation is handled inside the content script with a `MutationObserver`, so `webNavigation` isn't needed. `activeTab` grants access only to the tab the person opened the popup on, only at that moment.
 
@@ -94,17 +101,20 @@ The extension isn't in the Chrome Web Store, so demo workspaces can simulate it 
 ## Popup
 
 ```
-┌──────────────────────────────────┐
-│ Trackr                 ● Connected │
-├──────────────────────────────────┤
-│ Company   [ Example Corp        ] │
-│ Role      [ Software Engineer   ] │
-│ URL       [ boards.greenhouse…  ] │
-│                                  │
+┌──────────────────────────────────────────┐
+│ Trackr                       ● Connected │
+├──────────────────────────────────────────┤
+│ Company   [ Example Corp               ] │
+│ Role      [ Software Engineer          ] │
+│ URL       [ boards.greenhouse…         ] │
+│                                          │
 │ [ Track application ] [ Save for later ] │
-│                                  │
-│ Open dashboard ↗                 │
-└──────────────────────────────────┘
+│                                          │
+│ Too many job tabs open?                  │
+│ [ Triage open tabs ]                     │
+│                                          │
+│ Open Trackr ↗               Disconnect   │
+└──────────────────────────────────────────┘
 ```
 
 - Fields are pre-filled from the current tab's job context, or from page metadata when no detector matches, and remain editable.
@@ -112,6 +122,17 @@ The extension isn't in the Chrome Web Store, so demo workspaces can simulate it 
 - **Save for later** sends it with `intent: "SAVED"`: the job lands in Saved, ready for when the user applies. Applying later, from the popup or automatically, moves the same application forward.
 - If the server matches an existing application, the popup says "Already tracked" and links to it.
 - When disconnected, the popup shows **Connect account**.
+
+## Tab triage
+
+**Triage open tabs** in the popup scores every job posting open in the current window against the person's resume, so they can keep the best and close the rest.
+
+1. The first time, Chrome asks for permission to read sites. Nothing is read without it, and **Stop reading tabs** gives it back.
+2. The service worker injects the reader into each http(s) tab of that window, once. The reader tries the job-board detectors, then the posting a page describes in schema.org `JobPosting` data (Indeed, LinkedIn's public pages, Glassdoor and most career sites), then LinkedIn's signed-in job panel. Tabs it can't read are counted, never guessed at.
+3. The postings, up to 30, go to `POST /api/extension/triage`, which scores them through the same cache as everything else.
+4. The popup lists them best first. Strong fits (75 and up) are ticked; postings already in Trackr are marked and left alone. **Save** adds the ticked ones to Saved with their descriptions, reusing their scores. **Close** closes the unticked scored postings after a second click; tabs Trackr couldn't read or score are never closed.
+
+The last triage is kept in session storage for an hour, so reopening the popup brings it back. The logic that picks what to keep, save and close is pure and tested (`src/shared/triage.ts`).
 
 ## Authentication
 
@@ -198,13 +219,14 @@ Triage requests send `{ "postings": [{ url, companyName, jobTitle, location, pla
 
 - Content scripts run only on supported job-board pages, or on sites the user explicitly enables.
 - Nothing is sent to Trackr until an application is submitted or the user clicks **Track application** or **Save for later**.
-- Browsing history is not collected.
+- Browsing history is not collected. Triage reads the open tabs of one window, only when asked, and sends only the postings it found.
 - The posting's description is sent with the job, as the page shows it, and stored as plain text for fit scoring.
 
 ## Testing
 
 - **Detector unit tests** against saved HTML fixtures for job pages, application forms and confirmation states on each platform, using a DOM environment in Vitest.
 - **Contract tests:** extension payloads validated against the shared domain schema.
+- **Triage tests:** the reader against saved job-board pages (structured data, LinkedIn's signed-in panel), and the choice of what to keep, save and close.
 - **API integration tests (PGlite):** a submission creates an application, a repeated submission is idempotent, an ATS job ID match adds an event instead of a new application, and a possible duplicate creates a review item.
 - **Manual QA checklist:** run per platform before each release, because job-board markup changes over time.
 
@@ -224,3 +246,4 @@ Run per platform before a release, since job-board markup changes:
 4. Track a job from the popup on an unsupported site: it is added, and tracking it again says "Already tracked".
 5. Go offline, submit or track: the popup says it will be sent later; back online, it arrives within a few minutes.
 6. Disconnect in Integrations: the extension returns to "Not connected" on its next request.
+7. Open a few postings (a supported board, LinkedIn, Indeed, a career site) and a non-job tab, then **Triage open tabs**: the postings are scored best first, the non-job tab is counted as unreadable, **Save** adds the ticked ones to Saved, and **Close** closes only the unticked postings.

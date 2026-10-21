@@ -1,40 +1,12 @@
 import type { SubmissionIntent, SubmissionOutcome } from "@trackr/domain";
-import { TRACKR_URL } from "../shared/config";
 import { guessJobFromPage, type PageMetadata } from "../shared/submission";
-import type {
-  JobDraft,
-  Message,
-  PopupState,
-  TrackResult,
-} from "../shared/types";
+import type { JobDraft, PopupState, TrackResult } from "../shared/types";
+import type { TriageRun } from "../shared/triage";
+import { h, openTab, present, send } from "./dom";
+import { renderTriage, startTriage } from "./triage";
 
 const app = document.getElementById("app")!;
 const status = document.getElementById("status")!;
-
-const send = <T>(message: Message) =>
-  chrome.runtime.sendMessage(message) as Promise<T>;
-
-/** Builds an element; strings become text, never HTML. */
-function h<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  props: Partial<HTMLElementTagNameMap[K]> & {
-    dataset?: Record<string, string>;
-  } = {},
-  ...children: (Node | string | null | false)[]
-): HTMLElementTagNameMap[K] {
-  const { dataset, ...rest } = props;
-  const element = Object.assign(document.createElement(tag), rest);
-  if (dataset) Object.assign(element.dataset, dataset);
-  for (const child of children) if (child) element.append(child);
-  return element;
-}
-
-/** Children for replaceChildren, leaving out the ones that don't apply. */
-const present = (...nodes: (Node | false | null)[]) =>
-  nodes.filter((node): node is Node => Boolean(node));
-
-const openTab = (path: string) => () =>
-  void chrome.tabs.create({ url: `${TRACKR_URL}${path}` });
 
 const DUPLICATE: [string, string] = [
   "Added for review",
@@ -160,7 +132,54 @@ function renderDisconnected(state: PopupState) {
   );
 }
 
-function renderConnected(state: PopupState, tabId: number | null) {
+function triageEntry(windowId: number | null, last: TriageRun | null) {
+  if (windowId === null) return null;
+  const back = () => void render();
+  return h(
+    "section",
+    { className: "triage-entry" },
+    h("strong", {}, "Too many job tabs open?"),
+    h(
+      "p",
+      { className: "muted" },
+      "Score the job posts in this window against your resume, keep the best, and close the rest.",
+    ),
+    h(
+      "div",
+      { className: "actions" },
+      h(
+        "button",
+        {
+          type: "button",
+          className: "secondary",
+          onclick: () => void startTriage(app, windowId, back),
+        },
+        "Triage open tabs",
+      ),
+      last &&
+        h(
+          "button",
+          {
+            type: "button",
+            className: "secondary",
+            onclick: () =>
+              renderTriage(app, last, {
+                back,
+                again: () => void startTriage(app, windowId, back),
+              }),
+          },
+          "Last results",
+        ),
+    ),
+  );
+}
+
+function renderConnected(
+  state: PopupState,
+  tabId: number | null,
+  windowId: number | null,
+  last: TriageRun | null,
+) {
   const account = state.account?.isDemo
     ? "Demo workspace"
     : (state.account?.email ?? "your account");
@@ -248,6 +267,7 @@ function renderConnected(state: PopupState, tabId: number | null) {
           )
         : form,
       message,
+      triageEntry(windowId, last),
       state.pendingSubmissions > 0 &&
         h(
           "p",
@@ -280,8 +300,10 @@ function renderConnected(state: PopupState, tabId: number | null) {
 }
 
 async function render() {
+  document.body.classList.remove("wide");
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const tabId = tab?.id ?? null;
+  const windowId = tab?.windowId ?? null;
   const pageJob = tabId === null ? null : await readPage(tabId);
   const state = await send<PopupState>({
     type: "GET_POPUP_STATE",
@@ -292,8 +314,13 @@ async function render() {
   status.hidden = false;
   status.dataset.connected = String(state.connected);
   status.textContent = state.connected ? "Connected" : "Not connected";
-  if (state.connected) renderConnected(state, tabId);
-  else renderDisconnected(state);
+  if (state.connected) {
+    const last =
+      windowId === null
+        ? null
+        : await send<TriageRun | null>({ type: "TRIAGE_LAST", windowId });
+    renderConnected(state, tabId, windowId, last);
+  } else renderDisconnected(state);
 }
 
 render().catch(() => {

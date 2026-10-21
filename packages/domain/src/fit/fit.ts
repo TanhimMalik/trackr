@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { FitPreferences, ResumeProfile } from "./profile";
 import { SENIORITY_LABELS, WORK_MODE_LABELS } from "./profile";
+import { FIT_THRESHOLDS } from "./limits";
 
 /** Bumped whenever the prompt, schema or rubric changes, so scores go stale. */
 export const FIT_PROMPT_VERSION = "2026-10-13.1";
@@ -52,9 +53,6 @@ export const FIT_LABEL_NAMES: Record<FitLabel, string> = {
   POSSIBLE: "Possible fit",
   STRETCH: "Stretch",
 };
-
-/** Scores at or above these earn the label. */
-export const FIT_THRESHOLDS = { STRONG: 75, POSSIBLE: 55 } as const;
 
 export const fitLabelFor = (score: number): FitLabel =>
   score >= FIT_THRESHOLDS.STRONG

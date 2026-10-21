@@ -12,6 +12,7 @@ import type {
   TrackResult,
 } from "../shared/types";
 import { connectWithCode, disconnect, getAuth, refreshAccount } from "./auth";
+import { closeTriaged, lastRun, runTriage, saveTriaged } from "./triage";
 import {
   enqueue,
   flushOutbox,
@@ -131,6 +132,14 @@ async function handle(message: Message, sender: chrome.runtime.MessageSender) {
         buildSubmission(message.job, "POPUP", { intent: message.intent }),
         message.tabId,
       );
+    case "TRIAGE":
+      return runTriage(message.windowId);
+    case "TRIAGE_LAST":
+      return lastRun(message.windowId);
+    case "TRIAGE_SAVE":
+      return saveTriaged(message.windowId, message.keys, submit);
+    case "TRIAGE_CLOSE":
+      return closeTriaged(message.windowId, message.keys);
     case "CONNECT":
       await chrome.tabs.create({
         url: `${TRACKR_URL}/extension/connect?ext=${chrome.runtime.id}`,

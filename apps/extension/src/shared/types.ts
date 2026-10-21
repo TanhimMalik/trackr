@@ -1,3 +1,4 @@
+import type { TriageRun } from "./triage";
 import type {
   SourcePlatform,
   SubmissionIntent,
@@ -51,6 +52,10 @@ export type PopupState = {
   pendingSubmissions: number;
 };
 
+export type TriageOutcome =
+  | { ok: true; run: TriageRun }
+  | { ok: false; error: string; needsResume?: boolean; run?: TriageRun };
+
 /** Messages from the content script and the popup to the service worker. */
 export type Message =
   | { type: "JOB_CONTEXT"; job: JobContext }
@@ -62,6 +67,10 @@ export type Message =
       job: JobDraft;
       intent: SubmissionIntent;
     }
+  | { type: "TRIAGE"; windowId: number }
+  | { type: "TRIAGE_LAST"; windowId: number }
+  | { type: "TRIAGE_SAVE"; windowId: number; keys: string[] }
+  | { type: "TRIAGE_CLOSE"; windowId: number; keys: string[] }
   | { type: "CONNECT" }
   | { type: "DISCONNECT" };
 

@@ -133,6 +133,9 @@ button.secondary {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
+.actions > :only-child {
+  grid-column: 1 / -1;
+}
 button:disabled {
   opacity: 0.6;
   cursor: default;
@@ -171,4 +174,93 @@ button:disabled {
   padding-top: 4px;
   border-top: 1px solid var(--border);
   padding-top: 12px;
+}
+body.wide {
+  width: 400px;
+}
+.triage-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.triage-head {
+  display: flex;
+  justify-content: space-between;
+}
+.triage-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  list-style: none;
+}
+.triage-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+}
+.triage-row + .triage-row {
+  border-top: 1px solid var(--border);
+}
+.triage-row.closed {
+  opacity: 0.55;
+}
+.triage-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  padding: 0;
+  accent-color: var(--primary);
+}
+.triage-spacer {
+  flex: 0 0 16px;
+}
+.triage-text {
+  flex: 1;
+  min-width: 0;
+}
+.triage-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.triage-detail {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 12px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.tag {
+  flex-shrink: 0;
+  height: auto;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.tag.success,
+.tag.fit.strong {
+  border-color: transparent;
+  background: var(--success-soft);
+  color: var(--success);
+}
+.tag.fit.possible {
+  border-color: transparent;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.tag.link {
+  color: var(--primary);
 }

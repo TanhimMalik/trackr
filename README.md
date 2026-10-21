@@ -79,7 +79,7 @@ pnpm db:seed --email you@example.com
 
 ## Browser extension
 
-The extension adds applications as you submit them on Greenhouse, Lever and Ashby, and can track a job from any page through its popup.
+The extension adds applications as you submit them on Greenhouse, Lever and Ashby, can track or save a job from any page through its popup, and can triage every job posting open in a window: score them against your resume, save the best, and close the rest.
 
 ```bash
 pnpm --filter @trackr/extension build

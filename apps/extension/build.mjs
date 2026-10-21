@@ -53,6 +53,9 @@ const manifest = {
   // on, to pre-fill the form on sites without a detector.
   permissions: ["storage", "alarms", "activeTab", "scripting"],
   host_permissions: [`${trackrUrl}/*`],
+  // Asked for only when the person first triages their tabs, and removable
+  // from the popup: reading the postings open in a window needs it.
+  optional_host_permissions: ["https://*/*", "http://*/*"],
   content_scripts: [
     {
       matches: JOB_BOARDS,
@@ -84,6 +87,12 @@ const contexts = [
   {
     entryPoints: ["src/content/index.ts"],
     outfile: `${outdir}/content.js`,
+    format: "iife",
+  },
+  {
+    // Injected into tabs on demand by triage.
+    entryPoints: ["src/reader/index.ts"],
+    outfile: `${outdir}/reader.js`,
     format: "iife",
   },
   {
