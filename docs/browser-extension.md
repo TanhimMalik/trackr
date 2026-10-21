@@ -9,21 +9,17 @@ Initial platforms: **Greenhouse, Lever and Ashby.** Workday follows later.
 ## Architecture
 
 ```
-┌──────────────────────────── Chrome (Manifest V3) ─────────────────────────────┐
-│                                                                                │
-│  Content scripts (per platform)        Service worker               Popup     │
-│  ┌──────────────────────────┐   msg   ┌──────────────────────┐  msg ┌───────┐ │
-│  │ detector.extractJob()    │ ──────► │ job context store     │ ◄──► │ React │ │
-│  │ detector.isConfirmation()│         │ (storage.session)     │      │  UI   │ │
-│  └──────────────────────────┘         │ API client + tokens   │      └───────┘ │
-│                                       │ (storage.local)       │                │
-│                                       │ outbox + retry        │                │
-│                                       │ (alarms)              │                │
-│                                       └──────────┬────────────┘                │
-└──────────────────────────────────────────────────┼─────────────────────────────┘
-                                                   │ HTTPS, bearer token
-                                                   ▼
-                                     Trackr API  /api/extension/*
+┌──────────────────────────────────────────┐
+│ Trackr                       ● Connected │
+├──────────────────────────────────────────┤
+│ Company   [ Example Corp               ] │
+│ Role      [ Software Engineer          ] │
+│ URL       [ boards.greenhouse…         ] │
+│                                          │
+│ [ Track application ] [ Save for later ] │
+│                                          │
+│ Open dashboard ↗                         │
+└──────────────────────────────────────────┘
 ```
 
 - **Content scripts** run only on supported job-board domains. They read the page and send messages to the service worker. They never call the Trackr API directly, because content scripts operate under the page's origin.
@@ -105,7 +101,7 @@ The extension isn't in the Chrome Web Store, so demo workspaces can simulate it 
 │ Role      [ Software Engineer   ] │
 │ URL       [ boards.greenhouse…  ] │
 │                                  │
-│ [ Track application ]            │
+│ [ Track application ] [ Save for later ] │
 │                                  │
 │ Open dashboard ↗                 │
 └──────────────────────────────────┘
@@ -113,6 +109,7 @@ The extension isn't in the Chrome Web Store, so demo workspaces can simulate it 
 
 - Fields are pre-filled from the current tab's job context, or from page metadata when no detector matches, and remain editable.
 - **Track application** sends the same submission as automatic detection, marked as a popup capture.
+- **Save for later** sends it with `intent: "SAVED"`: the job lands in Saved, ready for when the user applies. Applying later, from the popup or automatically, moves the same application forward.
 - If the server matches an existing application, the popup says "Already tracked" and links to it.
 - When disconnected, the popup shows **Connect account**.
 
@@ -163,6 +160,7 @@ Submission payload (`ExtensionSubmissionPayload`):
 {
   "clientSubmissionId": "2c6c3f1e-…",
   "captureMode": "AUTO",
+  "intent": "APPLIED",
   "platform": "GREENHOUSE",
   "companyName": "Example Corp",
   "jobTitle": "Software Engineer",
@@ -173,6 +171,8 @@ Submission payload (`ExtensionSubmissionPayload`):
   "submittedAt": "2026-10-10T15:04:05.000Z"
 }
 ```
+
+`intent` is `APPLIED` or `SAVED`; extensions older than saving leave it out, which means `APPLIED`.
 
 Response: `{ applicationId, outcome: "CREATED" | "MATCHED_EXISTING" | "POSSIBLE_DUPLICATE" }`, with status 201 when an application was created and 200 when it matched an existing one. Repeating a submission returns the first response and changes nothing. Invalid payloads get `400 invalid_request`; the endpoint allows 30 submissions a minute per browser.
 
@@ -185,18 +185,18 @@ Response: `{ applicationId, outcome: "CREATED" | "MATCHED_EXISTING" | "POSSIBLE_
 
    | Match           | Result                                                                                                                      |
    | --------------- | --------------------------------------------------------------------------------------------------------------------------- |
-   | Automatic match | Add an `APPLICATION_SUBMITTED` event to the existing application                                                            |
+   | Automatic match | Add an `APPLICATION_SUBMITTED` event to the existing application; a save only fills in what it was missing                  |
    | Possible match  | Create the application and open a `POSSIBLE_DUPLICATE` review item offering **Merge** or **Keep both**, with a notification |
-   | No match        | Create the application with an `APPLICATION_SUBMITTED` event                                                                |
+   | No match        | Create the application with an `APPLICATION_SUBMITTED` event, or `JOB_SAVED` for a save                                     |
 
 5. All writes go through the event processor, with dedupe key `ext:<clientSubmissionId>`.
 
 ## Privacy
 
 - Content scripts run only on supported job-board pages, or on sites the user explicitly enables.
-- Nothing is sent to Trackr until an application is submitted or the user clicks **Track application**.
+- Nothing is sent to Trackr until an application is submitted or the user clicks **Track application** or **Save for later**.
 - Browsing history is not collected.
-- Job descriptions are included only when the user allows storing them.
+- The posting's description is sent with the job, as the page shows it, and stored as plain text for fit scoring.
 
 ## Testing
 

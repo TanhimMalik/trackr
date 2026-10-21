@@ -1,4 +1,4 @@
-import type { SubmissionOutcome } from "@trackr/domain";
+import type { SubmissionIntent, SubmissionOutcome } from "@trackr/domain";
 import { TRACKR_URL } from "../shared/config";
 import { guessJobFromPage, type PageMetadata } from "../shared/submission";
 import type {
@@ -36,20 +36,39 @@ const present = (...nodes: (Node | false | null)[]) =>
 const openTab = (path: string) => () =>
   void chrome.tabs.create({ url: `${TRACKR_URL}${path}` });
 
-const OUTCOME_MESSAGES: Record<SubmissionOutcome, [string, string]> = {
-  CREATED: ["Added to Trackr", "It's on your board as Applied."],
-  MATCHED_EXISTING: [
-    "Already tracked",
-    "Marked as applied on the existing application.",
-  ],
-  POSSIBLE_DUPLICATE: [
-    "Added for review",
-    "It looks like one you already track, so Trackr asks you to confirm.",
-  ],
+const DUPLICATE: [string, string] = [
+  "Added for review",
+  "It looks like one you already track, so Trackr asks you to confirm.",
+];
+
+const OUTCOME_MESSAGES: Record<
+  SubmissionIntent,
+  Record<SubmissionOutcome, [string, string]>
+> = {
+  APPLIED: {
+    CREATED: ["Added to Trackr", "It's on your board as Applied."],
+    MATCHED_EXISTING: [
+      "Already tracked",
+      "Marked as applied on the existing application.",
+    ],
+    POSSIBLE_DUPLICATE: DUPLICATE,
+  },
+  SAVED: {
+    CREATED: ["Saved to Trackr", "It's in Saved, ready for when you apply."],
+    MATCHED_EXISTING: [
+      "Already tracked",
+      "Filled in anything the application was missing.",
+    ],
+    POSSIBLE_DUPLICATE: DUPLICATE,
+  },
 };
 
-function trackedNotice(applicationId: string, outcome: SubmissionOutcome) {
-  const [title, detail] = OUTCOME_MESSAGES[outcome];
+function trackedNotice(
+  applicationId: string,
+  outcome: SubmissionOutcome,
+  intent: SubmissionIntent = "APPLIED",
+) {
+  const [title, detail] = OUTCOME_MESSAGES[intent][outcome];
   return h(
     "div",
     {
@@ -154,10 +173,33 @@ function renderConnected(state: PopupState, tabId: number | null) {
     field("Company", "companyName", job?.companyName ?? ""),
     field("Role", "jobTitle", job?.jobTitle ?? ""),
     field("Job link", "jobUrl", job?.jobUrl ?? "", "url"),
-    h("button", { type: "submit" }, "Track application"),
+    h(
+      "div",
+      { className: "actions" },
+      h(
+        "button",
+        { type: "submit", value: "APPLIED", title: "You've applied" },
+        "Track application",
+      ),
+      h(
+        "button",
+        {
+          type: "submit",
+          value: "SAVED",
+          className: "secondary",
+          title: "You'll apply later",
+        },
+        "Save for later",
+      ),
+    ),
   );
+  const buttons = [...form.querySelectorAll("button")];
+  const labels = buttons.map((button) => button.textContent);
   form.onsubmit = async (event) => {
     event.preventDefault();
+    const pressed = (event as SubmitEvent)
+      .submitter as HTMLButtonElement | null;
+    const intent = (pressed?.value ?? "APPLIED") as SubmissionIntent;
     const data = new FormData(form);
     const draft: JobDraft = {
       ...job,
@@ -170,20 +212,26 @@ function renderConnected(state: PopupState, tabId: number | null) {
       delete draft.platform;
       delete draft.atsJobId;
     }
-    const button = form.querySelector("button")!;
-    button.disabled = true;
-    button.textContent = "Tracking…";
+    for (const button of buttons) button.disabled = true;
+    if (pressed) {
+      pressed.textContent = intent === "SAVED" ? "Saving…" : "Tracking…";
+    }
     const result = await send<TrackResult>({
       type: "TRACK",
       tabId,
       job: draft,
+      intent,
     });
     if (result.ok) {
-      form.replaceWith(trackedNotice(result.applicationId, result.outcome));
+      form.replaceWith(
+        trackedNotice(result.applicationId, result.outcome, result.intent),
+      );
       message.remove();
     } else {
-      button.disabled = false;
-      button.textContent = "Track application";
+      buttons.forEach((button, index) => {
+        button.disabled = false;
+        button.textContent = labels[index]!;
+      });
       message.className = result.queued ? "notice warning" : "error";
       message.textContent = result.error;
     }
@@ -193,7 +241,11 @@ function renderConnected(state: PopupState, tabId: number | null) {
     ...present(
       h("p", { className: "muted" }, `Connected to ${account}.`),
       state.tracked
-        ? trackedNotice(state.tracked.applicationId, state.tracked.outcome)
+        ? trackedNotice(
+            state.tracked.applicationId,
+            state.tracked.outcome,
+            state.tracked.intent,
+          )
         : form,
       message,
       state.pendingSubmissions > 0 &&

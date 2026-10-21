@@ -23,6 +23,18 @@ describe("buildSubmission", () => {
     });
   });
 
+  it("says whether the job was applied to or saved", () => {
+    const job = {
+      companyName: "Acme",
+      jobTitle: "Engineer",
+      jobUrl: "https://acme.example/jobs/1",
+    };
+    expect(buildSubmission(job, "AUTO").intent).toBe("APPLIED");
+    expect(buildSubmission(job, "POPUP", { intent: "SAVED" }).intent).toBe(
+      "SAVED",
+    );
+  });
+
   it("sends the description, trimmed to what the API accepts", () => {
     const payload = buildSubmission(
       {

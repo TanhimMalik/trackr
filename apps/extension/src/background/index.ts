@@ -1,6 +1,7 @@
 import type {
   ExtensionSubmissionPayload,
   ExtensionSubmissionResponse,
+  SubmissionIntent,
 } from "@trackr/domain";
 import { TRACKR_URL } from "../shared/config";
 import { buildSubmission } from "../shared/submission";
@@ -43,9 +44,10 @@ async function flashBadge(tabId: number | null, text: string, color: string) {
 async function recordSent(
   tabId: number | null,
   response: ExtensionSubmissionResponse,
+  intent: SubmissionIntent = "APPLIED",
 ) {
   if (tabId !== null) {
-    await setTracked(tabId, response).catch(() => {});
+    await setTracked(tabId, { ...response, intent }).catch(() => {});
     await flashBadge(tabId, "✓", "#16a34a");
   }
 }
@@ -55,10 +57,11 @@ async function submit(
   payload: ExtensionSubmissionPayload,
   tabId: number | null,
 ): Promise<TrackResult> {
+  const intent = payload.intent ?? "APPLIED";
   const result = await sendSubmission(payload);
   if (result.status === "sent") {
-    await recordSent(tabId, result.response);
-    return { ok: true, ...result.response };
+    await recordSent(tabId, result.response, intent);
+    return { ok: true, ...result.response, intent };
   }
   if (result.status === "rejected") {
     return {
@@ -124,7 +127,10 @@ async function handle(message: Message, sender: chrome.runtime.MessageSender) {
     case "GET_POPUP_STATE":
       return popupState(message.tabId, message.pageJob);
     case "TRACK":
-      return submit(buildSubmission(message.job, "POPUP"), message.tabId);
+      return submit(
+        buildSubmission(message.job, "POPUP", { intent: message.intent }),
+        message.tabId,
+      );
     case "CONNECT":
       await chrome.tabs.create({
         url: `${TRACKR_URL}/extension/connect?ext=${chrome.runtime.id}`,
@@ -160,7 +166,8 @@ chrome.runtime.onMessageExternal.addListener(
       if (ok) {
         await refreshAccount().catch(() => null);
         await flushOutbox(
-          ({ tabId }, response) => recordSent(tabId, response),
+          ({ tabId, payload }, response) =>
+            recordSent(tabId, response, payload.intent),
           {
             force: true,
           },
@@ -174,7 +181,9 @@ chrome.runtime.onMessageExternal.addListener(
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (isOutboxAlarm(alarm)) {
-    void flushOutbox(({ tabId }, response) => recordSent(tabId, response));
+    void flushOutbox(({ tabId, payload }, response) =>
+      recordSent(tabId, response, payload.intent),
+    );
   }
 });
 
@@ -183,5 +192,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  void flushOutbox(({ tabId }, response) => recordSent(tabId, response));
+  void flushOutbox(({ tabId, payload }, response) =>
+    recordSent(tabId, response, payload.intent),
+  );
 });

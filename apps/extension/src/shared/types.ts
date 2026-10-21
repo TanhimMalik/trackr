@@ -1,4 +1,8 @@
-import type { SourcePlatform, SubmissionOutcome } from "@trackr/domain";
+import type {
+  SourcePlatform,
+  SubmissionIntent,
+  SubmissionOutcome,
+} from "@trackr/domain";
 
 /** What a job page says about the job, captured before applying. */
 export type JobContext = {
@@ -26,7 +30,12 @@ export type Account = {
 };
 
 export type TrackResult =
-  | { ok: true; applicationId: string; outcome: SubmissionOutcome }
+  | {
+      ok: true;
+      applicationId: string;
+      outcome: SubmissionOutcome;
+      intent: SubmissionIntent;
+    }
   | { ok: false; queued: boolean; error: string };
 
 export type PopupState = {
@@ -34,7 +43,11 @@ export type PopupState = {
   account: Account | null;
   job: JobDraft | null;
   /** Set when this tab's application was already sent to Trackr. */
-  tracked: { applicationId: string; outcome: SubmissionOutcome } | null;
+  tracked: {
+    applicationId: string;
+    outcome: SubmissionOutcome;
+    intent?: SubmissionIntent;
+  } | null;
   pendingSubmissions: number;
 };
 
@@ -43,7 +56,12 @@ export type Message =
   | { type: "JOB_CONTEXT"; job: JobContext }
   | { type: "APPLICATION_SUBMITTED" }
   | { type: "GET_POPUP_STATE"; tabId: number; pageJob: JobDraft | null }
-  | { type: "TRACK"; tabId: number | null; job: JobDraft }
+  | {
+      type: "TRACK";
+      tabId: number | null;
+      job: JobDraft;
+      intent: SubmissionIntent;
+    }
   | { type: "CONNECT" }
   | { type: "DISCONNECT" };
 

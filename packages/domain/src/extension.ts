@@ -4,6 +4,10 @@ import { sourcePlatformSchema } from "./enums";
 export const CAPTURE_MODES = ["AUTO", "POPUP"] as const;
 export type CaptureMode = (typeof CAPTURE_MODES)[number];
 
+/** Applied to the job, or saved to apply to later. */
+export const SUBMISSION_INTENTS = ["APPLIED", "SAVED"] as const;
+export type SubmissionIntent = (typeof SUBMISSION_INTENTS)[number];
+
 const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
 
 const text = (max: number) => z.string().trim().min(1).max(max);
@@ -16,12 +20,14 @@ const optionalText = (max: number) =>
     .transform((value) => value || null);
 
 /**
- * What the extension reports when an application is submitted, or tracked
- * from the popup. Shared by the extension and the API.
+ * What the extension reports when an application is submitted, or a job is
+ * tracked or saved from the popup. Shared by the extension and the API.
  */
 export const extensionSubmissionSchema = z.object({
   clientSubmissionId: z.uuid(),
   captureMode: z.enum(CAPTURE_MODES),
+  // Older extensions don't send it; everything they report was applied to.
+  intent: z.enum(SUBMISSION_INTENTS).default("APPLIED"),
   platform: sourcePlatformSchema,
   companyName: text(200),
   jobTitle: text(200),
@@ -29,6 +35,7 @@ export const extensionSubmissionSchema = z.object({
   atsJobId: optionalText(200),
   location: optionalText(200),
   description: optionalText(50_000),
+  /** When it was applied to or saved. */
   submittedAt: z.iso
     .datetime({ offset: true })
     .refine(

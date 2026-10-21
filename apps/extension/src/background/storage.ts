@@ -1,4 +1,4 @@
-import type { SubmissionOutcome } from "@trackr/domain";
+import type { SubmissionIntent, SubmissionOutcome } from "@trackr/domain";
 import type { JobContext } from "../shared/types";
 
 const JOB_TTL_MS = 2 * 60 * 60 * 1000;
@@ -6,7 +6,12 @@ const JOB_TTL_MS = 2 * 60 * 60 * 1000;
 const jobKey = (tabId: number) => `job:${tabId}`;
 const trackedKey = (tabId: number) => `tracked:${tabId}`;
 
-export type Tracked = { applicationId: string; outcome: SubmissionOutcome };
+export type Tracked = {
+  applicationId: string;
+  outcome: SubmissionOutcome;
+  /** Missing on entries stored before saving existed: those were applied to. */
+  intent?: SubmissionIntent;
+};
 
 // Per-tab state lives in session storage: cleared when the browser closes,
 // and only readable by the extension itself.

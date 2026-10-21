@@ -2,6 +2,7 @@ import {
   detectSourcePlatform,
   type CaptureMode,
   type ExtensionSubmissionPayload,
+  type SubmissionIntent,
 } from "@trackr/domain";
 import { structuredJobFromJson } from "../detectors/structured-data";
 import type { JobDraft } from "./types";
@@ -9,18 +10,20 @@ import type { JobDraft } from "./types";
 // Trackr turns away longer ones; the requirements come well before this.
 const MAX_DESCRIPTION = 50_000;
 
-/** The report sent to Trackr for a job, captured automatically or from the popup. */
+/** The report sent to Trackr for a job applied to or saved, captured automatically or from the popup. */
 export function buildSubmission(
   job: JobDraft,
   captureMode: CaptureMode,
   {
     now = new Date(),
     id = crypto.randomUUID(),
-  }: { now?: Date; id?: string } = {},
+    intent = "APPLIED",
+  }: { now?: Date; id?: string; intent?: SubmissionIntent } = {},
 ): ExtensionSubmissionPayload {
   return {
     clientSubmissionId: id,
     captureMode,
+    intent,
     platform: job.platform ?? detectSourcePlatform(job.jobUrl),
     companyName: job.companyName.trim(),
     jobTitle: job.jobTitle.trim(),

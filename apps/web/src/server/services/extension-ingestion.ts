@@ -122,7 +122,8 @@ function recordSubmission(
     {
       userId,
       applicationId,
-      type: "APPLICATION_SUBMITTED",
+      type:
+        submission.intent === "SAVED" ? "JOB_SAVED" : "APPLICATION_SUBMITTED",
       occurredAt: new Date(submission.submittedAt),
       sourceType: "BROWSER_EXTENSION",
       sourceReference: submission.captureMode,
@@ -136,10 +137,12 @@ const matchReasons = (best: ScoredCandidate) =>
   best.signals.map((signal) => MATCH_SIGNAL_LABELS[signal]);
 
 /**
- * Records an application the extension saw being submitted. It is added to
- * the application it clearly belongs to, or created; when it may duplicate
- * another application, it is created and the pair goes to review. Repeating
- * a submission returns the first answer and changes nothing.
+ * Records an application the extension saw being submitted, or a job saved
+ * from it. It is added to the application it clearly belongs to, or
+ * created; when it may duplicate another application, it is created and the
+ * pair goes to review. Saving a job already tracked only fills in what it
+ * was missing. Repeating a submission returns the first answer and changes
+ * nothing.
  */
 export async function ingestExtensionSubmission(
   userId: string,
@@ -185,7 +188,10 @@ export async function ingestExtensionSubmission(
         .from(applications)
         .where(eq(applications.id, match.best.candidateId));
       await enrichApplication(tx, existing!, submission, description);
-      await recordSubmission(tx, userId, existing!.id, submission);
+      // Saving says nothing new about an application already tracked.
+      if (submission.intent === "APPLIED") {
+        await recordSubmission(tx, userId, existing!.id, submission);
+      }
       return { applicationId: existing!.id, outcome: "MATCHED_EXISTING" };
     }
 
@@ -200,7 +206,7 @@ export async function ingestExtensionSubmission(
           jobDescription: description ?? undefined,
           sourcePlatform: submission.platform,
           // Status comes from the submission event, not from this.
-          status: "APPLIED",
+          status: submission.intent,
         }),
         atsJobId: submission.atsJobId,
       })

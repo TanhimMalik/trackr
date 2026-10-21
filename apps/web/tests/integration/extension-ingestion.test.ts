@@ -116,6 +116,57 @@ describe("ingestExtensionSubmission", () => {
     });
   });
 
+  it("saves a job for later", async () => {
+    const result = await submit(
+      submission({ captureMode: "POPUP", intent: "SAVED" }),
+    );
+    expect(result.outcome).toBe("CREATED");
+    const detail = await getApplication(
+      userId,
+      result.applicationId,
+      testDb.db,
+    );
+    expect(detail.application).toMatchObject({
+      currentStatus: "SAVED",
+      appliedAt: null,
+    });
+    expect(detail.events.map((event) => event.eventType)).toEqual([
+      "JOB_SAVED",
+    ]);
+
+    // Applying later moves the same application forward.
+    const applied = await submit(submission());
+    expect(applied).toEqual({
+      applicationId: result.applicationId,
+      outcome: "MATCHED_EXISTING",
+    });
+    expect(
+      (await getApplication(userId, result.applicationId, testDb.db))
+        .application.currentStatus,
+    ).toBe("APPLIED");
+  });
+
+  it("leaves a tracked application as it is when it's saved again", async () => {
+    const applied = await submit(submission());
+    const saved = await submit(
+      submission({ intent: "SAVED", description: "Build payments APIs." }),
+    );
+    expect(saved).toEqual({
+      applicationId: applied.applicationId,
+      outcome: "MATCHED_EXISTING",
+    });
+    const detail = await getApplication(
+      userId,
+      applied.applicationId,
+      testDb.db,
+    );
+    expect(detail.application).toMatchObject({
+      currentStatus: "APPLIED",
+      jobDescription: "Build payments APIs.",
+    });
+    expect(detail.events).toHaveLength(1);
+  });
+
   it("matches the same job posting even under another name", async () => {
     const first = await submit(submission());
     const result = await submit(

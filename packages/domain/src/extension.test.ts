@@ -21,7 +21,12 @@ describe("extensionSubmissionSchema", () => {
       atsJobId: "123456",
       location: null,
       description: null,
+      // Older extensions don't say; what they report was applied to.
+      intent: "APPLIED",
     });
+    expect(
+      extensionSubmissionSchema.parse({ ...valid, intent: "SAVED" }).intent,
+    ).toBe("SAVED");
   });
 
   it("rejects unsafe or impossible values", () => {
@@ -31,6 +36,7 @@ describe("extensionSubmissionSchema", () => {
       { companyName: "" },
       { submittedAt: new Date(Date.now() + 60 * 60 * 1000).toISOString() },
       { platform: "MYSPACE" },
+      { intent: "INTERVIEWED" },
     ]) {
       expect(
         extensionSubmissionSchema.safeParse({ ...valid, ...patch }).success,

@@ -123,6 +123,16 @@ button {
   font-weight: 600;
   cursor: pointer;
 }
+button.secondary {
+  border: 1px solid var(--border);
+  background: var(--field);
+  color: var(--fg);
+}
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
 button:disabled {
   opacity: 0.6;
   cursor: default;
