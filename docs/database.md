@@ -257,6 +257,17 @@ What Claude read from the person's resume, and their own preferences. The file i
 | `created_at`      | timestamptz                 |                                                         |
 | `updated_at`      | timestamptz                 | Fit scores older than this are stale                    |
 
+### `fit_cache`
+
+Scores already worked out for a posting, so triaging the same tabs again or saving a scored job never asks the model twice. A row counts only while it is newer than the resume profile; rows older than 30 days are cleaned up now and then, and all of them go when the profile is deleted.
+
+| Column         | Type                     | Notes                                                |
+| -------------- | ------------------------ | ---------------------------------------------------- |
+| `user_id`      | uuid → `users` (cascade) | Primary key with `posting_hash`                      |
+| `posting_hash` | text                     | SHA-256 of the rubric version and the posting's text |
+| `fit`          | jsonb                    | The score and breakdown, as stored on applications   |
+| `created_at`   | timestamptz              |                                                      |
+
 ### `integrations`
 
 | Column                    | Type                     | Notes                         |
@@ -350,6 +361,7 @@ users ─┬─< applications ─┬─< application_events >─ emails
 | 4     | `integrations`, `emails`, plus `application_events.email_id`     |
 | 5     | New `review_item_kind` values for email review                   |
 | 6     | `resume_profiles`, plus the `applications.fit*` columns          |
+| 7     | `fit_cache`                                                      |
 
 ## Migrations
 

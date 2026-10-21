@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import {
   computeFit,
   DEFAULT_FIT_PREFERENCES,
@@ -6,6 +7,7 @@ import {
   fitPostingText,
   fitPreferencesSchema,
   tidyResumeProfile,
+  type FitPosting,
   type FitPreferences,
   type ResumeProfile,
 } from "@trackr/domain";
@@ -14,6 +16,7 @@ import {
   asc,
   desc,
   eq,
+  gte,
   isNotNull,
   isNull,
   lt,
@@ -21,7 +24,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { getDb } from "@/server/db/client";
-import { applications, resumeProfiles } from "@/server/db/schema";
+import { applications, fitCache, resumeProfiles } from "@/server/db/schema";
 import type { Database } from "@/server/db/types";
 import { fitLlmConfig } from "@/server/env";
 import type { StoredFit } from "@/server/fit/types";
@@ -196,6 +199,7 @@ export async function deleteResumeProfile(
 ): Promise<void> {
   await db.transaction(async (tx) => {
     await tx.delete(resumeProfiles).where(eq(resumeProfiles.userId, userId));
+    await tx.delete(fitCache).where(eq(fitCache.userId, userId));
     await tx
       .update(applications)
       .set({ fitScore: null, fit: null, fitScoredAt: null })
@@ -216,6 +220,71 @@ export function fitIsCurrent(
     fit.promptVersion === FIT_PROMPT_VERSION &&
     scoredAt >= profileUpdatedAt
   );
+}
+
+// Cached scores older than this are cleaned up now and then.
+const CACHE_DAYS = 30;
+
+const postingHash = (posting: FitPosting) =>
+  createHash("sha256")
+    .update(`${FIT_PROMPT_VERSION}\n${fitPostingText(posting)}`)
+    .digest("hex");
+
+/**
+ * Scores a posting against the profile, or returns the score it already
+ * got since the profile last changed. Only a new score counts against the
+ * day's allowance.
+ */
+export async function scorePosting(
+  userId: string,
+  posting: FitPosting,
+  {
+    scorer,
+    now = new Date(),
+    record,
+  }: { scorer: FitScorer; now?: Date; record: ResumeProfileRecord },
+  db: Database = getDb(),
+): Promise<StoredFit> {
+  const hash = postingHash(posting);
+  const [cached] = await db
+    .select({ fit: fitCache.fit })
+    .from(fitCache)
+    .where(
+      and(
+        eq(fitCache.userId, userId),
+        eq(fitCache.postingHash, hash),
+        gte(fitCache.createdAt, record.updatedAt),
+      ),
+    );
+  if (cached) return cached.fit;
+
+  await spend(`fit:${userId}`, FIT_DAILY_LIMIT, now, db);
+  const call = await scorer({
+    profile: record.profile,
+    preferences: record.preferences,
+    posting,
+  });
+  const fit: StoredFit = {
+    ...computeFit(call.output, fitPostingText(posting)),
+    model: call.model,
+    promptVersion: FIT_PROMPT_VERSION,
+    costUsd: call.costUsd,
+  };
+  await db
+    .insert(fitCache)
+    .values({ userId, postingHash: hash, fit, createdAt: now })
+    .onConflictDoUpdate({
+      target: [fitCache.userId, fitCache.postingHash],
+      set: { fit, createdAt: now },
+    });
+  if (Math.random() < 0.02) {
+    await db
+      .delete(fitCache)
+      .where(
+        lt(fitCache.createdAt, new Date(now.getTime() - CACHE_DAYS * DAY_MS)),
+      );
+  }
+  return fit;
 }
 
 /**
@@ -247,19 +316,12 @@ export async function scoreApplication(
   const record = await getResumeProfile(userId, db);
   if (!record || !application.description) return null;
 
-  await spend(`fit:${userId}`, FIT_DAILY_LIMIT, now, db);
-  const posting = { ...application, description: application.description };
-  const call = await scorer({
-    profile: record.profile,
-    preferences: record.preferences,
-    posting,
-  });
-  const fit: StoredFit = {
-    ...computeFit(call.output, fitPostingText(posting)),
-    model: call.model,
-    promptVersion: FIT_PROMPT_VERSION,
-    costUsd: call.costUsd,
-  };
+  const fit = await scorePosting(
+    userId,
+    { ...application, description: application.description },
+    { scorer, now, record },
+    db,
+  );
   // Only if the posting is still the one that was scored.
   await db
     .update(applications)

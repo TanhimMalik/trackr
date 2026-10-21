@@ -149,6 +149,7 @@ All endpoints require `Authorization: Bearer <access token>`, validate input aga
 | `POST /api/extension/token`        | Exchange a connect code, or rotate a refresh token (no bearer)  |
 | `GET /api/extension/me`            | Connection check, account email and extension-relevant settings |
 | `POST /api/extension/applications` | Report a submitted application                                  |
+| `POST /api/extension/triage`       | Score open job postings against the resume profile              |
 
 Token requests send `{ "grantType": "code", "code": "trk_code_…" }` or `{ "grantType": "refresh", "refreshToken": "trk_rt_…" }` and receive `{ accessToken, accessExpiresAt, refreshToken, refreshExpiresAt }`. Failures use OAuth-style errors: `400 invalid_grant` for a used, expired or revoked code or token, `401 invalid_token` with a `WWW-Authenticate` header on the other endpoints, and `429 rate_limited` with `Retry-After`. The token endpoint is limited to 30 requests a minute per address; authenticated endpoints to 60 a minute per browser.
 
@@ -175,6 +176,8 @@ Submission payload (`ExtensionSubmissionPayload`):
 `intent` is `APPLIED` or `SAVED`; extensions older than saving leave it out, which means `APPLIED`.
 
 Response: `{ applicationId, outcome: "CREATED" | "MATCHED_EXISTING" | "POSSIBLE_DUPLICATE" }`, with status 201 when an application was created and 200 when it matched an existing one. Repeating a submission returns the first response and changes nothing. Invalid payloads get `400 invalid_request`; the endpoint allows 30 submissions a minute per browser.
+
+Triage requests send `{ "postings": [{ url, companyName, jobTitle, location, platform, atsJobId, description }] }`, at most 30, and receive `{ hasProfile, results: [{ url, status, fit, trackedApplicationId }] }` in the same order. `status` is `SCORED`, `NO_DESCRIPTION` (under 200 characters of posting text), `LIMIT` (the day's 100 scores are used up) or `UNAVAILABLE` (the model didn't answer); `fit` is the score with its breakdown, and `trackedApplicationId` names the application a posting already is. A posting scored since the resume profile last changed comes from the cache without asking the model. Without a profile the response is `{ hasProfile: false, results: [] }`; demo accounts get `403 demo_account`. The endpoint allows 10 requests a minute per browser.
 
 ## Server-side handling
 

@@ -9,7 +9,7 @@ import {
   it,
   vi,
 } from "vitest";
-import { applications } from "@/server/db/schema";
+import { applications, fitCache } from "@/server/db/schema";
 import {
   LlmUnavailableError,
   type FitScorer,
@@ -272,10 +272,12 @@ describe("scoreApplication", () => {
   });
 
   it("stops at the daily limit", async () => {
-    const { id } = await addJob();
+    // Different postings each time: the same one would come from the cache.
     for (let i = 0; i < FIT_DAILY_LIMIT; i++) {
+      const { id } = await addJob({ description: `${DESCRIPTION} (${i})` });
       await scoreApplication(userId, id, { scorer: scorer(), now }, testDb.db);
     }
+    const { id } = await addJob({ description: `${DESCRIPTION} (last)` });
     await expect(
       scoreApplication(userId, id, { scorer: scorer(), now }, testDb.db),
     ).rejects.toBeInstanceOf(FitLimitError);
@@ -357,6 +359,12 @@ describe("deleteResumeProfile", () => {
     await scoreApplication(userId, id, { scorer: scorer(), now }, testDb.db);
     await deleteResumeProfile(userId, testDb.db);
     expect(await getResumeProfile(userId, testDb.db)).toBeNull();
+    expect(
+      await testDb.db
+        .select()
+        .from(fitCache)
+        .where(eq(fitCache.userId, userId)),
+    ).toHaveLength(0);
     expect(await stored(id)).toMatchObject({ fitScore: null, fit: null });
   });
 });

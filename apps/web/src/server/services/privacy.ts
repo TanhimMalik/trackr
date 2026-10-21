@@ -7,6 +7,7 @@ import {
   contacts,
   emails,
   extensionSessions,
+  fitCache,
   integrations,
   interviews,
   notifications,
@@ -45,6 +46,7 @@ export async function exportUserData(
     sessionRows,
     resumeRows,
     profileRows,
+    fitCacheRows,
   ] = await Promise.all([
     db
       .select({
@@ -106,6 +108,10 @@ export async function exportUserData(
       })
       .from(resumeProfiles)
       .where(own(resumeProfiles)),
+    db
+      .select({ fit: fitCache.fit, createdAt: fitCache.createdAt })
+      .from(fitCache)
+      .where(own(fitCache)),
   ]);
   return {
     exportedAt: now.toISOString(),
@@ -124,6 +130,8 @@ export async function exportUserData(
     resumeVersions: resumeRows,
     // What Claude read from the resume; fit scores are on each application.
     resumeProfile: profileRows[0] ?? null,
+    // Scores of postings triaged from the browser, kept for 30 days.
+    triagedPostings: fitCacheRows,
   };
 }
 

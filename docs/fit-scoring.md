@@ -36,8 +36,11 @@ Labels: **Strong fit** from 75, **Possible fit** from 55, **Stretch** below. The
 - A job added or edited with a description pasted into the form.
 - Everything with a description, saved jobs first, right after a resume is uploaded.
 - **Score fit** and **Score again** in the drawer.
+- Postings open in the browser, when the extension triages its tabs (`POST /api/extension/triage`).
 
 A score is current while it is newer than the profile (a new resume or new preferences make it stale) and was made with the current prompt version. Changing a job's description clears its score. Scoring runs in the background with `after()`, so saving never waits for the model.
+
+Every score is also kept by a fingerprint of the posting (`fit_cache`), so the same posting is never paid for twice: triaging the same tabs again, or saving a triaged job, reuses the score until the profile changes.
 
 ## Cost and limits
 

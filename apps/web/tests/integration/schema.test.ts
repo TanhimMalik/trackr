@@ -101,6 +101,7 @@ describe("database schema", () => {
       "contacts",
       "emails",
       "extension_sessions",
+      "fit_cache",
       "integrations",
       "interviews",
       "notifications",
