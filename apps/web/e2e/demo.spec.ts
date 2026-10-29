@@ -127,6 +127,20 @@ test("a simulated capture adds a new application", async () => {
   await expect(page.getByRole("region", { name: /^Applied, 1/ })).toBeVisible();
 });
 
+test("tab triage saves the strong fits from a pretend window", async () => {
+  await page.goto("/integrations", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: /^Triage these 7 tabs/ }).click();
+  await expect(page.getByText("Strong fit · 91")).toBeVisible();
+  await expectAccessible(page);
+  await page.getByRole("button", { name: "Save 2 to Trackr" }).click();
+  await expect(
+    page.getByText("Saved 2 jobs to your board, already scored."),
+  ).toBeVisible();
+
+  await page.goto("/applications?q=northwind+pay");
+  await expect(page.getByText("Fit 91")).toBeVisible();
+});
+
 test("saved jobs show how well they fit the sample resume", async () => {
   await page.goto("/applications?q=supabase");
   await expect(page.getByText("Fit 95")).toBeVisible();

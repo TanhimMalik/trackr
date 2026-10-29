@@ -27,7 +27,7 @@ import {
 import { findMatchCandidates } from "./matching";
 
 /** The application a posting already is, if Trackr clearly tracks it. */
-async function trackedApplication(
+export async function trackedApplication(
   db: Database,
   userId: string,
   posting: TriagePosting,

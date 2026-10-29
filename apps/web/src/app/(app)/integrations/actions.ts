@@ -14,6 +14,7 @@ import {
   GmailTemporaryError,
 } from "@/server/integrations/gmail-api";
 import { deliverDemoEmail } from "@/server/services/demo-inbox";
+import { saveDemoTriage } from "@/server/services/demo-triage";
 import { demoSimulationBlocked } from "@/server/services/demo-workspace";
 import type { MessageOutcome } from "@/server/services/email-processing";
 import {
@@ -138,6 +139,27 @@ export async function simulateEmailAction(
         : applicationId
           ? `/applications/${applicationId}`
           : null,
+  };
+}
+
+/**
+ * Demo only: saves sample postings from the pretend browser window, the way
+ * the extension's triage does, so visitors can try it without installing it.
+ */
+export async function simulateTriageSaveAction(
+  ids: string[],
+): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  const user = await requireUser();
+  if (!user.isDemo) {
+    return { ok: false, error: "The sample tabs are only in the demo." };
+  }
+  const blocked = await demoSimulationBlocked(user.id);
+  if (blocked) return { ok: false, error: blocked };
+  const saved = await saveDemoTriage(user.id, ids);
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message: `Saved ${saved} job${saved === 1 ? "" : "s"} to your board, already scored.`,
   };
 }
 

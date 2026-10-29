@@ -48,7 +48,7 @@ Haiku (`claude-haiku-5-5`, or `FIT_LLM_MODEL`) reads the resume for about $0.000
 
 ## The demo
 
-Demo workspaces get a fictional resume and three saved jobs with stored ratings, scored by the same `computeFit` as real ones: a strong fit (95), a possible fit (63) and a stretch (37). The demo never calls the model.
+Demo workspaces get a fictional resume and three saved jobs with stored ratings, scored by the same `computeFit` as real ones: a strong fit (95), a possible fit (63) and a stretch (37). Integrations also has a pretend browser window to try tab triage on, with sample postings scored the same way. The demo never calls the model.
 
 ## Checking that it works
 

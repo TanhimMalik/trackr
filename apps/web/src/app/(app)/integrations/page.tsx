@@ -1,4 +1,10 @@
-import { ExternalLink, Inbox, Puzzle, Sparkles } from "lucide-react";
+import {
+  ExternalLink,
+  Inbox,
+  ListFilter,
+  Puzzle,
+  Sparkles,
+} from "lucide-react";
 import type { Metadata } from "next";
 import { ConnectedBrowsers } from "@/components/integrations/connected-browsers";
 import {
@@ -7,10 +13,13 @@ import {
 } from "@/components/integrations/gmail-card";
 import { SimulateCaptures } from "@/components/integrations/simulate-captures";
 import { SimulateEmails } from "@/components/integrations/simulate-emails";
+import { SimulateTriage } from "@/components/integrations/simulate-triage";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireUser } from "@/server/auth/session";
 import { DEMO_CAPTURES } from "@/server/demo/captures";
 import { DEMO_EMAILS } from "@/server/demo/emails";
+import { DEMO_TABS } from "@/server/demo/tabs";
+import { demoTriage } from "@/server/services/demo-triage";
 import { googleOAuthConfig } from "@/server/env";
 import { countLlmRetries } from "@/server/services/email-llm-retry";
 import { listConnectedBrowsers } from "@/server/services/extension-auth";
@@ -25,10 +34,11 @@ export default async function IntegrationsPage({
   searchParams,
 }: PageProps<"/integrations">) {
   const user = await requireUser();
-  const [browsers, gmail, modelRetries, params] = await Promise.all([
+  const [browsers, gmail, modelRetries, triage, params] = await Promise.all([
     listConnectedBrowsers(user.id),
     getGmailConnection(user.id),
     user.isDemo ? 0 : countLlmRetries(user.id),
+    user.isDemo ? demoTriage(user.id) : [],
     searchParams,
   ]);
   const gmailState: GmailCardState = !googleOAuthConfig()
@@ -77,6 +87,37 @@ export default async function IntegrationsPage({
               id,
               title,
               description,
+            }))}
+          />
+        </section>
+      )}
+
+      {user.isDemo && (
+        <section
+          aria-labelledby="triage-heading"
+          className="rounded-xl border border-primary/30 bg-card"
+        >
+          <div className="flex items-start gap-3 border-b p-4">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary-text">
+              <ListFilter className="size-4" aria-hidden="true" />
+            </span>
+            <div className="space-y-0.5">
+              <h2 id="triage-heading" className="font-semibold">
+                Try tab triage
+              </h2>
+              <p className="text-muted-foreground">
+                Too many job tabs open? The extension scores every posting in a
+                window against your resume, saves the best and closes the rest.
+                Here it runs on a pretend window; saving changes this
+                demo&apos;s data, and Reset data puts it back.
+              </p>
+            </div>
+          </div>
+          <SimulateTriage
+            tabs={DEMO_TABS.map(({ id, title, site }) => ({ id, title, site }))}
+            items={triage.map((item) => ({
+              ...item,
+              fit: { score: item.fit.score, summary: item.fit.summary },
             }))}
           />
         </section>

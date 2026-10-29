@@ -98,6 +98,8 @@ Automatic tracking respects the **Track applications automatically** setting (Se
 
 The extension isn't in the Chrome Web Store, so demo workspaces can simulate it instead. Integrations offers three sample submissions that go through the same ingestion pipeline: a new company (created), the demo's saved Snowflake internship (matched and marked Applied) and a Stripe role close to an existing one (flagged as a possible duplicate). The server action refuses to run outside a demo workspace.
 
+Demo workspaces can also try tab triage on a pretend window of seven tabs: five sample postings at fictional companies, the demo's saved Supabase job (marked "In Trackr") and an article (not a posting). Their scores come from ratings stored with the samples, worked out by the same `computeFit` as real scores, so the demo never calls the model. **Save** runs the same ingestion as the extension; **Close** only closes tabs in the pretend window. The rules for what to keep, save and close live in `packages/domain` and are shared by the extension and this demo.
+
 ## Popup
 
 ```
